@@ -1,14 +1,10 @@
+# Compilação
 gcc -O3 -o mnist_mlp mnist_mlp.c -lm
-gcc -fopenmp -O3 -o mnist_mlp_openmp_cpu mnist_mlp_openmp_cpu.c -lm
-gcc -fopenmp -foffload=nvptx-none -O3 -fno-lto -o mnist_mlp_openmp_gpu mnist_mlp_openmp_gpu.c -lm
-nvcc -O3 -o mnist_mlp_cuda mnist_mlp_cuda.cu
+gcc -O3 -o mlp_simple mlp_simple.c -lm
 
-./mnist_mlp              # Baseline
-./mnist_mlp_openmp_cpu   # OpenMP CPU
-./mnist_mlp_openmp_gpu   # OpenMP GPU
-./mnist_mlp_cuda         # CUDA
+# Execução
+./mnist_mlp      # MNIST classifier
+./mlp_simple     # XOR example
 
-python digit_recognizer.py gpu
-
+# Profiling
 valgrind --tool=callgrind ./mnist_mlp
-ncu ./mnist_mlp_cuda
