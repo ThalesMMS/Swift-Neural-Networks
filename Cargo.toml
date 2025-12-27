@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rayon = "1.8"
+blas-src = { version = "0.14", features = ["accelerate"] }
+cblas = "0.5"
 
 [[bin]]
 name = "mnist_mlp"
@@ -13,3 +14,7 @@ path = "mnist_mlp.rs"
 [[bin]]
 name = "mlp_simple"
 path = "mlp_simple.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
