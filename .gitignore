@@ -1,3 +1,7 @@
 /.vscode
 .DS_Store
 /target
+/logs
+*.bin
+mlp_simple_swift
+mnist_mlp_swift
