@@ -1,22 +1,27 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+// Pequena MLP para aprender XOR (exemplo didatico).
 const NUM_INPUTS: usize = 2;
 const NUM_HIDDEN: usize = 4;
 const NUM_OUTPUTS: usize = 1;
 const NUM_SAMPLES: usize = 4;
+// Hiperparametros de treino.
 const LEARNING_RATE: f64 = 0.01;
 const EPOCHS: usize = 1_000_000;
 
+// RNG simples para evitar dependencias externas (nao criptografico).
 struct SimpleRng {
     state: u64,
 }
 
 impl SimpleRng {
+    // Cria RNG com seed explicita.
     fn new(seed: u64) -> Self {
         let state = if seed == 0 { 0x9e3779b97f4a7c15 } else { seed };
         Self { state }
     }
 
+    // Recria a seed usando o tempo atual.
     fn reseed_from_time(&mut self) {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -25,6 +30,7 @@ impl SimpleRng {
         self.state = if nanos == 0 { 0x9e3779b97f4a7c15 } else { nanos };
     }
 
+    // Gera um u32 pseudo-aleatorio (xorshift).
     fn next_u32(&mut self) -> u32 {
         let mut x = self.state;
         x ^= x << 13;
@@ -34,23 +40,28 @@ impl SimpleRng {
         (x >> 32) as u32
     }
 
+    // Converte o u32 para [0, 1).
     fn next_f64(&mut self) -> f64 {
         self.next_u32() as f64 / u32::MAX as f64
     }
 
+    // Amostra uniforme em [low, high).
     fn gen_range_f64(&mut self, low: f64, high: f64) -> f64 {
         low + (high - low) * self.next_f64()
     }
 }
 
+// Funcao de ativacao sigmoid.
 fn sigmoid(x: f64) -> f64 {
     1.0 / (1.0 + (-x).exp())
 }
 
+// Derivada da sigmoid, assumindo x = sigmoid(z).
 fn sigmoid_derivative(x: f64) -> f64 {
     x * (1.0 - x)
 }
 
+// Camada densa: pesos (input x output) e vies (output).
 struct LinearLayer {
     input_size: usize,
     output_size: usize,
@@ -58,11 +69,13 @@ struct LinearLayer {
     biases: Vec<f64>,
 }
 
+// Rede com uma camada escondida e uma de saida.
 struct NeuralNetwork {
     hidden_layer: LinearLayer,
     output_layer: LinearLayer,
 }
 
+// Inicializa pesos e vies com valores pequenos aleatorios.
 fn initialize_layer(input_size: usize, output_size: usize, rng: &mut SimpleRng) -> LinearLayer {
     let mut weights = vec![vec![0.0; output_size]; input_size];
     for i in 0..input_size {
@@ -84,6 +97,7 @@ fn initialize_layer(input_size: usize, output_size: usize, rng: &mut SimpleRng) 
     }
 }
 
+// Cria a rede completa com tamanhos fixos do XOR.
 fn initialize_network(rng: &mut SimpleRng) -> NeuralNetwork {
     rng.reseed_from_time();
     let hidden_layer = initialize_layer(NUM_INPUTS, NUM_HIDDEN, rng);
@@ -95,6 +109,7 @@ fn initialize_network(rng: &mut SimpleRng) -> NeuralNetwork {
     }
 }
 
+// Forward de uma camada: z = W*x + b, seguido de sigmoid.
 fn forward_propagation(layer: &LinearLayer, inputs: &[f64], outputs: &mut [f64]) {
     for i in 0..layer.output_size {
         let mut activation = layer.biases[i];
@@ -105,6 +120,7 @@ fn forward_propagation(layer: &LinearLayer, inputs: &[f64], outputs: &mut [f64])
     }
 }
 
+// Backprop: calcula deltas da saida e da camada escondida.
 fn backward(
     nn: &NeuralNetwork,
     _inputs: &[f64],
@@ -115,10 +131,12 @@ fn backward(
     delta_output: &mut [f64],
 ) {
     for i in 0..nn.output_layer.output_size {
+        // delta_out = erro * derivada da ativacao.
         delta_output[i] = errors[i] * sigmoid_derivative(output_outputs[i]);
     }
 
     for i in 0..nn.hidden_layer.output_size {
+        // Erro propagado da saida para a camada escondida.
         let mut error = 0.0;
         for j in 0..nn.output_layer.output_size {
             error += delta_output[j] * nn.output_layer.weights[i][j];
@@ -127,6 +145,7 @@ fn backward(
     }
 }
 
+// Atualiza pesos e vies com gradiente descendente (SGD).
 fn update_weights_biases(layer: &mut LinearLayer, inputs: &[f64], deltas: &[f64]) {
     for i in 0..layer.input_size {
         for j in 0..layer.output_size {
@@ -139,11 +158,13 @@ fn update_weights_biases(layer: &mut LinearLayer, inputs: &[f64], deltas: &[f64]
     }
 }
 
+// Treino com erro quadratico medio por amostra.
 fn train(
     nn: &mut NeuralNetwork,
     inputs: &[[f64; NUM_INPUTS]],
     expected_outputs: &[[f64; NUM_OUTPUTS]],
 ) {
+    // Buffers reaproveitados para evitar alocacoes por amostra.
     let mut delta_hidden = vec![0.0; NUM_HIDDEN];
     let mut delta_output = vec![0.0; NUM_OUTPUTS];
     let mut errors = [0.0; NUM_OUTPUTS];
@@ -154,14 +175,17 @@ fn train(
             let mut hidden_outputs = [0.0; NUM_HIDDEN];
             let mut output_outputs = [0.0; NUM_OUTPUTS];
 
+            // Forward pass.
             forward_propagation(&nn.hidden_layer, &inputs[sample], &mut hidden_outputs);
             forward_propagation(&nn.output_layer, &hidden_outputs, &mut output_outputs);
 
+            // Erro por saida e acumulacao do MSE.
             for i in 0..NUM_OUTPUTS {
                 errors[i] = expected_outputs[sample][i] - output_outputs[i];
                 total_errors += errors[i] * errors[i];
             }
 
+            // Backprop e atualizacao dos parametros.
             backward(
                 nn,
                 &inputs[sample],
@@ -176,6 +200,7 @@ fn train(
             update_weights_biases(&mut nn.hidden_layer, &inputs[sample], &delta_hidden);
         }
 
+        // Loss media por epoca, exibida a cada 1000 epocas.
         let loss = total_errors / NUM_SAMPLES as f64;
         if (epoch + 1) % 1000 == 0 {
             println!("Epoch {}, Error: {:.6}", epoch + 1, loss);
@@ -183,6 +208,7 @@ fn train(
     }
 }
 
+// Avaliacao simples sobre as amostras do XOR.
 fn test(
     nn: &NeuralNetwork,
     inputs: &[[f64; NUM_INPUTS]],
@@ -193,6 +219,7 @@ fn test(
         let mut hidden_outputs = [0.0; NUM_HIDDEN];
         let mut output_outputs = [0.0; NUM_OUTPUTS];
 
+        // Forward pass para obter a predicao.
         forward_propagation(&nn.hidden_layer, &inputs[sample], &mut hidden_outputs);
         forward_propagation(&nn.output_layer, &hidden_outputs, &mut output_outputs);
 
@@ -207,11 +234,14 @@ fn test(
 }
 
 fn main() {
+    // Seed inicial fixa para reproducibilidade parcial.
     let mut rng = SimpleRng::new(42);
 
+    // Dataset XOR (entrada binaria e saida esperada).
     let inputs: [[f64; NUM_INPUTS]; NUM_SAMPLES] = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]];
     let expected_outputs: [[f64; NUM_OUTPUTS]; NUM_SAMPLES] = [[0.0], [1.0], [1.0], [0.0]];
 
+    // Treino e teste no mesmo processo.
     let mut nn = initialize_network(&mut rng);
     train(&mut nn, &inputs, &expected_outputs);
     test(&nn, &inputs, &expected_outputs);
