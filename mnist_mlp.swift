@@ -7,7 +7,7 @@ import Metal
 #endif
 
 #if canImport(MetalPerformanceShadersGraph)
-// Treino usando MPSGraph para manter todo o fluxo no GPU.
+// Training with MPSGraph to keep the whole flow on the GPU.
 func trainMpsGraph(
     nn: inout NeuralNetwork,
     images: [Float],
@@ -102,7 +102,7 @@ func trainMpsGraph(
         compilationDescriptor: nil
     )
 
-    // Buffers de entrada/labels para alimentar o grafo.
+    // Input/label buffers to feed the graph.
     let inputBytes = batchSize * numInputs * MemoryLayout<Float>.size
     let labelBytes = batchSize * numOutputs * MemoryLayout<Float>.size
     guard let inputBuffer = device.makeBuffer(length: inputBytes, options: .storageModeShared),
@@ -116,7 +116,7 @@ func trainMpsGraph(
     let inputData = MPSGraphTensorData(inputBuffer, shape: inputShape, dataType: .float32)
     let labelData = MPSGraphTensorData(labelBuffer, shape: labelShape, dataType: .float32)
 
-    // Mantem batch size fixo (descarta resto para simplificar o grafo).
+    // Keep a fixed batch size (drop the remainder to simplify the graph).
     let effectiveSamples = (numSamples / batchSize) * batchSize
     if effectiveSamples < numSamples {
         print("MPSGraph: descartando \(numSamples - effectiveSamples) amostras para manter batch fixo.")
@@ -137,7 +137,7 @@ func trainMpsGraph(
                 var totalLoss: Float = 0.0
                 let startTime = Date()
 
-                // Embaralhamento Fisher-Yates.
+                // Fisher-Yates shuffle.
                 if effectiveSamples > 1 {
                     for i in stride(from: effectiveSamples - 1, through: 1, by: -1) {
                         let j = rng.nextInt(upper: i + 1)
@@ -146,7 +146,7 @@ func trainMpsGraph(
                 }
 
                 for batchStart in stride(from: 0, to: effectiveSamples, by: batchSize) {
-                    // Copia inputs para o buffer do GPU.
+                    // Copy inputs into the GPU buffer.
                     for i in 0..<batchSize {
                         let srcIndex = indices[batchStart + i]
                         let srcOffset = srcIndex * numInputs
@@ -155,7 +155,7 @@ func trainMpsGraph(
                         inputPtr.advanced(by: dstOffset).update(from: srcPtr, count: numInputs)
                     }
 
-                    // Labels one-hot no buffer do GPU.
+                    // One-hot labels into the GPU buffer.
                     memset(labelPtr, 0, labelBytes)
                     for i in 0..<batchSize {
                         let label = Int(labelsBase[indices[batchStart + i]])
@@ -186,7 +186,7 @@ func trainMpsGraph(
         }
     }
 
-    // Le os pesos finais para salvar e testar no CPU.
+    // Read final weights to save and test on CPU.
     let feedDict: [MPSGraphTensor: MPSGraphTensorData] = [
         inputTensor: inputData,
         labelTensor: labelData
@@ -221,7 +221,7 @@ func trainMpsGraph(
     }
 }
 
-// Teste usando MPSGraph (inferencia em GPU).
+// Test using MPSGraph (GPU inference).
 func testMpsGraph(
     nn: NeuralNetwork,
     images: [Float],
@@ -355,7 +355,7 @@ import MetalPerformanceShaders
 import MetalPerformanceShadersGraph
 #endif
 
-// MLP sequencial para MNIST (port em Swift para estudo e otimizacao).
+// Sequential MLP for MNIST (Swift port for study and optimization).
 let numInputs = 784
 var numHidden = 512
 let numOutputs = 10
@@ -366,22 +366,22 @@ var epochs = 10
 var batchSize = 64
 var rngSeed: UInt64 = 1
 
-// RNG simples para reproducibilidade sem crates externas.
+// Simple RNG for reproducibility without external crates.
 struct SimpleRng {
     private var state: UInt64
 
-    // Seed explicita (se zero, usa um valor fixo).
+    // Explicit seed (if zero, use a fixed value).
     init(seed: UInt64) {
         self.state = seed == 0 ? 0x9e3779b97f4a7c15 : seed
     }
 
-    // Re-seed baseado no tempo atual.
+    // Reseed based on the current time.
     mutating func reseedFromTime() {
         let nanos = UInt64(Date().timeIntervalSince1970 * 1_000_000_000)
         state = nanos == 0 ? 0x9e3779b97f4a7c15 : nanos
     }
 
-    // Xorshift basico para gerar u32.
+    // Basic xorshift to generate u32.
     mutating func nextUInt32() -> UInt32 {
         var x = state
         x ^= x << 13
@@ -391,30 +391,30 @@ struct SimpleRng {
         return UInt32(truncatingIfNeeded: x >> 32)
     }
 
-    // Converte para [0, 1).
+    // Convert to [0, 1).
     mutating func nextFloat() -> Float {
         return Float(nextUInt32()) / Float(UInt32.max)
     }
 
-    // Amostra uniforme em [low, high).
+    // Uniform sample in [low, high).
     mutating func uniform(_ low: Float, _ high: Float) -> Float {
         return low + (high - low) * nextFloat()
     }
 
-    // Amostra inteiro em [0, upper).
+    // Integer sample in [0, upper).
     mutating func nextInt(upper: Int) -> Int {
         return upper == 0 ? 0 : Int(nextUInt32()) % upper
     }
 }
 
-// Tipos de ativacao usados na rede.
+// Activation types used in the network.
 enum ActivationType {
     case sigmoid
     case relu
     case softmax
 }
 
-// Camada densa: pesos (input x output), vies e ativacao.
+// Dense layer: weights (input x output), biases, and activation.
 struct DenseLayer {
     let inputSize: Int
     let outputSize: Int
@@ -423,13 +423,13 @@ struct DenseLayer {
     let activation: ActivationType
 }
 
-// Rede com uma camada escondida e uma camada de saida.
+// Network with one hidden layer and one output layer.
 struct NeuralNetwork {
     var hidden: DenseLayer
     var output: DenseLayer
 }
 
-// Interface de GEMM (multiplicacao de matrizes).
+// GEMM interface (matrix multiplication).
 protocol GemmEngine {
     func gemm(
         m: Int,
@@ -448,7 +448,7 @@ protocol GemmEngine {
     )
 }
 
-// Backend CPU usando vDSP (Accelerate).
+// CPU backend using vDSP (Accelerate).
 final class CpuGemmEngine: GemmEngine {
     func gemm(
         m: Int,
@@ -559,7 +559,7 @@ final class CpuGemmEngine: GemmEngine {
 }
 
 #if canImport(MetalPerformanceShaders)
-// Buffer compartilhado CPU/GPU usando storageModeShared.
+// CPU/GPU shared buffer using storageModeShared.
 final class MpsBuffer {
     let buffer: MTLBuffer
     let count: Int
@@ -599,7 +599,7 @@ final class MpsBuffer {
     }
 }
 
-// Buffer compartilhado para labels (UInt8).
+// Shared buffer for labels (UInt8).
 final class MpsBufferU8 {
     let buffer: MTLBuffer
     let count: Int
@@ -619,7 +619,7 @@ final class MpsBufferU8 {
     }
 }
 
-// Kernels Metal para operar em tensores no GPU (ReLU, softmax, reducoes, SGD).
+// Metal kernels to operate on GPU tensors (ReLU, softmax, reductions, SGD).
 final class MpsKernels {
     private let addBiasPSO: MTLComputePipelineState
     private let reluPSO: MTLComputePipelineState
@@ -879,7 +879,7 @@ final class MpsKernels {
     }
 }
 
-// Backend GPU usando MPSMatrixMultiplication, com buffers persistentes.
+// GPU backend using MPSMatrixMultiplication with persistent buffers.
 final class MpsGemmEngine {
     let device: MTLDevice
     let commandQueue: MTLCommandQueue
@@ -989,7 +989,7 @@ final class MpsGemmEngine {
 }
 #endif
 
-// Backend selecionado em runtime.
+// Backend selected at runtime.
 enum GemmBackend {
     case cpu(CpuGemmEngine)
     #if canImport(MetalPerformanceShaders)
@@ -997,7 +997,7 @@ enum GemmBackend {
     #endif
 }
 
-// Seleciona backend: --mps tenta GPU, caso contrario usa CPU.
+// Select backend: --mps tries GPU, otherwise use CPU.
 func selectGemmBackend(useMPS: Bool) -> GemmBackend {
     if useMPS {
         #if canImport(MetalPerformanceShaders)
@@ -1011,7 +1011,7 @@ func selectGemmBackend(useMPS: Bool) -> GemmBackend {
     return .cpu(CpuGemmEngine())
 }
 
-// Wrapper para GEMM com arrays Swift.
+// Wrapper for GEMM with Swift arrays.
 func gemm(
     engine: GemmEngine,
     m: Int,
@@ -1056,7 +1056,7 @@ func gemm(
     }
 }
 
-// Inicializa uma camada com Xavier e vies zeros.
+// Initialize a layer with Xavier and zero biases.
 func initializeLayer(
     inputSize: Int,
     outputSize: Int,
@@ -1078,7 +1078,7 @@ func initializeLayer(
     )
 }
 
-// Construcao da rede 784 -> 512 -> 10.
+// Network construction 784 -> 512 -> 10.
 func initializeNetwork(rng: inout SimpleRng) -> NeuralNetwork {
     rng.reseedFromTime()
     let hidden = initializeLayer(
@@ -1096,7 +1096,7 @@ func initializeNetwork(rng: inout SimpleRng) -> NeuralNetwork {
     return NeuralNetwork(hidden: hidden, output: output)
 }
 
-// Soma o vies em cada linha da matriz.
+// Add the bias to each matrix row.
 func addBias(_ data: inout [Float], rows: Int, cols: Int, bias: [Float]) {
     for r in 0..<rows {
         let base = r * cols
@@ -1115,7 +1115,7 @@ func reluInPlace(_ data: inout [Float], count: Int) {
     }
 }
 
-// Softmax por linha (in-place).
+// Row-wise softmax (in-place).
 func softmaxRows(_ data: inout [Float], rows: Int, cols: Int) {
     for r in 0..<rows {
         let base = r * cols
@@ -1141,7 +1141,7 @@ func softmaxRows(_ data: inout [Float], rows: Int, cols: Int) {
     }
 }
 
-// Cria delta da saida (softmax + cross entropy) e acumula loss.
+// Create output delta (softmax + cross-entropy) and accumulate loss.
 func computeDeltaAndLoss(
     outputs: [Float],
     labels: [UInt8],
@@ -1162,7 +1162,7 @@ func computeDeltaAndLoss(
     }
 }
 
-// Soma colunas (gradiente dos vies).
+// Sum columns (bias gradients).
 func sumRows(_ data: [Float], rows: Int, cols: Int, result: inout [Float]) {
     for c in 0..<cols {
         result[c] = 0
@@ -1175,7 +1175,7 @@ func sumRows(_ data: [Float], rows: Int, cols: Int, result: inout [Float]) {
     }
 }
 
-// Copia batch por indices para manter memoria contigua no GEMM.
+// Copy batch by indices to keep contiguous memory for GEMM.
 func gatherBatch(
     images: [Float],
     labels: [UInt8],
@@ -1202,7 +1202,7 @@ func gatherBatch(
     }
 }
 
-// Versoes com ponteiros para usar buffers compartilhados com MPS.
+// Pointer-based versions for MPS shared buffers.
 func addBiasPointer(_ data: UnsafeMutablePointer<Float>, rows: Int, cols: Int, bias: [Float]) {
     for r in 0..<rows {
         let base = r * cols
@@ -1299,7 +1299,7 @@ func gatherBatchToPointer(
     }
 }
 
-// Copia um bloco contiguo (sem embaralhamento) para o buffer de entrada.
+// Copy a contiguous block (no shuffle) into the input buffer.
 func copyContiguousBatchToPointer(
     images: [Float],
     start: Int,
@@ -1315,7 +1315,7 @@ func copyContiguousBatchToPointer(
     }
 }
 
-// Atualizacao SGD vetorizada: weights = weights - lr * grads.
+// Vectorized SGD update: weights = weights - lr * grads.
 func applySgdUpdate(
     weights: UnsafeMutablePointer<Float>,
     grads: UnsafePointer<Float>,
@@ -1326,7 +1326,7 @@ func applySgdUpdate(
     vDSP_vsma(grads, 1, &negLr, weights, 1, weights, 1, vDSP_Length(count))
 }
 
-// Treino com embaralhamento e minibatches.
+// Training with shuffling and minibatches.
 func train(
     nn: inout NeuralNetwork,
     images: [Float],
@@ -1342,7 +1342,7 @@ func train(
     let logHandle = try? FileHandle(forWritingTo: URL(fileURLWithPath: logFile))
     defer { try? logHandle?.close() }
 
-    // Buffers reutilizados para evitar alocacoes por batch.
+    // Buffers reused to avoid per-batch allocations.
     var batchInputs = [Float](repeating: 0.0, count: batchSize * numInputs)
     var batchLabels = [UInt8](repeating: 0, count: batchSize)
     var a1 = [Float](repeating: 0.0, count: batchSize * numHidden)
@@ -1360,7 +1360,7 @@ func train(
         var totalLoss: Float = 0.0
         let startTime = Date()
 
-        // Embaralhamento Fisher-Yates.
+        // Fisher-Yates shuffle.
         if numSamples > 1 {
             for i in stride(from: numSamples - 1, through: 1, by: -1) {
                 let j = rng.nextInt(upper: i + 1)
@@ -1372,7 +1372,7 @@ func train(
             let batchCount = min(batchSize, numSamples - batchStart)
             let scale = 1.0 / Float(batchCount)
 
-            // Copia batch para buffer contiguo.
+            // Copy batch into a contiguous buffer.
             gatherBatch(
                 images: images,
                 labels: labels,
@@ -1384,7 +1384,7 @@ func train(
                 outLabels: &batchLabels
             )
 
-            // Forward: camada escondida.
+            // Forward: hidden layer.
             gemm(
                 engine: engine,
                 m: batchCount,
@@ -1400,7 +1400,7 @@ func train(
             addBias(&a1, rows: batchCount, cols: numHidden, bias: nn.hidden.biases)
             reluInPlace(&a1, count: batchCount * numHidden)
 
-            // Forward: camada de saida.
+            // Forward: output layer.
             gemm(
                 engine: engine,
                 m: batchCount,
@@ -1416,7 +1416,7 @@ func train(
             addBias(&a2, rows: batchCount, cols: numOutputs, bias: nn.output.biases)
             softmaxRows(&a2, rows: batchCount, cols: numOutputs)
 
-            // Delta da saida e loss.
+            // Output delta and loss.
             computeDeltaAndLoss(
                 outputs: a2,
                 labels: batchLabels,
@@ -1426,7 +1426,7 @@ func train(
                 totalLoss: &totalLoss
             )
 
-            // Gradientes da camada de saida: dW2 = A1^T * dZ2.
+            // Output-layer gradients: dW2 = A1^T * dZ2.
             gemm(
                 engine: engine,
                 m: numHidden,
@@ -1447,7 +1447,7 @@ func train(
                 gradB2[i] *= scale
             }
 
-            // Gradiente da camada escondida: dZ1 = dZ2 * W2^T.
+            // Hidden-layer gradient: dZ1 = dZ2 * W2^T.
             gemm(
                 engine: engine,
                 m: batchCount,
@@ -1468,7 +1468,7 @@ func train(
                 }
             }
 
-            // Gradientes da camada escondida: dW1 = X^T * dZ1.
+            // Hidden-layer gradients: dW1 = X^T * dZ1.
             gemm(
                 engine: engine,
                 m: numInputs,
@@ -1489,7 +1489,7 @@ func train(
                 gradB1[i] *= scale
             }
 
-            // Atualiza pesos e vies (SGD).
+            // Update weights and biases (SGD).
             for i in 0..<nn.output.weights.count {
                 nn.output.weights[i] -= learningRate * gradW2[i]
             }
@@ -1515,7 +1515,7 @@ func train(
 }
 
 #if canImport(MetalPerformanceShaders)
-// Treino otimizado usando MPS com buffers compartilhados CPU/GPU.
+// Optimized training using MPS with shared CPU/GPU buffers.
 func trainMps(
     nn: inout NeuralNetwork,
     images: [Float],
@@ -1538,7 +1538,7 @@ func trainMps(
         return
     }
 
-    // Buffers persistentes para evitar alocacao a cada batch.
+    // Persistent buffers to avoid per-batch allocation.
     let batchInputs = engine.makeBuffer(count: batchSize * numInputs, label: "batchInputs")
     let batchLabels = MpsBufferU8(device: engine.device, count: batchSize, label: "batchLabels")
     let loss = engine.makeBuffer(count: batchSize, label: "loss")
@@ -1563,7 +1563,7 @@ func trainMps(
         var totalLoss: Float = 0.0
         let startTime = Date()
 
-        // Embaralhamento Fisher-Yates.
+        // Fisher-Yates shuffle.
         if numSamples > 1 {
             for i in stride(from: numSamples - 1, through: 1, by: -1) {
                 let j = rng.nextInt(upper: i + 1)
@@ -1575,7 +1575,7 @@ func trainMps(
             let batchCount = min(batchSize, numSamples - batchStart)
             let scale = 1.0 / Float(batchCount)
 
-            // Copia batch para buffer contiguo.
+            // Copy batch into a contiguous buffer.
             gatherBatchToPointer(
                 images: images,
                 labels: labels,
@@ -1591,7 +1591,7 @@ func trainMps(
                 continue
             }
 
-            // Forward: camada escondida.
+            // Forward: hidden layer.
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
                 m: batchCount,
@@ -1608,7 +1608,7 @@ func trainMps(
             kernels.encodeAddBias(commandBuffer: commandBuffer, data: a1, bias: b1, rows: batchCount, cols: numHidden)
             kernels.encodeRelu(commandBuffer: commandBuffer, data: a1, count: batchCount * numHidden)
 
-            // Forward: camada de saida.
+            // Forward: output layer.
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
                 m: batchCount,
@@ -1625,7 +1625,7 @@ func trainMps(
             kernels.encodeAddBias(commandBuffer: commandBuffer, data: a2, bias: b2, rows: batchCount, cols: numOutputs)
             kernels.encodeSoftmax(commandBuffer: commandBuffer, data: a2, rows: batchCount, cols: numOutputs)
 
-            // Delta da saida e loss.
+            // Output delta and loss.
             kernels.encodeDeltaAndLoss(
                 commandBuffer: commandBuffer,
                 outputs: a2,
@@ -1636,7 +1636,7 @@ func trainMps(
                 cols: numOutputs
             )
 
-            // Gradientes da camada de saida: dW2 = A1^T * dZ2.
+            // Output-layer gradients: dW2 = A1^T * dZ2.
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
                 m: numHidden,
@@ -1659,7 +1659,7 @@ func trainMps(
                 scale: scale
             )
 
-            // Gradiente da camada escondida: dZ1 = dZ2 * W2^T.
+            // Hidden-layer gradient: dZ1 = dZ2 * W2^T.
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
                 m: batchCount,
@@ -1675,7 +1675,7 @@ func trainMps(
             )
             kernels.encodeReluGrad(commandBuffer: commandBuffer, activations: a1, grads: dZ1, count: batchCount * numHidden)
 
-            // Gradientes da camada escondida: dW1 = X^T * dZ1.
+            // Hidden-layer gradients: dW1 = X^T * dZ1.
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
                 m: numInputs,
@@ -1698,7 +1698,7 @@ func trainMps(
                 scale: scale
             )
 
-            // Atualiza pesos e vies (SGD).
+            // Update weights and biases (SGD).
             kernels.encodeSgdUpdate(
                 commandBuffer: commandBuffer,
                 weights: w2,
@@ -1731,7 +1731,7 @@ func trainMps(
             commandBuffer.commit()
             commandBuffer.waitUntilCompleted()
 
-            // Soma a loss do batch (buffer compartilhado).
+            // Sum batch loss (shared buffer).
             var batchLoss: Float = 0.0
             let lossPtr = loss.pointer
             for i in 0..<batchCount {
@@ -1749,7 +1749,7 @@ func trainMps(
         }
     }
 
-    // Copia pesos atualizados de volta para a estrutura da rede.
+    // Copy updated weights back into the network struct.
     var hiddenWeights = nn.hidden.weights
     var hiddenBiases = nn.hidden.biases
     var outputWeights = nn.output.weights
@@ -1766,7 +1766,7 @@ func trainMps(
     nn.output.biases = outputBiases
 }
 
-// Teste otimizado usando MPS (inferencia em GPU).
+// Optimized test using MPS (GPU inference).
 func testMps(
     nn: NeuralNetwork,
     images: [Float],
@@ -1860,7 +1860,7 @@ func testMps(
 #endif
 
 
-// Avalia acuracia no conjunto de teste (CPU) e retorna acertos.
+// Evaluate accuracy on the test set (CPU) and return correct count.
 func testCpuRange(
     nn: NeuralNetwork,
     images: [Float],
@@ -1876,7 +1876,7 @@ func testCpuRange(
         let index = start + i
         let base = index * numInputs
 
-        // Forward escondida.
+        // Forward hidden layer.
         for h in 0..<numHidden {
             var sum = nn.hidden.biases[h]
             let wBase = h
@@ -1886,7 +1886,7 @@ func testCpuRange(
             hidden[h] = max(0.0, sum)
         }
 
-        // Forward saida.
+        // Forward output layer.
         for o in 0..<numOutputs {
             var sum = nn.output.biases[o]
             let wBase = o
@@ -1896,7 +1896,7 @@ func testCpuRange(
             output[o] = sum
         }
 
-        // Argmax nos logits (equivalente a softmax).
+        // Argmax over logits (equivalent to softmax).
         var maxVal = output[0]
         var maxIdx = 0
         for o in 1..<numOutputs {
@@ -1914,14 +1914,14 @@ func testCpuRange(
     return correct
 }
 
-// Avalia acuracia no conjunto de teste (CPU).
+// Evaluate accuracy on the test set (CPU).
 func test(nn: NeuralNetwork, images: [Float], labels: [UInt8], numSamples: Int) {
     let correct = testCpuRange(nn: nn, images: images, labels: labels, start: 0, count: numSamples)
     let accuracy = Float(correct) / Float(numSamples) * 100.0
     print(String(format: "Test Accuracy: %.2f%%", accuracy))
 }
 
-// Salva o modelo em binario (int + double, endianness nativa).
+// Save the model in binary (int + double, native endianness).
 func saveModel(nn: NeuralNetwork, filename: String) {
     FileManager.default.createFile(atPath: filename, contents: nil)
     guard let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: filename)) else {
@@ -1960,7 +1960,7 @@ func saveModel(nn: NeuralNetwork, filename: String) {
     print("Model saved to \(filename)")
 }
 
-// MNIST IDX usa big-endian nos inteiros.
+// MNIST IDX uses big-endian integers.
 func readMnistImages(path: String, count: Int) -> [Float] {
     let url = URL(fileURLWithPath: path)
     guard let data = try? Data(contentsOf: url) else {
@@ -2002,7 +2002,7 @@ func readMnistImages(path: String, count: Int) -> [Float] {
     }
 }
 
-// Le rotulos IDX (0-9).
+// Read IDX labels (0-9).
 func readMnistLabels(path: String, count: Int) -> [UInt8] {
     let url = URL(fileURLWithPath: path)
     guard let data = try? Data(contentsOf: url) else {

@@ -6,30 +6,30 @@ use std::io::{BufWriter, Write};
 use std::process;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-// MLP com minibatches e GEMM (CPU) para MNIST (port em Rust para estudo).
+// MLP with minibatches and GEMM (CPU) for MNIST (Rust port for study).
 const NUM_INPUTS: usize = 784;
 const NUM_HIDDEN: usize = 512;
 const NUM_OUTPUTS: usize = 10;
 const TRAIN_SAMPLES: usize = 60000;
 const TEST_SAMPLES: usize = 10000;
-// Hiperparametros do treino.
+// Training hyperparameters.
 const LEARNING_RATE: f32 = 0.01;
 const EPOCHS: usize = 10;
 const BATCH_SIZE: usize = 64;
 
-// RNG simples para reproducibilidade sem crates externas.
+// Simple RNG for reproducibility without external crates.
 struct SimpleRng {
     state: u64,
 }
 
 impl SimpleRng {
-    // Seed explicita (se zero, usa um valor fixo).
+    // Explicit seed (if zero, use a fixed value).
     fn new(seed: u64) -> Self {
         let state = if seed == 0 { 0x9e3779b97f4a7c15 } else { seed };
         Self { state }
     }
 
-    // Re-seed baseado no tempo atual.
+    // Reseed based on the current time.
     fn reseed_from_time(&mut self) {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -38,7 +38,7 @@ impl SimpleRng {
         self.state = if nanos == 0 { 0x9e3779b97f4a7c15 } else { nanos };
     }
 
-    // Xorshift basico para gerar u32.
+    // Basic xorshift to generate u32.
     fn next_u32(&mut self) -> u32 {
         let mut x = self.state;
         x ^= x << 13;
@@ -48,17 +48,17 @@ impl SimpleRng {
         (x >> 32) as u32
     }
 
-    // Converte para [0, 1).
+    // Convert to [0, 1).
     fn next_f32(&mut self) -> f32 {
         self.next_u32() as f32 / u32::MAX as f32
     }
 
-    // Amostra uniforme em [low, high).
+    // Uniform sample in [low, high).
     fn gen_range_f32(&mut self, low: f32, high: f32) -> f32 {
         low + (high - low) * self.next_f32()
     }
 
-    // Amostra inteira em [0, upper).
+    // Integer sample in [0, upper).
     fn gen_usize(&mut self, upper: usize) -> usize {
         if upper == 0 {
             0
@@ -68,7 +68,7 @@ impl SimpleRng {
     }
 }
 
-// Camada densa: pesos (input x output) e vies (row-major).
+// Dense layer: weights (input x output) and biases (row-major).
 struct LinearLayer {
     input_size: usize,
     output_size: usize,
@@ -76,13 +76,13 @@ struct LinearLayer {
     biases: Vec<f32>,
 }
 
-// Rede com uma camada escondida e uma camada de saida.
+// Network with one hidden layer and one output layer.
 struct NeuralNetwork {
     hidden_layer: LinearLayer,
     output_layer: LinearLayer,
 }
 
-// Inicializa uma camada com Xavier e vies zeros.
+// Initialize a layer with Xavier and zero biases.
 fn initialize_layer(input_size: usize, output_size: usize, rng: &mut SimpleRng) -> LinearLayer {
     let mut weights = vec![0.0f32; input_size * output_size];
     let limit = (6.0f32 / (input_size + output_size) as f32).sqrt();
@@ -98,7 +98,7 @@ fn initialize_layer(input_size: usize, output_size: usize, rng: &mut SimpleRng) 
     }
 }
 
-// Construcao da rede 784 -> 512 -> 10.
+// Network construction 784 -> 512 -> 10.
 fn initialize_network(rng: &mut SimpleRng) -> NeuralNetwork {
     rng.reseed_from_time();
     let hidden_layer = initialize_layer(NUM_INPUTS, NUM_HIDDEN, rng);
@@ -263,7 +263,7 @@ fn apply_sgd_update(weights: &mut [f32], grads: &[f32]) {
     }
 }
 
-// Treino com embaralhamento e minibatches.
+// Training with shuffling and minibatches.
 fn train(nn: &mut NeuralNetwork, images: &[f32], labels: &[u8], num_samples: usize, rng: &mut SimpleRng) {
     let file = File::create("./logs/training_loss_c.txt").unwrap_or_else(|_| {
         eprintln!("Could not open file for writing training loss.");
@@ -288,7 +288,7 @@ fn train(nn: &mut NeuralNetwork, images: &[f32], labels: &[u8], num_samples: usi
         let mut total_loss = 0.0f32;
         let start_time = Instant::now();
 
-        // Embaralhamento Fisher-Yates.
+        // Fisher-Yates shuffle.
         if num_samples > 1 {
             for i in (1..num_samples).rev() {
                 let j = rng.gen_usize(i + 1);
@@ -310,7 +310,7 @@ fn train(nn: &mut NeuralNetwork, images: &[f32], labels: &[u8], num_samples: usi
                 &mut batch_labels,
             );
 
-            // Forward: camada escondida.
+            // Forward: hidden layer.
             sgemm_wrapper(
                 batch_count,
                 NUM_HIDDEN,
@@ -330,7 +330,7 @@ fn train(nn: &mut NeuralNetwork, images: &[f32], labels: &[u8], num_samples: usi
             add_bias(&mut a1[..a1_len], batch_count, NUM_HIDDEN, &nn.hidden_layer.biases);
             relu_inplace(&mut a1[..a1_len]);
 
-            // Forward: camada de saida.
+            // Forward: output layer.
             sgemm_wrapper(
                 batch_count,
                 NUM_OUTPUTS,
@@ -350,7 +350,7 @@ fn train(nn: &mut NeuralNetwork, images: &[f32], labels: &[u8], num_samples: usi
             add_bias(&mut a2[..a2_len], batch_count, NUM_OUTPUTS, &nn.output_layer.biases);
             softmax_rows(&mut a2[..a2_len], batch_count, NUM_OUTPUTS);
 
-            // Delta da saida e loss.
+            // Output delta and loss.
             let batch_loss = compute_delta_and_loss(
                 &a2[..a2_len],
                 &batch_labels[..batch_count],
@@ -360,7 +360,7 @@ fn train(nn: &mut NeuralNetwork, images: &[f32], labels: &[u8], num_samples: usi
             );
             total_loss += batch_loss;
 
-            // Gradientes da camada de saida: dW2 = A1^T * dZ2.
+            // Output-layer gradients: dW2 = A1^T * dZ2.
             sgemm_wrapper(
                 NUM_HIDDEN,
                 NUM_OUTPUTS,
@@ -381,7 +381,7 @@ fn train(nn: &mut NeuralNetwork, images: &[f32], labels: &[u8], num_samples: usi
                 *value *= scale;
             }
 
-            // Gradiente da camada escondida: dZ1 = dZ2 * W2^T.
+            // Hidden-layer gradient: dZ1 = dZ2 * W2^T.
             sgemm_wrapper(
                 batch_count,
                 NUM_HIDDEN,
@@ -404,7 +404,7 @@ fn train(nn: &mut NeuralNetwork, images: &[f32], labels: &[u8], num_samples: usi
                 }
             }
 
-            // Gradientes da camada escondida: dW1 = X^T * dZ1.
+            // Hidden-layer gradients: dW1 = X^T * dZ1.
             sgemm_wrapper(
                 NUM_INPUTS,
                 NUM_HIDDEN,
@@ -446,7 +446,7 @@ fn train(nn: &mut NeuralNetwork, images: &[f32], labels: &[u8], num_samples: usi
     }
 }
 
-// Avalia acuracia no conjunto de teste usando batches.
+// Evaluate accuracy on the test set using batches.
 fn test(nn: &NeuralNetwork, images: &[f32], labels: &[u8], num_samples: usize) {
     let mut correct_predictions = 0usize;
     let mut batch_inputs = vec![0.0f32; BATCH_SIZE * NUM_INPUTS];
@@ -519,7 +519,7 @@ fn test(nn: &NeuralNetwork, images: &[f32], labels: &[u8], num_samples: usize) {
     println!("Test Accuracy: {:.2}%", accuracy);
 }
 
-// Salva o modelo em binario (int + doubles, endianness nativa).
+// Save the model in binary (int + doubles, native endianness).
 fn save_model(nn: &NeuralNetwork, filename: &str) {
     let file = File::create(filename).unwrap_or_else(|_| {
         eprintln!("Could not open file {} for writing model", filename);
@@ -569,7 +569,7 @@ fn read_be_u32(data: &[u8], offset: &mut usize) -> u32 {
     b0 | b1 | b2 | b3
 }
 
-// Le imagens IDX e normaliza para [0, 1].
+// Read IDX images and normalize to [0, 1].
 fn read_mnist_images(filename: &str, num_images: usize) -> Vec<f32> {
     let data = std::fs::read(filename).unwrap_or_else(|_| {
         eprintln!("Could not open file {}", filename);
@@ -599,7 +599,7 @@ fn read_mnist_images(filename: &str, num_images: usize) -> Vec<f32> {
     images
 }
 
-// Le rotulos IDX (0-9).
+// Read IDX labels (0-9).
 fn read_mnist_labels(filename: &str, num_labels: usize) -> Vec<u8> {
     let data = std::fs::read(filename).unwrap_or_else(|_| {
         eprintln!("Could not open file {}", filename);

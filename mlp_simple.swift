@@ -1,6 +1,6 @@
 import Foundation
 
-// Pequena MLP para aprender XOR (exemplo didatico).
+// Small MLP to learn XOR (educational example).
 let numInputs = 2
 let numHidden = 4
 let numOutputs = 1
@@ -8,22 +8,22 @@ let numSamples = 4
 let learningRate = 0.01
 let epochs = 1_000_000
 
-// RNG simples para evitar dependencias externas (nao criptografico).
+// Simple RNG to avoid external dependencies (not cryptographic).
 struct SimpleRng {
     private var state: UInt64
 
-    // Seed explicita (se zero, usa um valor fixo).
+    // Explicit seed (if zero, use a fixed value).
     init(seed: UInt64) {
         self.state = seed == 0 ? 0x9e3779b97f4a7c15 : seed
     }
 
-    // Re-seed baseado no tempo atual.
+    // Reseed based on the current time.
     mutating func reseedFromTime() {
         let nanos = UInt64(Date().timeIntervalSince1970 * 1_000_000_000)
         state = nanos == 0 ? 0x9e3779b97f4a7c15 : nanos
     }
 
-    // Xorshift basico para gerar u32.
+    // Basic xorshift to generate u32.
     mutating func nextUInt32() -> UInt32 {
         var x = state
         x ^= x << 13
@@ -33,28 +33,28 @@ struct SimpleRng {
         return UInt32(truncatingIfNeeded: x >> 32)
     }
 
-    // Converte para [0, 1).
+    // Convert to [0, 1).
     mutating func nextDouble() -> Double {
         return Double(nextUInt32()) / Double(UInt32.max)
     }
 
-    // Amostra uniforme em [low, high).
+    // Uniform sample in [low, high).
     mutating func uniform(_ low: Double, _ high: Double) -> Double {
         return low + (high - low) * nextDouble()
     }
 }
 
-// Funcao de ativacao sigmoid.
+// Sigmoid activation function.
 func sigmoid(_ x: Double) -> Double {
     return 1.0 / (1.0 + exp(-x))
 }
 
-// Derivada da sigmoid, assumindo x = sigmoid(z).
+// Sigmoid derivative assuming x = sigmoid(z).
 func sigmoidDerivative(_ x: Double) -> Double {
     return x * (1.0 - x)
 }
 
-// Camada densa: pesos (input x output) e vies (output).
+// Dense layer: weights (input x output) and biases (output).
 struct LinearLayer {
     let inputSize: Int
     let outputSize: Int
@@ -62,13 +62,13 @@ struct LinearLayer {
     var biases: [Double]
 }
 
-// Rede com uma camada escondida e uma de saida.
+// Network with one hidden layer and one output layer.
 struct NeuralNetwork {
     var hidden: LinearLayer
     var output: LinearLayer
 }
 
-// Inicializa pesos e vies com valores pequenos aleatorios.
+// Initialize weights and biases with small random values.
 func initializeLayer(inputSize: Int, outputSize: Int, rng: inout SimpleRng) -> LinearLayer {
     var weights = Array(repeating: Array(repeating: 0.0, count: outputSize), count: inputSize)
     for i in 0..<inputSize {
@@ -85,7 +85,7 @@ func initializeLayer(inputSize: Int, outputSize: Int, rng: inout SimpleRng) -> L
     return LinearLayer(inputSize: inputSize, outputSize: outputSize, weights: weights, biases: biases)
 }
 
-// Cria a rede completa com tamanhos fixos do XOR.
+// Create the full network with fixed XOR sizes.
 func initializeNetwork(rng: inout SimpleRng) -> NeuralNetwork {
     rng.reseedFromTime()
     let hidden = initializeLayer(inputSize: numInputs, outputSize: numHidden, rng: &rng)
@@ -93,7 +93,7 @@ func initializeNetwork(rng: inout SimpleRng) -> NeuralNetwork {
     return NeuralNetwork(hidden: hidden, output: output)
 }
 
-// Forward de uma camada: z = W*x + b, seguido de sigmoid.
+// Layer forward: z = W*x + b, followed by sigmoid.
 func forward(layer: LinearLayer, inputs: [Double], outputs: inout [Double]) {
     for i in 0..<layer.outputSize {
         var activation = layer.biases[i]
@@ -104,7 +104,7 @@ func forward(layer: LinearLayer, inputs: [Double], outputs: inout [Double]) {
     }
 }
 
-// Backprop: calcula deltas da saida e da camada escondida.
+// Backprop: compute deltas for output and hidden layers.
 func backward(
     nn: NeuralNetwork,
     hiddenOutputs: [Double],
@@ -114,12 +114,12 @@ func backward(
     deltaOutput: inout [Double]
 ) {
     for i in 0..<nn.output.outputSize {
-        // delta_out = erro * derivada da ativacao.
+        // delta_out = error * activation derivative.
         deltaOutput[i] = errors[i] * sigmoidDerivative(outputOutputs[i])
     }
 
     for i in 0..<nn.hidden.outputSize {
-        // Erro propagado da saida para a camada escondida.
+        // Error backpropagated from output to hidden layer.
         var error = 0.0
         for j in 0..<nn.output.outputSize {
             error += deltaOutput[j] * nn.output.weights[i][j]
@@ -128,7 +128,7 @@ func backward(
     }
 }
 
-// Atualiza pesos e vies com gradiente descendente (SGD).
+// Update weights and biases with gradient descent (SGD).
 func updateWeights(layer: inout LinearLayer, inputs: [Double], deltas: [Double]) {
     for i in 0..<layer.inputSize {
         for j in 0..<layer.outputSize {
@@ -140,7 +140,7 @@ func updateWeights(layer: inout LinearLayer, inputs: [Double], deltas: [Double])
     }
 }
 
-// Treino com erro quadratico medio por amostra.
+// Training with mean squared error per sample.
 func train(nn: inout NeuralNetwork, inputs: [[Double]], expected: [[Double]]) {
     var deltaHidden = Array(repeating: 0.0, count: numHidden)
     var deltaOutput = Array(repeating: 0.0, count: numOutputs)
@@ -156,13 +156,13 @@ func train(nn: inout NeuralNetwork, inputs: [[Double]], expected: [[Double]]) {
             forward(layer: nn.hidden, inputs: inputs[sample], outputs: &hiddenOutputs)
             forward(layer: nn.output, inputs: hiddenOutputs, outputs: &outputOutputs)
 
-            // Erro por saida e acumulacao do MSE.
+            // Per-output error and MSE accumulation.
             for i in 0..<numOutputs {
                 errors[i] = expected[sample][i] - outputOutputs[i]
                 totalErrors += errors[i] * errors[i]
             }
 
-            // Backprop e atualizacao dos parametros.
+            // Backprop and parameter updates.
             backward(
                 nn: nn,
                 hiddenOutputs: hiddenOutputs,
@@ -176,7 +176,7 @@ func train(nn: inout NeuralNetwork, inputs: [[Double]], expected: [[Double]]) {
             updateWeights(layer: &nn.hidden, inputs: inputs[sample], deltas: deltaHidden)
         }
 
-        // Loss media por epoca, exibida a cada 1000 epocas.
+        // Average loss per epoch, printed every 1000 epochs.
         let loss = totalErrors / Double(numSamples)
         if (epoch + 1) % 1000 == 0 {
             print("Epoch \(epoch + 1), Error: \(String(format: "%.6f", loss))")
@@ -184,14 +184,14 @@ func train(nn: inout NeuralNetwork, inputs: [[Double]], expected: [[Double]]) {
     }
 }
 
-// Avaliacao simples sobre as amostras do XOR.
+// Simple evaluation on XOR samples.
 func test(nn: NeuralNetwork, inputs: [[Double]], expected: [[Double]]) {
     print("\nTesting the trained network:")
     for sample in 0..<numSamples {
         var hiddenOutputs = Array(repeating: 0.0, count: numHidden)
         var outputOutputs = Array(repeating: 0.0, count: numOutputs)
 
-        // Forward pass para obter a predicao.
+        // Forward pass to get the prediction.
         forward(layer: nn.hidden, inputs: inputs[sample], outputs: &hiddenOutputs)
         forward(layer: nn.output, inputs: hiddenOutputs, outputs: &outputOutputs)
 
@@ -208,10 +208,10 @@ func test(nn: NeuralNetwork, inputs: [[Double]], expected: [[Double]]) {
 }
 
 func main() {
-    // Seed inicial fixa para reproducibilidade parcial.
+    // Fixed initial seed for partial reproducibility.
     var rng = SimpleRng(seed: 42)
 
-    // Dataset XOR (entrada binaria e saida esperada).
+    // XOR dataset (binary inputs and expected outputs).
     let inputs: [[Double]] = [
         [0.0, 0.0],
         [0.0, 1.0],
@@ -225,7 +225,7 @@ func main() {
         [0.0]
     ]
 
-    // Treino e teste no mesmo processo.
+    // Training and testing in the same process.
     var nn = initializeNetwork(rng: &rng)
     train(nn: &nn, inputs: inputs, expected: expected)
     test(nn: nn, inputs: inputs, expected: expected)
