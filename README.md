@@ -190,18 +190,16 @@ Run XOR:
 cargo run --release --bin mlp_simple
 ```
 
-Run MNIST CNN (standalone, no external crates):
+Run MNIST CNN:
 
 ```
-rustc -O mnist_cnn.rs -o mnist_cnn
-./mnist_cnn
+cargo run --release --bin mnist_cnn
 ```
 
-Run MNIST attention (standalone, no external crates):
+Run MNIST attention:
 
 ```
-rustc -O mnist_attention_pool.rs -o mnist_attention_pool
-./mnist_attention_pool
+cargo run --release --bin mnist_attention_pool
 ```
 
 Performance tips:
@@ -211,6 +209,23 @@ RUSTFLAGS="-C target-cpu=native" VECLIB_MAXIMUM_THREADS=8 cargo run --release --
 ```
 
 Linux/Windows note: the Rust MNIST build is configured for Accelerate on macOS. For other platforms, swap the BLAS backend in `Cargo.toml` (e.g., OpenBLAS) and ensure the library is installed.
+
+## Benchmarks (local runs)
+
+All runs used the default settings unless noted. Training time is reported as total training time; for CNN/attention it is the sum of per-epoch times. XOR accuracy is computed with a 0.5 threshold on the final outputs.
+
+| Model | Language | Command | Epochs | Batch | Train time (s) | Test accuracy (%) | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| MNIST MLP | Rust | `cargo run --release --bin mnist_mlp` | 10 | 64 | 3.33 | 94.17 | BLAS (Accelerate) |
+| MNIST CNN | Rust | `cargo run --release --bin mnist_cnn` | 3 | 32 | 11.24 | 91.93 | Conv8/3x3 + MaxPool |
+| MNIST Attention | Rust | `cargo run --release --bin mnist_attention_pool` | 5 | 32 | 33.88 | 38.55 | D=16, FF=32 |
+| XOR MLP | Rust | `cargo run --release --bin mlp_simple` | 1,000,000 | - | 0.74 | 100.00 | Threshold 0.5 |
+| MNIST MLP | Swift | `./mnist_mlp_swift` | 10 | 64 | 7.30 | 11.90 | CPU backend (no `--mps`) |
+| MNIST CNN | Swift | `./mnist_cnn_swift` | 3 | 32 | 53.21 | 92.35 | Conv8/3x3 + MaxPool |
+| MNIST Attention | Swift | `./mnist_attention_pool_swift` | 5 | 32 | 101.71 | 24.53 | D=16, FF=32 |
+| XOR MLP | Swift | `./mlp_simple_swift` | 1,000,000 | - | 1.78 | 100.00 | Threshold 0.5 |
+
+Note: results vary by hardware and build flags. The Swift MLP CPU run above did not converge well; try `--mps` or `--mpsgraph` for faster and more stable training.
 
 ## MNIST dataset
 
