@@ -7,15 +7,13 @@ This project implements several small neural nets for two problems:
 - MNIST digit classification (MLP, CNN, and single-head self-attention + FFN)
 - XOR toy example (2->4->1)
 
-Current code is in Rust and Swift. The design and binary model format are inspired by https://github.com/djbyrne/mlp.c.
+Current code is in Swift, with Python utilities. The design and binary model format are inspired by https://github.com/djbyrne/mlp.c.
 
 ## Contents
 
 Source code:
 
-- `mnist_mlp.rs`, `mnist_cnn.rs`, `mnist_attention_pool.rs`, `mlp_simple.rs` (Rust)
 - `mnist_mlp.swift`, `mnist_cnn.swift`, `mnist_attention_pool.swift`, `mlp_simple.swift` (Swift)
-- `Cargo.toml` / `Cargo.lock` (Rust build config)
 
 Scripts:
 
@@ -26,8 +24,8 @@ Scripts:
 Data and outputs:
 
 - `data/` (MNIST IDX files)
-- `logs/` (training loss logs)
-- `mnist_model.bin` (saved model)
+- `logs/` (training loss logs, generated and ignored by git)
+- `mnist_model.bin` (saved model, generated and ignored by git)
 - `logs/training_loss_cnn.txt` (CNN loss log)
 - `logs/training_loss_attention_mnist.txt` (attention loss log)
 
@@ -39,19 +37,13 @@ Architecture:
 - Hidden: 512 neurons (ReLU)
 - Output: 10 neurons (Softmax)
 
-Default training parameters (Swift and Rust):
+Default training parameters (Swift):
 
 - Learning rate: 0.01
 - Batch size: 64
 - Epochs: 10
 
 Expected accuracy: ~94-97% depending on backend and hyperparameters.
-
-Rust MNIST notes:
-
-- Uses `f32` tensors and batched GEMM via BLAS for speed.
-- On macOS the default BLAS backend is Accelerate (via `blas-src`).
-- Threading is controlled by `VECLIB_MAXIMUM_THREADS` when using Accelerate.
 
 ## MNIST CNN model
 
@@ -170,56 +162,12 @@ Swift attention options (`mnist_attention_pool_swift`):
 
 Note: `mnist_cnn_swift` uses fixed defaults and has no CLI flags.
 
-### Rust
-
-Build:
-
-```
-cargo build --release
-```
-
-Run MNIST MLP:
-
-```
-cargo run --release --bin mnist_mlp
-```
-
-Run XOR:
-
-```
-cargo run --release --bin mlp_simple
-```
-
-Run MNIST CNN:
-
-```
-cargo run --release --bin mnist_cnn
-```
-
-Run MNIST attention:
-
-```
-cargo run --release --bin mnist_attention_pool
-```
-
-Performance tips:
-
-```
-RUSTFLAGS="-C target-cpu=native" VECLIB_MAXIMUM_THREADS=8 cargo run --release --bin mnist_mlp
-```
-
-Linux/Windows note: the Rust MNIST build is configured for Accelerate on macOS. For other platforms, swap the BLAS backend in `Cargo.toml` (e.g., OpenBLAS) and ensure the library is installed.
-
 ## Benchmarks (local runs)
 
 All runs used the default settings unless noted. Training time is reported as total training time; for CNN/attention it is the sum of per-epoch times. XOR accuracy is computed with a 0.5 threshold on the final outputs.
 
 | Model | Language | Command | Epochs | Batch | Train time (s) | Test accuracy (%) | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| MNIST MLP | Rust | `cargo run --release --bin mnist_mlp` | 10 | 64 | 3.33 | 94.17 | BLAS (Accelerate) |
-| MNIST CNN | Rust | `cargo run --release --bin mnist_cnn` | 3 | 32 | 11.24 | 91.93 | Conv8/3x3 + MaxPool |
-| MNIST Attention | Rust | `cargo run --release --bin mnist_attention_pool` | 5 | 32 | 33.88 | 38.55 | D=16, FF=32 |
-| XOR MLP | Rust | `cargo run --release --bin mlp_simple` | 1,000,000 | - | 0.74 | 100.00 | Threshold 0.5 |
 | MNIST MLP | Swift | `./mnist_mlp_swift` | 10 | 64 | 7.30 | 11.90 | CPU backend (no `--mps`) |
 | MNIST CNN | Swift | `./mnist_cnn_swift` | 3 | 32 | 53.21 | 92.35 | Conv8/3x3 + MaxPool |
 | MNIST Attention | Swift | `./mnist_attention_pool_swift` | 5 | 32 | 101.71 | 24.53 | D=16, FF=32 |
