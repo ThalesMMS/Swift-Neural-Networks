@@ -8,7 +8,7 @@
 
 This page provides step-by-step instructions for building, training, and evaluating neural network models in the Swift-Neural-Networks repository. It covers prerequisites, compilation commands, basic training workflows, and visualization of results. This guide is designed to get you from zero to a trained model in minutes.
 
-For detailed architecture information about specific models, see [MNIST MLP Implementation](#4.1), [MNIST CNN Implementation](#4.2), and [Attention Model Implementation](#4.3). For GPU acceleration options, see [GPU Acceleration](#5). For development and contribution guidelines, see [Development Guide](#10).
+For detailed architecture information about specific models, see [MNIST MLP Implementation](4a%20MNIST-MLP-Implementation.md), [MNIST CNN Implementation](4b%20MNIST-CNN-Implementation.md), and [Attention Model Implementation](4c%20Attention-Model-Implementation.md). For GPU acceleration options, see [GPU Acceleration](5%20GPU-Acceleration.md). For development and contribution guidelines, see [Development Guide](10%20Development-Guide.md).
 
 ---
 
@@ -31,7 +31,7 @@ Install required Python packages using the provided requirements file:
 pip install -r requirements.txt
 ```
 
-**Sources:** [README.md L209-L212](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L209-L212)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L209-L212)
 
 ---
 
@@ -94,7 +94,7 @@ subgraph subGraph0 ["Source Files"]
 end
 ```
 
-**Sources:** [README.md L178-L190](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L190)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L190)
 
  [.gitignore L1-L8](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/.gitignore#L1-L8)
 
@@ -125,7 +125,7 @@ swiftc -O mnist_mlp.swift -o mnist_mlp_swiftswiftc -O mnist_cnn.swift -o�
 
 ) and must be rebuilt after cloning the repository.
 
-**Sources:** [README.md L106-L113](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L106-L113)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L106-L113)
 
 ---
 
@@ -147,9 +147,9 @@ The simplest way to verify your setup is to train the XOR toy example, which req
 
 This verifies that Swift compilation and basic training loops work correctly.
 
-**Sources:** [README.md L134-L138](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L134-L138)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L134-L138)
 
- [README.md L174](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L174-L174)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L174-L174)
 
 ---
 
@@ -245,9 +245,9 @@ TEST -.-> SAVE
 SAVE -.-> PRINT
 ```
 
-**Sources:** [README.md L115-L138](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L115-L138)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L115-L138)
 
- [README.md L140-L163](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L163)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L163)
 
 ---
 
@@ -288,7 +288,7 @@ The `mnist_mlp_swift` executable accepts the following flags:
 
 **Note**: The CNN implementation (`mnist_cnn_swift`) has no command-line flags and uses fixed defaults.
 
-**Sources:** [README.md L140-L163](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L163)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L163)
 
 ---
 
@@ -336,7 +336,7 @@ COMPUTE -.-> PLOT
 PLOT -.-> OUTPUT
 ```
 
-**Sources:** [README.md L193-L198](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L193-L198)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L193-L198)
 
 ---
 
@@ -380,7 +380,7 @@ FORWARD -.-> DISPLAY
 DISPLAY -.-> CANVAS
 ```
 
-**Sources:** [README.md L200-L206](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L200-L206)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L200-L206)
 
 ---
 
@@ -399,7 +399,7 @@ Here is a complete end-to-end workflow from setup to inference:
 * **Step 5** (Plotting): <1 second
 * **Step 6** (Inference): Real-time per drawn digit
 
-**Sources:** [README.md L102-L212](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L102-L212)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L102-L212)
 
 ---
 
@@ -417,7 +417,7 @@ Training and inference operations generate several output files:
 
 **Note**: The `logs/` directory and `*.bin` files are automatically created during training if they don't exist. These are ignored by Git to avoid committing large generated files.
 
-**Sources:** [README.md L24-L31](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L24-L31)
+**Sources:** README.md
 
  [.gitignore L4-L5](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/.gitignore#L4-L5)
 
@@ -463,11 +463,11 @@ Training and inference operations generate several output files:
 
 **Problem**: MPSGraph backend drops samples / reports different dataset size
 
-**Explanation**: `--mpsgraph` requires a fixed batch size for graph compilation. If the dataset size is not evenly divisible by the batch size, remaining samples are dropped. This is expected behavior documented in [README.md L100](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L100-L100)
+**Explanation**: `--mpsgraph` requires a fixed batch size for graph compilation. If the dataset size is not evenly divisible by the batch size, remaining samples are dropped. This is expected behavior documented in **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L100-L100)
 
-**Sources:** [README.md L178-L190](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L190)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L190)
 
- [README.md L100](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L100-L100)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L100-L100)
 
 ---
 
@@ -475,49 +475,49 @@ Training and inference operations generate several output files:
 
 After completing this quick start guide, you may want to:
 
-* **Explore model architectures**: See [Architecture Overview](#3) for system design details
-* **Understand GPU acceleration**: See [GPU Acceleration](#5) for backend comparison and performance tuning
-* **Learn about specific implementations**: See [Training Systems](#4) for detailed documentation of each model
-* **Examine training logs**: See [Training Logs Format](#9) for CSV schema details
-* **Understand model serialization**: See [Model Binary Format](#8) for binary file structure
-* **Contribute to development**: See [Development Guide](#10) for repository organization and contribution guidelines
+* **Explore model architectures**: See [Architecture Overview](3%20Architecture-Overview.md) for system design details
+* **Understand GPU acceleration**: See [GPU Acceleration](5%20GPU-Acceleration.md) for backend comparison and performance tuning
+* **Learn about specific implementations**: See [Training Systems](4%20Training-Systems.md) for detailed documentation of each model
+* **Examine training logs**: See [Training Logs Format](9%20Training-Logs-Format.md) for CSV schema details
+* **Understand model serialization**: See [Model Binary Format](8%20Model-Binary-Format.md) for binary file structure
+* **Contribute to development**: See [Development Guide](10%20Development-Guide.md) for repository organization and contribution guidelines
 
-**Sources:** [README.md L1-L218](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L1-L218)
+**Sources:** README.md
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 
-* [Quick Start Guide](#2-quick-start-guide)
-* [Purpose and Scope](#2-purpose-and-scope)
-* [Prerequisites](#2-prerequisites)
-* [Installing Python Dependencies](#2-installing-python-dependencies)
-* [Dataset Setup](#2-dataset-setup)
-* [Required Files](#2-required-files)
-* [Downloading the Dataset](#2-downloading-the-dataset)
-* [Building Executables](#2-building-executables)
-* [Compilation Commands](#2-compilation-commands)
-* [Build All at Once](#2-build-all-at-once)
-* [Training Your First Model](#2-training-your-first-model)
-* [XOR Model Training](#2-xor-model-training)
-* [Training MNIST Models](#2-training-mnist-models)
-* [MNIST MLP (Recommended Starting Point)](#2-mnist-mlp-recommended-starting-point)
-* [MNIST CNN](#2-mnist-cnn)
-* [MNIST Attention Model](#2-mnist-attention-model)
-* [Command-Line Options](#2-command-line-options)
-* [MNIST MLP Options](#2-mnist-mlp-options)
-* [MNIST Attention Options](#2-mnist-attention-options)
-* [Visualizing Training Results](#2-visualizing-training-results)
-* [Generating Plots](#2-generating-plots)
-* [Interactive Inference](#2-interactive-inference)
-* [Running the Digit Recognizer](#2-running-the-digit-recognizer)
-* [Using the Interface](#2-using-the-interface)
-* [Complete Workflow Example](#2-complete-workflow-example)
-* [Output Files Reference](#2-output-files-reference)
-* [Troubleshooting](#2-troubleshooting)
-* [Common Issues](#2-common-issues)
-* [Next Steps](#2-next-steps)
+* [Quick Start Guide](2%20Quick-Start-Guide.md)
+* [Purpose and Scope](2%20Quick-Start-Guide.md)
+* [Prerequisites](2%20Quick-Start-Guide.md)
+* [Installing Python Dependencies](2%20Quick-Start-Guide.md)
+* [Dataset Setup](2%20Quick-Start-Guide.md)
+* [Required Files](2%20Quick-Start-Guide.md)
+* [Downloading the Dataset](2%20Quick-Start-Guide.md)
+* [Building Executables](2%20Quick-Start-Guide.md)
+* [Compilation Commands](2%20Quick-Start-Guide.md)
+* [Build All at Once](2%20Quick-Start-Guide.md)
+* [Training Your First Model](2%20Quick-Start-Guide.md)
+* [XOR Model Training](2%20Quick-Start-Guide.md)
+* [Training MNIST Models](2%20Quick-Start-Guide.md)
+* [MNIST MLP (Recommended Starting Point)](2%20Quick-Start-Guide.md)
+* [MNIST CNN](2%20Quick-Start-Guide.md)
+* [MNIST Attention Model](2%20Quick-Start-Guide.md)
+* [Command-Line Options](2%20Quick-Start-Guide.md)
+* [MNIST MLP Options](2%20Quick-Start-Guide.md)
+* [MNIST Attention Options](2%20Quick-Start-Guide.md)
+* [Visualizing Training Results](2%20Quick-Start-Guide.md)
+* [Generating Plots](2%20Quick-Start-Guide.md)
+* [Interactive Inference](2%20Quick-Start-Guide.md)
+* [Running the Digit Recognizer](2%20Quick-Start-Guide.md)
+* [Using the Interface](2%20Quick-Start-Guide.md)
+* [Complete Workflow Example](2%20Quick-Start-Guide.md)
+* [Output Files Reference](2%20Quick-Start-Guide.md)
+* [Troubleshooting](2%20Quick-Start-Guide.md)
+* [Common Issues](2%20Quick-Start-Guide.md)
+* [Next Steps](2%20Quick-Start-Guide.md)
 
 Ask Devin about Swift-Neural-Networks

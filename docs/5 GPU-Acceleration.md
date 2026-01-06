@@ -12,14 +12,14 @@ This page provides an overview of the three execution backends available in the 
 
 For detailed information about specific backends, see:
 
-* Backend selection logic: [Backend Selection](#5.1)
-* CPU implementation details: [Accelerate Framework (CPU)](#5.2)
-* Hybrid GPU implementation: [MPS Hybrid Mode](#5.3)
-* Full GPU implementation: [MPSGraph Full GPU Mode](#5.4)
+* Backend selection logic: [Backend Selection](5a%20Backend-Selection.md)
+* CPU implementation details: [Accelerate Framework (CPU)](5b%20Accelerate-Framework-%28CPU%29.md)
+* Hybrid GPU implementation: [MPS Hybrid Mode](5c%20MPS-Hybrid-Mode.md)
+* Full GPU implementation: [MPSGraph Full GPU Mode](5d%20MPSGraph-Full-GPU-Mode.md)
 
-Note: GPU acceleration is only available for the MLP implementation in `mnist_mlp.swift`. The CNN ([MNIST CNN Implementation](#4.2)) and Attention ([Attention Model Implementation](#4.3)) models run exclusively on CPU.
+Note: GPU acceleration is only available for the MLP implementation in `mnist_mlp.swift`. The CNN ([MNIST CNN Implementation](4b%20MNIST-CNN-Implementation.md)) and Attention ([Attention Model Implementation](4c%20Attention-Model-Implementation.md)) models run exclusively on CPU.
 
-**Sources:** [README.md L91-L100](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L91-L100)
+**Sources:** README.md
 
  [mnist_mlp.swift L1-L2223](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L1-L2223)
 
@@ -98,7 +98,7 @@ The three backends offer different tradeoffs between performance, implementation
 | **MPS Hybrid** | `--mps` | `MPSMatrixMultiplication` | Custom Metal kernels | Shared CPU/GPU buffers | Full flexibility | Medium |
 | **MPSGraph** | `--mpsgraph` | MPSGraph matmul ops | MPSGraph ops | GPU memory | Fixed batch size | Fastest |
 
-**Sources:** [README.md L91-L100](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L91-L100)
+**Sources:** README.md
 
  [mnist_mlp.swift L452-L559](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L452-L559)
 
@@ -296,7 +296,7 @@ SAMPLES -.-> FLEXIBLE
 
 **Sources:** [mnist_mlp.swift L119-L123](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L119-L123)
 
- [README.md L100](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L100-L100)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L100-L100)
 
 ### Communication Overhead
 
@@ -497,35 +497,35 @@ LOG -.-> EPOCH
 
  [mnist_mlp.swift L11-L347](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L11-L347)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 
-* [GPU Acceleration](#5-gpu-acceleration)
-* [Purpose and Scope](#5-purpose-and-scope)
-* [Backend Architecture Overview](#5-backend-architecture-overview)
-* [Backend Comparison](#5-backend-comparison)
-* [Execution Model Differences](#5-execution-model-differences)
-* [Memory Management Strategies](#5-memory-management-strategies)
-* [CPU Backend: Array Allocation](#5-cpu-backend-array-allocation)
-* [MPS Hybrid: Shared Buffer Model](#5-mps-hybrid-shared-buffer-model)
-* [MPSGraph: GPU-Resident Tensors](#5-mpsgraph-gpu-resident-tensors)
-* [Operation Distribution](#5-operation-distribution)
-* [Performance Characteristics](#5-performance-characteristics)
-* [Batch Size Impact](#5-batch-size-impact)
-* [Communication Overhead](#5-communication-overhead)
-* [Custom Metal Kernels (MPS Hybrid)](#5-custom-metal-kernels-mps-hybrid)
-* [Runtime Backend Selection Flow](#5-runtime-backend-selection-flow)
-* [Fallback Mechanisms](#5-fallback-mechanisms)
-* [Training Loop Structure Comparison](#5-training-loop-structure-comparison)
-* [CPU and MPS Hybrid: Flexible Batching](#5-cpu-and-mps-hybrid-flexible-batching)
-* [MPSGraph: Fixed Batching](#5-mpsgraph-fixed-batching)
-* [Code Entity Summary](#5-code-entity-summary)
-* [Key Protocols and Types](#5-key-protocols-and-types)
-* [CPU Backend Classes](#5-cpu-backend-classes)
-* [MPS Hybrid Backend Classes](#5-mps-hybrid-backend-classes)
-* [Training and Testing Functions](#5-training-and-testing-functions)
+* [GPU Acceleration](5%20GPU-Acceleration.md)
+* [Purpose and Scope](5%20GPU-Acceleration.md)
+* [Backend Architecture Overview](5%20GPU-Acceleration.md)
+* [Backend Comparison](5%20GPU-Acceleration.md)
+* [Execution Model Differences](5%20GPU-Acceleration.md)
+* [Memory Management Strategies](5%20GPU-Acceleration.md)
+* [CPU Backend: Array Allocation](5%20GPU-Acceleration.md)
+* [MPS Hybrid: Shared Buffer Model](5%20GPU-Acceleration.md)
+* [MPSGraph: GPU-Resident Tensors](5%20GPU-Acceleration.md)
+* [Operation Distribution](5%20GPU-Acceleration.md)
+* [Performance Characteristics](5%20GPU-Acceleration.md)
+* [Batch Size Impact](5%20GPU-Acceleration.md)
+* [Communication Overhead](5%20GPU-Acceleration.md)
+* [Custom Metal Kernels (MPS Hybrid)](5%20GPU-Acceleration.md)
+* [Runtime Backend Selection Flow](5%20GPU-Acceleration.md)
+* [Fallback Mechanisms](5%20GPU-Acceleration.md)
+* [Training Loop Structure Comparison](5%20GPU-Acceleration.md)
+* [CPU and MPS Hybrid: Flexible Batching](5%20GPU-Acceleration.md)
+* [MPSGraph: Fixed Batching](5%20GPU-Acceleration.md)
+* [Code Entity Summary](5%20GPU-Acceleration.md)
+* [Key Protocols and Types](5%20GPU-Acceleration.md)
+* [CPU Backend Classes](5%20GPU-Acceleration.md)
+* [MPS Hybrid Backend Classes](5%20GPU-Acceleration.md)
+* [Training and Testing Functions](5%20GPU-Acceleration.md)
 
 Ask Devin about Swift-Neural-Networks

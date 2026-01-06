@@ -8,9 +8,9 @@
 
 ## Purpose and Scope
 
-This document covers the `mlp_simple.swift` implementation, a self-contained educational example that demonstrates fundamental multilayer perceptron (MLP) concepts using the XOR problem. Unlike the MNIST implementations ([MNIST MLP](#4.1), [MNIST CNN](#4.2), [MNIST Attention](#4.3)), this toy example uses synthetic data, operates on a minimal 2→4→1 architecture, and trains for an extended number of epochs to illustrate convergence behavior on a non-linearly separable problem.
+This document covers the `mlp_simple.swift` implementation, a self-contained educational example that demonstrates fundamental multilayer perceptron (MLP) concepts using the XOR problem. Unlike the MNIST implementations ([MNIST MLP](4a%20MNIST-MLP-Implementation.md), [MNIST CNN](4b%20MNIST-CNN-Implementation.md), [MNIST Attention](4c%20Attention-Model-Implementation.md)), this toy example uses synthetic data, operates on a minimal 2→4→1 architecture, and trains for an extended number of epochs to illustrate convergence behavior on a non-linearly separable problem.
 
-**Sources:** [README.md L81-L89](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L81-L89)
+**Sources:** README.md
 
  [mlp_simple.swift L1-L235](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mlp_simple.swift#L1-L235)
 
@@ -122,7 +122,7 @@ end
 | Hidden layer | 4 neurons | Sigmoid | Capture non-linear decision boundary |
 | Output layer | 1 neuron | Sigmoid | Binary classification output |
 
-**Sources:** [README.md L82-L88](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L82-L88)
+**Sources:** README.md
 
  [mlp_simple.swift L4-L9](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mlp_simple.swift#L4-L9)
 
@@ -380,7 +380,7 @@ Unlike the MNIST implementations which report percentage accuracy, the XOR examp
 
 **Sources:** [mlp_simple.swift L180-L183](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mlp_simple.swift#L180-L183)
 
- [README.md L167-L174](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L167-L174)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L167-L174)
 
 ---
 
@@ -404,9 +404,9 @@ Unlike the MNIST implementations which report percentage accuracy, the XOR examp
 
  [mnist_mlp.swift L358-L367](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L358-L367)
 
- [README.md L32-L46](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L32-L46)
+ README.md
 
- [README.md L81-L89](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L81-L89)
+ README.md
 
 ### Code Architecture Comparison
 
@@ -455,9 +455,9 @@ end
 # Compile with optimizationswiftc -O mlp_simple.swift -o mlp_simple_swift# Execute./mlp_simple_swift
 ```
 
-**Sources:** [README.md L108-L113](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L108-L113)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L108-L113)
 
- [README.md L134-L138](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L134-L138)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L134-L138)
 
 ### Expected Output Pattern
 
@@ -482,7 +482,7 @@ As reported in benchmarks, the implementation achieves 100% accuracy (using a 0.
 
  [mlp_simple.swift L198-L207](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mlp_simple.swift#L198-L207)
 
- [README.md L167-L174](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L167-L174)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L167-L174)
 
 ---
 
@@ -526,9 +526,9 @@ For developers new to neural networks, this is the recommended starting point be
 
  [mlp_simple.swift L3](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mlp_simple.swift#L3-L3)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 

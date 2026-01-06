@@ -8,9 +8,9 @@
 
 This document describes the `digit_recognizer.py` Python application, which provides an interactive graphical user interface for testing trained MNIST models. The application allows users to draw handwritten digits on a canvas and receive real-time classification predictions from a previously trained neural network. This tool serves as the inference and deployment component of the system, consuming binary model files produced by the Swift training executables.
 
-For information about model training, see [MNIST MLP Implementation](#4.1). For details on the binary model format consumed by this application, see [Model Binary Format](#8). For training visualization utilities, see [Training Visualization](#6.1).
+For information about model training, see [MNIST MLP Implementation](4a%20MNIST-MLP-Implementation.md). For details on the binary model format consumed by this application, see [Model Binary Format](8%20Model-Binary-Format.md). For training visualization utilities, see [Training Visualization](6a%20Training-Visualization.md).
 
-**Sources:** [README.md L200-L212](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L200-L212)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L200-L212)
 
  [digit_recognizer.py L1-L14](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/digit_recognizer.py#L1-L14)
 
@@ -144,7 +144,7 @@ end
 
 **Sources:** [digit_recognizer.py L28-L58](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/digit_recognizer.py#L28-L58)
 
- [README.md L28](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L28-L28)
+ README.md
 
 ---
 
@@ -500,7 +500,7 @@ The application requires the following Python packages:
 pip install -r requirements.txt
 ```
 
-**Sources:** [README.md L208-L212](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L208-L212)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L208-L212)
 
  [digit_recognizer.py L7-L13](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/digit_recognizer.py#L7-L13)
 
@@ -551,11 +551,11 @@ The binary model file acts as the interface contract between training and infere
 
 **Sources:** [digit_recognizer.py L238-L286](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/digit_recognizer.py#L238-L286)
 
- [README.md L200-L212](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L200-L212)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L200-L212)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 

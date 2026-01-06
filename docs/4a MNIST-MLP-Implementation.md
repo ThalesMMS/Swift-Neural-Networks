@@ -10,11 +10,11 @@
 
 This page documents the `mnist_mlp.swift` implementation, which provides a two-layer fully-connected neural network for MNIST digit classification. The system implements a 784→512→10 architecture with ReLU hidden activation and softmax output. It includes three execution backends (CPU, MPS hybrid GPU, MPSGraph full GPU) for performance optimization on Apple hardware.
 
-For backend selection logic and hardware detection, see [Backend Selection](#5.1). For dataset format details, see [MNIST Dataset](#7). For model serialization format, see [Model Binary Format](#8). For training log format, see [Training Logs Format](#9).
+For backend selection logic and hardware detection, see [Backend Selection](5a%20Backend-Selection.md). For dataset format details, see [MNIST Dataset](7%20MNIST-Dataset.md). For model serialization format, see [Model Binary Format](8%20Model-Binary-Format.md). For training log format, see [Training Logs Format](9%20Training-Logs-Format.md).
 
 **Sources:** [mnist_mlp.swift L1-L2223](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L1-L2223)
 
- [README.md L32-L46](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L32-L46)
+ README.md
 
 ## Network Architecture
 
@@ -55,7 +55,7 @@ The network uses Xavier/Glorot uniform initialization for weights and zero initi
 
  [mnist_mlp.swift L1082-L1097](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L1082-L1097)
 
- [README.md L36-L46](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L36-L46)
+ README.md
 
 ## Core Data Structures
 
@@ -556,7 +556,7 @@ The `applyCliOverrides()` function [mnist_mlp.swift L2041-L2092](https://github.
 
 **Sources:** [mnist_mlp.swift L2041-L2092](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L2041-L2092)
 
- [README.md L140-L151](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L151)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L151)
 
 ### Main Program Flow
 
@@ -687,7 +687,7 @@ All numeric data uses native endianness (no byte swapping). Weights stored as `F
 
 **Sources:** [mnist_mlp.swift L1925-L1961](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L1925-L1961)
 
- [README.md L28](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L28-L28)
+ README.md
 
 ## Performance Characteristics
 
@@ -731,11 +731,11 @@ For 10 epochs × 60,000 samples = 972 GFLOPs total. On Apple Silicon, the MPS ba
 
 **Sources:** [mnist_mlp.swift L1388-L1504](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L1388-L1504)
 
- [README.md L165-L177](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L177)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L177)
 
 ### Training Time Comparison
 
-From benchmark results [README.md L169-L175](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L169-L175)
+From benchmark results **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L169-L175)
 
 :
 
@@ -747,11 +747,11 @@ From benchmark results [README.md L169-L175](https://github.com/ThalesMMS/Swift-
 
 The CPU-only result shows poor convergence (11.90% accuracy), suggesting numerical issues with the default learning rate on the CPU backend. Using `--mps` or `--mpsgraph` flags is recommended for both performance and training stability.
 
-**Sources:** [README.md L165-L177](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L177)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L177)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 

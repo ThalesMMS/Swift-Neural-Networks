@@ -10,7 +10,7 @@
 
 This page documents the MPS (Metal Performance Shaders) hybrid GPU acceleration backend for the MNIST MLP implementation. This backend combines GPU-accelerated matrix multiplication via `MPSMatrixMultiplication` with custom Metal compute kernels for element-wise operations, using shared CPU/GPU memory buffers to eliminate data transfer overhead.
 
-For information about backend selection and the `GemmEngine` protocol abstraction, see [Backend Selection](#5.1). For the pure CPU implementation, see [Accelerate Framework (CPU)](#5.2). For the full GPU graph-based approach, see [MPSGraph Full GPU Mode](#5.4).
+For information about backend selection and the `GemmEngine` protocol abstraction, see [Backend Selection](5a%20Backend-Selection.md). For the pure CPU implementation, see [Accelerate Framework (CPU)](5b%20Accelerate-Framework-%28CPU%29.md). For the full GPU graph-based approach, see [MPSGraph Full GPU Mode](5d%20MPSGraph-Full-GPU-Mode.md).
 
 **Sources:** [mnist_mlp.swift L1-L2223](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L1-L2223)
 
@@ -887,9 +887,9 @@ case .mps(let mps):
 
  [mnist_mlp.swift L2094-L2160](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L2094-L2160)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 

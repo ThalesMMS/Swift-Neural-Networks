@@ -9,7 +9,7 @@
 
 This wiki documents the Swift-Neural-Networks repository, a collection of neural network implementations written in Swift with Python utilities for analysis and inference. The repository focuses on MNIST digit classification using three distinct architectures (Multi-Layer Perceptron, Convolutional Neural Network, and Self-Attention), plus an educational XOR toy example. All implementations are trained from scratch using custom backpropagation code without external deep learning frameworks.
 
-For step-by-step instructions on building and running models, see [Quick Start Guide](#2). For detailed documentation of individual implementations, see [Training Systems](#4). For GPU acceleration options, see [GPU Acceleration](#5).
+For step-by-step instructions on building and running models, see [Quick Start Guide](2%20Quick-Start-Guide.md). For detailed documentation of individual implementations, see [Training Systems](4%20Training-Systems.md). For GPU acceleration options, see [GPU Acceleration](5%20GPU-Acceleration.md).
 
 **Sources:** [README.md L1-L11](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L1-L11)
 
@@ -33,9 +33,9 @@ Two Python utilities provide post-training analysis and deployment:
 
 **Sources:** [README.md L5-L9](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L5-L9)
 
- [README.md L14-L31](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L14-L31)
+ README.md
 
- [README.md L165-L175](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L175)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L175)
 
 ## System Components
 
@@ -105,11 +105,11 @@ end
 * `plot_comparison.py`: Visualization script requiring matplotlib and numpy
 * `digit_recognizer.py`: Inference GUI requiring numpy
 
-**Sources:** [README.md L14-L31](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L14-L31)
+**Sources:** README.md
 
- [README.md L178-L191](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L191)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L191)
 
- [README.md L193-L213](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L193-L213)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L193-L213)
 
 ## Neural Network Architectures
 
@@ -172,9 +172,9 @@ end
 
 **Training Parameters:** All models use learning rate 0.01 by default. MLP supports command-line configuration via `--lr`, `--batch`, `--hidden`, `--epochs` flags. CNN and Attention use fixed hyperparameters (no CLI flags).
 
-**Sources:** [README.md L32-L89](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L32-L89)
+**Sources:** README.md
 
- [README.md L165-L175](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L175)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L175)
 
 ## Data Flow Pipeline
 
@@ -262,7 +262,7 @@ end
 2. **Analysis Stage:** `plot_comparison.py` parses CSV logs (format: `epoch,loss,time`), computes statistics, and generates 4-panel visualization with matplotlib.
 3. **Inference Stage:** `digit_recognizer.py` loads the binary model, provides a Tkinter drawing canvas, performs forward pass inference on user input, and displays prediction probabilities.
 
-**Sources:** [README.md L178-L213](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L213)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L213)
 
  [plot_comparison.py L18-L43](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/plot_comparison.py#L18-L43)
 
@@ -284,11 +284,11 @@ The `mnist_mlp.swift` implementation provides three execution backends selected 
 ./mnist_mlp_swift              # CPU backend./mnist_mlp_swift --mps        # MPS hybrid./mnist_mlp_swift --mpsgraph   # Full GPU
 ```
 
-For detailed backend documentation, see [GPU Acceleration](#5) and its subsections.
+For detailed backend documentation, see [GPU Acceleration](5%20GPU-Acceleration.md) and its subsections.
 
-**Sources:** [README.md L91-L100](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L91-L100)
+**Sources:** README.md
 
- [README.md L115-L151](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L115-L151)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L115-L151)
 
 ## File Organization
 
@@ -310,38 +310,39 @@ For detailed backend documentation, see [GPU Acceleration](#5) and its subsectio
 | Models | `mnist_model.bin` | Binary serialized weights |
 | Visualizations | `training_comparison.png` | Generated by `plot_comparison.py` |
 
-**Sources:** [README.md L14-L31](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L14-L31)
+**Sources:** README.md
 
 ## Quick Links
 
 The following wiki pages provide detailed documentation:
 
-* **Getting Started:** [Quick Start Guide](#2) - Build, train, and evaluate models
-* **Architecture Details:** [Training Systems](#4) - In-depth architecture documentation * [MNIST MLP Implementation](#4.1) * [MNIST CNN Implementation](#4.2) * [Attention Model Implementation](#4.3) * [Simple MLP (XOR Example)](#4.4)
-* **Performance:** [GPU Acceleration](#5) - Backend selection and optimization
-* **Utilities:** [Python Utilities](#6) * [Training Visualization](#6.1) * [Interactive Digit Recognizer](#6.2)
-* **Data Formats:** * [MNIST Dataset](#7) - IDX file format * [Model Binary Format](#8) - Serialization specification * [Training Logs Format](#9) - CSV schema
-* **Development:** [Development Guide](#10) - Repository structure and contribution guidelines
+* **Getting Started:** [Quick Start Guide](2%20Quick-Start-Guide.md) - Build, train, and evaluate models
+* **Architecture Details:** [Training Systems](4%20Training-Systems.md) - In-depth architecture documentation * [MNIST MLP Implementation](4a%20MNIST-MLP-Implementation.md) * [MNIST CNN Implementation](4b%20MNIST-CNN-Implementation.md) * [Attention Model Implementation](4c%20Attention-Model-Implementation.md) * [Simple MLP (XOR Example)](4d%20Simple-MLP-%28XOR-Example%29.md)
+* **Performance:** [GPU Acceleration](5%20GPU-Acceleration.md) - Backend selection and optimization
+* **Utilities:** [Python Utilities](6%20Python-Utilities.md) * [Training Visualization](6a%20Training-Visualization.md) * [Interactive Digit Recognizer](6b%20Interactive-Digit-Recognizer.md)
+* **Data Formats:** * [MNIST Dataset](7%20MNIST-Dataset.md) - IDX file format * [Model Binary Format](8%20Model-Binary-Format.md) - Serialization specification * [Training Logs Format](9%20Training-Logs-Format.md) - CSV schema
+* **Development:** [Development Guide](10%20Development-Guide.md) - Repository structure and contribution guidelines
 
-**Sources:** [README.md L1-L218](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L1-L218)
+**Sources:** README.md
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 
-* [Home](#1-home)
-* [Purpose and Scope](#1-purpose-and-scope)
-* [Project Overview](#1-project-overview)
-* [System Components](#1-system-components)
-* [Neural Network Architectures](#1-neural-network-architectures)
-* [Architecture Comparison](#1-architecture-comparison)
-* [Data Flow Pipeline](#1-data-flow-pipeline)
-* [GPU Acceleration (MLP Only)](#1-gpu-acceleration-mlp-only)
-* [File Organization](#1-file-organization)
-* [Tracked Files (Git)](#1-tracked-files-git)
-* [Generated Files (Gitignored)](#1-generated-files-gitignored)
-* [Quick Links](#1-quick-links)
+- [Home](#home)
+  - [Purpose and Scope](#purpose-and-scope)
+  - [Project Overview](#project-overview)
+  - [System Components](#system-components)
+  - [Neural Network Architectures](#neural-network-architectures)
+    - [Architecture Comparison](#architecture-comparison)
+  - [Data Flow Pipeline](#data-flow-pipeline)
+  - [GPU Acceleration (MLP Only)](#gpu-acceleration-mlp-only)
+  - [File Organization](#file-organization)
+    - [Tracked Files (Git)](#tracked-files-git)
+    - [Generated Files (Gitignored)](#generated-files-gitignored)
+  - [Quick Links](#quick-links)
+    - [On this page](#on-this-page)
 
 Ask Devin about Swift-Neural-Networks

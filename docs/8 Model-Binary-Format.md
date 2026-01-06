@@ -11,11 +11,11 @@
 
 This document describes the binary serialization format used to save and load trained neural network models in the Swift-Neural-Networks repository. The format stores the complete state of a two-layer MLP (Multi-Layer Perceptron) network, including layer dimensions, weights, and biases.
 
-The binary format is specifically designed for the MLP architecture (784→512→10) used in MNIST classification. For information about the network architecture itself, see [MNIST MLP Implementation](#4.1). For interactive inference using saved models, see [Interactive Digit Recognizer](#6.2).
+The binary format is specifically designed for the MLP architecture (784→512→10) used in MNIST classification. For information about the network architecture itself, see [MNIST MLP Implementation](4a%20MNIST-MLP-Implementation.md). For interactive inference using saved models, see [Interactive Digit Recognizer](6b%20Interactive-Digit-Recognizer.md).
 
 **Sources:** [README.md L10](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L10-L10)
 
- [README.md L28](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L28-L28)
+ README.md
 
  [digit_recognizer.py L1-L59](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/digit_recognizer.py#L1-L59)
 
@@ -324,7 +324,7 @@ The loaded parameters are used for inference in the GUI application:
 # digit_recognizer.py:71-84def predict(self, image):    hidden = np.dot(image, self.hidden_weights) + self.hidden_biases    hidden = self.relu(hidden)    output = np.dot(hidden, self.output_weights) + self.output_biases    output = self.softmax(output)    return output
 ```
 
-**Sources:** [README.md L115-L120](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L115-L120)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L115-L120)
 
  [digit_recognizer.py L28-L84](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/digit_recognizer.py#L28-L84)
 
@@ -366,7 +366,7 @@ sequenceDiagram
 
  [digit_recognizer.py L28-L236](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/digit_recognizer.py#L28-L236)
 
- [README.md L202-L206](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L202-L206)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L202-L206)
 
 ---
 
@@ -412,47 +412,47 @@ The format stores raw floating-point values without compression:
 
 This repository implements model serialization only for the MLP architecture. Other architectures generate alternative output formats:
 
-* **CNN Model** (`mnist_cnn.swift`): Generates `logs/training_loss_cnn.txt` but **no binary model file** ([README.md L29](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L29-L29) )
-* **Attention Model** (`mnist_attention_pool.swift`): Generates `logs/training_loss_attention_mnist.txt` but **no binary model file** ([README.md L30](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L30-L30) )
+* **CNN Model** (`mnist_cnn.swift`): Generates `logs/training_loss_cnn.txt` but **no binary model file** (README.md )
+* **Attention Model** (`mnist_attention_pool.swift`): Generates `logs/training_loss_attention_mnist.txt` but **no binary model file** (README.md )
 
-For CNN and attention architectures, see [MNIST CNN Implementation](#4.2) and [Attention Model Implementation](#4.3).
+For CNN and attention architectures, see [MNIST CNN Implementation](4b%20MNIST-CNN-Implementation.md) and [Attention Model Implementation](4c%20Attention-Model-Implementation.md).
 
-**Sources:** [README.md L24-L31](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L24-L31)
+**Sources:** README.md
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 
-* [Model Binary Format](#8-model-binary-format)
-* [Purpose and Scope](#8-purpose-and-scope)
-* [File Structure Overview](#8-file-structure-overview)
-* [Binary Layout Diagram](#8-binary-layout-diagram)
-* [Data Types and Precision](#8-data-types-and-precision)
-* [Integer Type ( int32 )](#8-integer-type-object-object)
-* [Floating Point Type ( float64 )](#8-floating-point-type-object-object)
-* [Layer Dimension Header](#8-layer-dimension-header)
-* [Weight Matrix Storage Format](#8-weight-matrix-storage-format)
-* [Hidden Layer Weights](#8-hidden-layer-weights)
-* [Output Layer Weights](#8-output-layer-weights)
-* [Bias Vector Storage Format](#8-bias-vector-storage-format)
-* [Hidden Layer Biases](#8-hidden-layer-biases)
-* [Output Layer Biases](#8-output-layer-biases)
-* [Code Implementation Mapping](#8-code-implementation-mapping)
-* [File Format Compatibility](#8-file-format-compatibility)
-* [Endianness Considerations](#8-endianness-considerations)
-* [Precision Requirements](#8-precision-requirements)
-* [Struct Packing](#8-struct-packing)
-* [Usage in the System](#8-usage-in-the-system)
-* [Model Generation](#8-model-generation)
-* [Model Consumption](#8-model-consumption)
-* [File Lifecycle](#8-file-lifecycle)
-* [Limitations and Design Trade-offs](#8-limitations-and-design-trade-offs)
-* [No Versioning](#8-no-versioning)
-* [Fixed Architecture](#8-fixed-architecture)
-* [Platform Dependencies](#8-platform-dependencies)
-* [No Compression](#8-no-compression)
-* [Related Model Formats](#8-related-model-formats)
+* [Model Binary Format](8%20Model-Binary-Format.md)
+* [Purpose and Scope](8%20Model-Binary-Format.md)
+* [File Structure Overview](8%20Model-Binary-Format.md)
+* [Binary Layout Diagram](8%20Model-Binary-Format.md)
+* [Data Types and Precision](8%20Model-Binary-Format.md)
+* [Integer Type ( int32 )](8%20Model-Binary-Format.md)
+* [Floating Point Type ( float64 )](8%20Model-Binary-Format.md)
+* [Layer Dimension Header](8%20Model-Binary-Format.md)
+* [Weight Matrix Storage Format](8%20Model-Binary-Format.md)
+* [Hidden Layer Weights](8%20Model-Binary-Format.md)
+* [Output Layer Weights](8%20Model-Binary-Format.md)
+* [Bias Vector Storage Format](8%20Model-Binary-Format.md)
+* [Hidden Layer Biases](8%20Model-Binary-Format.md)
+* [Output Layer Biases](8%20Model-Binary-Format.md)
+* [Code Implementation Mapping](8%20Model-Binary-Format.md)
+* [File Format Compatibility](8%20Model-Binary-Format.md)
+* [Endianness Considerations](8%20Model-Binary-Format.md)
+* [Precision Requirements](8%20Model-Binary-Format.md)
+* [Struct Packing](8%20Model-Binary-Format.md)
+* [Usage in the System](8%20Model-Binary-Format.md)
+* [Model Generation](8%20Model-Binary-Format.md)
+* [Model Consumption](8%20Model-Binary-Format.md)
+* [File Lifecycle](8%20Model-Binary-Format.md)
+* [Limitations and Design Trade-offs](8%20Model-Binary-Format.md)
+* [No Versioning](8%20Model-Binary-Format.md)
+* [Fixed Architecture](8%20Model-Binary-Format.md)
+* [Platform Dependencies](8%20Model-Binary-Format.md)
+* [No Compression](8%20Model-Binary-Format.md)
+* [Related Model Formats](8%20Model-Binary-Format.md)
 
 Ask Devin about Swift-Neural-Networks

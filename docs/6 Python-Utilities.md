@@ -12,15 +12,15 @@ This page documents the Python utilities provided for post-processing and infere
 
 The Python ecosystem consists of two primary tools:
 
-* **Training visualization** via `plot_comparison.py` - for detailed documentation, see [Training Visualization](#6.1)
-* **Interactive digit recognition** via `digit_recognizer.py` - for detailed documentation, see [Interactive Digit Recognizer](#6.2)
+* **Training visualization** via `plot_comparison.py` - for detailed documentation, see [Training Visualization](6a%20Training-Visualization.md)
+* **Interactive digit recognition** via `digit_recognizer.py` - for detailed documentation, see [Interactive Digit Recognizer](6b%20Interactive-Digit-Recognizer.md)
 
-For information about the Swift training systems that produce the artifacts consumed by these utilities, see [Training Systems](#4). For details on the binary model format, see [Model Binary Format](#8). For the CSV log format, see [Training Logs Format](#9).
+For information about the Swift training systems that produce the artifacts consumed by these utilities, see [Training Systems](4%20Training-Systems.md). For details on the binary model format, see [Model Binary Format](8%20Model-Binary-Format.md). For the CSV log format, see [Training Logs Format](9%20Training-Logs-Format.md).
 
 **Sources:**
 
 * [README.md L18-L21](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L18-L21)
-* [README.md L192-L212](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L212)
+* **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L212)
 
 ---
 
@@ -74,7 +74,7 @@ end
 
 **Sources:**
 
-* [README.md L24-L28](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L24-L28)
+* README.md
 * Diagram 1 and Diagram 3 from architecture overview
 
 ---
@@ -100,7 +100,7 @@ The tool generates four subplots:
 **Sources:**
 
 * [plot_comparison.py L1-L120](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/plot_comparison.py#L1-L120)
-* [README.md L192-L198](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
+* **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
 
 ### digit_recognizer.py
 
@@ -115,7 +115,7 @@ An interactive Tkinter-based GUI application for real-time digit recognition usi
 **Sources:**
 
 * [digit_recognizer.py L1-L291](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/digit_recognizer.py#L1-L291)
-* [README.md L200-L206](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L200-L206)
+* **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L200-L206)
 
 ---
 
@@ -275,7 +275,7 @@ epoch,loss,time
 **Sources:**
 
 * [plot_comparison.py L18-L43](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/plot_comparison.py#L18-L43)
-* [README.md L24-L30](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L24-L30)
+* README.md
 
 ### Binary Model Format
 
@@ -296,7 +296,7 @@ The digit recognizer loads models saved in double-precision binary format:
 **Sources:**
 
 * [digit_recognizer.py L28-L58](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/digit_recognizer.py#L28-L58)
-* [README.md L28](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L28-L28)
+* README.md
 
 ---
 
@@ -336,7 +336,7 @@ The `tkinter` library is typically included with Python distributions but may re
 
 **Sources:**
 
-* [README.md L208-L212](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L208-L212)
+* **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L208-L212)
 
 ---
 
@@ -365,7 +365,7 @@ sequenceDiagram
 **Sources:**
 
 * [plot_comparison.py L45-L120](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/plot_comparison.py#L45-L120)
-* [README.md L192-L198](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
+* **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
 
 ### Interactive Inference Workflow
 
@@ -463,36 +463,36 @@ If no argument provided, automatically searches for available model files in ord
 
 * [digit_recognizer.py L240-L273](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/digit_recognizer.py#L240-L273)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 
-* [Python Utilities](#6-python-utilities)
-* [Purpose and Scope](#6-purpose-and-scope)
-* [System Integration](#6-system-integration)
-* [Workflow Position](#6-workflow-position)
-* [Component Overview](#6-component-overview)
-* [plot_comparison.py](#6-plot_comparisonpy)
-* [digit_recognizer.py](#6-digit_recognizerpy)
-* [Code Entity Mapping](#6-code-entity-mapping)
-* [Training Visualization Pipeline](#6-training-visualization-pipeline)
-* [Interactive Inference Pipeline](#6-interactive-inference-pipeline)
-* [Input Data Formats](#6-input-data-formats)
-* [CSV Training Logs](#6-csv-training-logs)
-* [Binary Model Format](#6-binary-model-format)
-* [Dependencies and Installation](#6-dependencies-and-installation)
-* [Requirements](#6-requirements)
-* [Installation](#6-installation)
-* [Usage Patterns](#6-usage-patterns)
-* [Training Visualization Workflow](#6-training-visualization-workflow)
-* [Interactive Inference Workflow](#6-interactive-inference-workflow)
-* [Error Handling](#6-error-handling)
-* [plot_comparison.py](#6-plot_comparisonpy-1)
-* [digit_recognizer.py](#6-digit_recognizerpy-1)
-* [Command-Line Interface](#6-command-line-interface)
-* [plot_comparison.py](#6-plot_comparisonpy-2)
-* [digit_recognizer.py](#6-digit_recognizerpy-2)
+* [Python Utilities](6%20Python-Utilities.md)
+* [Purpose and Scope](6%20Python-Utilities.md)
+* [System Integration](6%20Python-Utilities.md)
+* [Workflow Position](6%20Python-Utilities.md)
+* [Component Overview](6%20Python-Utilities.md)
+* [plot_comparison.py](6%20Python-Utilities.md)
+* [digit_recognizer.py](6%20Python-Utilities.md)
+* [Code Entity Mapping](6%20Python-Utilities.md)
+* [Training Visualization Pipeline](6%20Python-Utilities.md)
+* [Interactive Inference Pipeline](6%20Python-Utilities.md)
+* [Input Data Formats](6%20Python-Utilities.md)
+* [CSV Training Logs](6%20Python-Utilities.md)
+* [Binary Model Format](6%20Python-Utilities.md)
+* [Dependencies and Installation](6%20Python-Utilities.md)
+* [Requirements](6%20Python-Utilities.md)
+* [Installation](6%20Python-Utilities.md)
+* [Usage Patterns](6%20Python-Utilities.md)
+* [Training Visualization Workflow](6%20Python-Utilities.md)
+* [Interactive Inference Workflow](6%20Python-Utilities.md)
+* [Error Handling](6%20Python-Utilities.md)
+* [plot_comparison.py](6%20Python-Utilities.md)
+* [digit_recognizer.py](6%20Python-Utilities.md)
+* [Command-Line Interface](6%20Python-Utilities.md)
+* [plot_comparison.py](6%20Python-Utilities.md)
+* [digit_recognizer.py](6%20Python-Utilities.md)
 
 Ask Devin about Swift-Neural-Networks

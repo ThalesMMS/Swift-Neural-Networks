@@ -9,9 +9,9 @@
 
 This guide provides technical documentation for developers working on the Swift-Neural-Networks codebase. It covers repository structure, build configuration, version control patterns, and development workflows.
 
-For information about specific training systems and their architectures, see [Training Systems](#4). For GPU backend implementation details, see [GPU Acceleration](#5). For dataset and serialization format specifications, see [MNIST Dataset](#7) and [Model Binary Format](#8).
+For information about specific training systems and their architectures, see [Training Systems](4%20Training-Systems.md). For GPU backend implementation details, see [GPU Acceleration](5%20GPU-Acceleration.md). For dataset and serialization format specifications, see [MNIST Dataset](7%20MNIST-Dataset.md) and [Model Binary Format](8%20Model-Binary-Format.md).
 
-**Sources:** [README.md L1-L218](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L1-L218)
+**Sources:** README.md
 
 ---
 
@@ -60,7 +60,7 @@ Swift-Neural-Networks/
 | **Training Outputs** | `logs/*.txt`, `*.bin` | ✗ | Logs and serialized models |
 | **IDE/OS Files** | `.vscode/`, `.DS_Store` | ✗ | Environment-specific |
 
-**Sources:** [README.md L14-L28](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L14-L28)
+**Sources:** README.md
 
  [.gitignore L1-L8](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/.gitignore#L1-L8)
 
@@ -92,7 +92,7 @@ All Swift implementations automatically link against:
 
 No explicit framework flags are required; Swift automatically links these system frameworks when referenced.
 
-**Sources:** [README.md L106-L113](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L106-L113)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L106-L113)
 
 ---
 
@@ -230,7 +230,7 @@ Typical workflow for comparing training approaches:
 | Slow training | Switch backend (CPU → MPS → MPSGraph) |
 | Build errors | Check Swift version (`swiftc --version`), ensure macOS 13+ |
 
-**Sources:** [README.md L102-L163](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L102-L163)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L102-L163)
 
 ---
 
@@ -243,7 +243,7 @@ To add a new neural network model (e.g., RNN for sequence modeling):
 1. **Create new Swift file**: `mnist_rnn.swift` following existing naming conventions
 2. **Implement core components**: * Data loading functions (reuse MNIST loading logic from existing files) * Model struct with weight/bias arrays * Forward pass function * Loss computation * Backward pass with gradient computation * SGD update function
 3. **Add training loop**: * Iterate over epochs * Shuffle data * Mini-batch processing * Log writing to `logs/training_loss_rnn.txt`
-4. **Add evaluation**: * Test set accuracy computation * Model serialization to `*.bin` format (see [Model Binary Format](#8))
+4. **Add evaluation**: * Test set accuracy computation * Model serialization to `*.bin` format (see [Model Binary Format](8%20Model-Binary-Format.md))
 5. **Update documentation**: * Add section to [README.md](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md)  describing architecture and hyperparameters * Update build commands
 6. **Update `.gitignore`**: * Add `mnist_rnn_swift` to [.gitignore L6-L7](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/.gitignore#L6-L7)  if following naming convention
 
@@ -293,12 +293,12 @@ To add new analysis or visualization tools:
 
 1. **Create Python script**: Follow naming convention (e.g., `analyze_gradients.py`)
 2. **Add dependencies**: Update [requirements.txt](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/requirements.txt)  if using new packages
-3. **Read standard formats**: * CSV logs from `logs/` (see [Training Logs Format](#9)) * Binary models from `*.bin` (see [Model Binary Format](#8))
+3. **Read standard formats**: * CSV logs from `logs/` (see [Training Logs Format](9%20Training-Logs-Format.md)) * Binary models from `*.bin` (see [Model Binary Format](8%20Model-Binary-Format.md))
 4. **Generate outputs**: Save visualizations to PNG files (not tracked in Git)
 
 **Sources:** [README.md L16-L17](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L16-L17)
 
- [README.md L92-L100](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L92-L100)
+ README.md
 
 ---
 
@@ -363,7 +363,7 @@ Swift uses automatic reference counting (ARC), but GPU resources require explici
 
 For large arrays in CPU code, use `[Double]` or `UnsafeBufferPointer` for efficiency. Avoid copying data unnecessarily.
 
-**Sources:** [README.md L1-L218](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L1-L218)
+**Sources:** README.md
 
 ---
 
@@ -401,7 +401,7 @@ Train identical models on different backends and verify outputs match:
 
 #### 4. Benchmark Against Known Results
 
-Compare against documented benchmark results from [README.md L165-L175](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L175)
+Compare against documented benchmark results from **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L175)
 
 :
 
@@ -423,7 +423,7 @@ Use Instruments (Xcode tool) to profile GPU/CPU usage:
 # Profile GPU usagexcrun xctrace record --template 'GPU' --launch ./mnist_mlp_swift --mps# Profile CPU usagexcrun xctrace record --template 'Time Profiler' --launch ./mnist_mlp_swift
 ```
 
-**Sources:** [README.md L165-L176](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L176)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L176)
 
 ---
 
@@ -455,9 +455,9 @@ To use a different dataset (e.g., Fashion-MNIST):
 3. **Verify dimensions**: Ensure 28×28 images, 60k train + 10k test
 4. **Adjust model if needed**: May need different hidden layer sizes
 
-**Sources:** [README.md L140-L161](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L161)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L161)
 
- [README.md L178-L190](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L190)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L190)
 
 ---
 
@@ -490,9 +490,9 @@ To use a different dataset (e.g., Fashion-MNIST):
 | High memory usage | Large batch size | Reduce `--batch` parameter |
 | Inconsistent timing | Background processes | Close other apps, use `nice` priority |
 
-**Sources:** [README.md L92-L101](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L92-L101)
+**Sources:** README.md
 
- [README.md L165-L176](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L176)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L176)
 
 ---
 
@@ -542,53 +542,53 @@ perf: optimize matrix multiplication for small batches
 
 **Sources:** [.gitignore L1-L8](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/.gitignore#L1-L8)
 
- [README.md L1-L218](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L1-L218)
+ README.md
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 
-* [Development Guide](#10-development-guide)
-* [Purpose and Scope](#10-purpose-and-scope)
-* [Repository Structure](#10-repository-structure)
-* [Directory Layout](#10-directory-layout)
-* [File Categories](#10-file-categories)
-* [Build System](#10-build-system)
-* [Swift Compilation](#10-swift-compilation)
-* [Version Control Configuration](#10-version-control-configuration)
-* [Git Ignore Patterns](#10-git-ignore-patterns)
-* [Exclusion Rationale](#10-exclusion-rationale)
-* [Line Ending Configuration](#10-line-ending-configuration)
-* [Development Workflow](#10-development-workflow)
-* [Typical Development Cycle](#10-typical-development-cycle)
-* [Compilation Best Practices](#10-compilation-best-practices)
-* [Running Experiments](#10-running-experiments)
-* [Debugging Strategies](#10-debugging-strategies)
-* [Adding New Features](#10-adding-new-features)
-* [Adding a New Model Architecture](#10-adding-a-new-model-architecture)
-* [Adding a New Backend](#10-adding-a-new-backend)
-* [Extending Python Utilities](#10-extending-python-utilities)
-* [Code Organization Patterns](#10-code-organization-patterns)
-* [Swift File Structure](#10-swift-file-structure)
-* [Function Naming Conventions](#10-function-naming-conventions)
-* [Memory Management](#10-memory-management)
-* [Testing and Validation](#10-testing-and-validation)
-* [Verifying New Implementations](#10-verifying-new-implementations)
-* [Performance Profiling](#10-performance-profiling)
-* [Common Development Tasks](#10-common-development-tasks)
-* [Modifying Hyperparameters](#10-modifying-hyperparameters)
-* [Logging Additional Metrics](#10-logging-additional-metrics)
-* [Changing Data Format](#10-changing-data-format)
-* [Troubleshooting](#10-troubleshooting)
-* [Common Build Errors](#10-common-build-errors)
-* [Runtime Errors](#10-runtime-errors)
-* [Performance Issues](#10-performance-issues)
-* [Contributing Guidelines](#10-contributing-guidelines)
-* [Code Style](#10-code-style)
-* [Commit Messages](#10-commit-messages)
-* [Pull Request Process](#10-pull-request-process)
-* [File Management](#10-file-management)
+* [Development Guide](10%20Development-Guide.md)
+* [Purpose and Scope](10%20Development-Guide.md)
+* [Repository Structure](10%20Development-Guide.md)
+* [Directory Layout](10%20Development-Guide.md)
+* [File Categories](10%20Development-Guide.md)
+* [Build System](10%20Development-Guide.md)
+* [Swift Compilation](10%20Development-Guide.md)
+* [Version Control Configuration](10%20Development-Guide.md)
+* [Git Ignore Patterns](10%20Development-Guide.md)
+* [Exclusion Rationale](10%20Development-Guide.md)
+* [Line Ending Configuration](10%20Development-Guide.md)
+* [Development Workflow](10%20Development-Guide.md)
+* [Typical Development Cycle](10%20Development-Guide.md)
+* [Compilation Best Practices](10%20Development-Guide.md)
+* [Running Experiments](10%20Development-Guide.md)
+* [Debugging Strategies](10%20Development-Guide.md)
+* [Adding New Features](10%20Development-Guide.md)
+* [Adding a New Model Architecture](10%20Development-Guide.md)
+* [Adding a New Backend](10%20Development-Guide.md)
+* [Extending Python Utilities](10%20Development-Guide.md)
+* [Code Organization Patterns](10%20Development-Guide.md)
+* [Swift File Structure](10%20Development-Guide.md)
+* [Function Naming Conventions](10%20Development-Guide.md)
+* [Memory Management](10%20Development-Guide.md)
+* [Testing and Validation](10%20Development-Guide.md)
+* [Verifying New Implementations](10%20Development-Guide.md)
+* [Performance Profiling](10%20Development-Guide.md)
+* [Common Development Tasks](10%20Development-Guide.md)
+* [Modifying Hyperparameters](10%20Development-Guide.md)
+* [Logging Additional Metrics](10%20Development-Guide.md)
+* [Changing Data Format](10%20Development-Guide.md)
+* [Troubleshooting](10%20Development-Guide.md)
+* [Common Build Errors](10%20Development-Guide.md)
+* [Runtime Errors](10%20Development-Guide.md)
+* [Performance Issues](10%20Development-Guide.md)
+* [Contributing Guidelines](10%20Development-Guide.md)
+* [Code Style](10%20Development-Guide.md)
+* [Commit Messages](10%20Development-Guide.md)
+* [Pull Request Process](10%20Development-Guide.md)
+* [File Management](10%20Development-Guide.md)
 
 Ask Devin about Swift-Neural-Networks

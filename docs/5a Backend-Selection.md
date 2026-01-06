@@ -12,13 +12,13 @@ This page documents the backend selection mechanism in the MNIST MLP implementat
 
 For detailed implementation of each backend, see:
 
-* [Accelerate Framework (CPU)](#5.2) - vDSP-based CPU execution
-* [MPS Hybrid Mode](#5.3) - GPU matrix operations with custom Metal kernels
-* [MPSGraph Full GPU Mode](#5.4) - Declarative graph-based execution
+* [Accelerate Framework (CPU)](5b%20Accelerate-Framework-%28CPU%29.md) - vDSP-based CPU execution
+* [MPS Hybrid Mode](5c%20MPS-Hybrid-Mode.md) - GPU matrix operations with custom Metal kernels
+* [MPSGraph Full GPU Mode](5d%20MPSGraph-Full-GPU-Mode.md) - Declarative graph-based execution
 
 **Sources:** [mnist_mlp.swift L1-L2223](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L1-L2223)
 
- [README.md L91-L101](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L91-L101)
+ README.md
 
 ## Backend Abstraction Layer
 
@@ -151,9 +151,9 @@ Note that `--mpsgraph` implicitly sets `useMPS = true`, so the system will attem
 
 **Sources:** [mnist_mlp.swift L2097-L2098](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L2097-L2098)
 
- [README.md L117-L120](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L117-L120)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L117-L120)
 
- [README.md L143-L144](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L143-L144)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L143-L144)
 
 ### Usage Examples
 
@@ -161,9 +161,9 @@ Note that `--mpsgraph` implicitly sets `useMPS = true`, so the system will attem
 # CPU backend (default)./mnist_mlp_swift# MPS hybrid backend./mnist_mlp_swift --mps# MPSGraph full GPU backend./mnist_mlp_swift --mpsgraph# Can combine with other hyperparameters./mnist_mlp_swift --mps --batch 128 --epochs 20 --lr 0.005
 ```
 
-**Sources:** [README.md L115-L120](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L115-L120)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L115-L120)
 
- [README.md L140-L151](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L151)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L151)
 
 ## Fallback Logic
 
@@ -386,9 +386,9 @@ These directives ensure the code compiles gracefully on platforms without Metal 
 
  [mnist_mlp.swift L995-L997](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L995-L997)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 

@@ -10,9 +10,9 @@
 
 This page documents the convolutional neural network (CNN) implementation for MNIST digit classification in [mnist_cnn.swift](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift)
 
- The CNN uses a simple architecture with one convolutional layer, max pooling, and a fully connected output layer. Unlike the MLP implementation (see [MNIST MLP Implementation](#4.1)), this model operates exclusively on CPU using explicit loop-based operations without GPU acceleration. For information about GPU-accelerated training backends, see [GPU Acceleration](#5).
+ The CNN uses a simple architecture with one convolutional layer, max pooling, and a fully connected output layer. Unlike the MLP implementation (see [MNIST MLP Implementation](4a%20MNIST-MLP-Implementation.md)), this model operates exclusively on CPU using explicit loop-based operations without GPU acceleration. For information about GPU-accelerated training backends, see [GPU Acceleration](5%20GPU-Acceleration.md).
 
-**Sources:** [README.md L48-L62](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L48-L62)
+**Sources:** README.md
 
  [mnist_cnn.swift L1-L12](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift#L1-L12)
 
@@ -54,7 +54,7 @@ FC -.-> OUTPUT
 | Fully Connected | 1568×10 + 10 biases = 15,690 params | 10 | Classification layer |
 | **Total** | **15,770 parameters** | - | ~16K params vs ~406K in MLP |
 
-**Sources:** [README.md L48-L62](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L48-L62)
+**Sources:** README.md
 
  [mnist_cnn.swift L16-L33](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift#L16-L33)
 
@@ -111,7 +111,7 @@ end
 
 **Sources:** [mnist_cnn.swift L1-L14](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift#L1-L14)
 
- [README.md L164-L176](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L164-L176)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L164-L176)
 
 ---
 
@@ -444,7 +444,7 @@ The training process uses fixed hyperparameters defined at the top of [mnist_cnn
 
 Unlike `mnist_mlp.swift`, there are no command-line options to override these values.
 
-**Sources:** [README.md L57-L62](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L57-L62)
+**Sources:** README.md
 
  [mnist_cnn.swift L35-L37](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift#L35-L37)
 
@@ -602,7 +602,7 @@ The training process prints:
 * Per-epoch loss and timing
 * Final test accuracy
 
-Example output [README.md L172](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L172-L172)
+Example output **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L172-L172)
 
 :
 
@@ -616,7 +616,7 @@ Test Accuracy: 92.35%
 
  [mnist_cnn.swift L570-L579](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift#L570-L579)
 
- [README.md L172](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L172-L172)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L172-L172)
 
 ---
 
@@ -624,7 +624,7 @@ Test Accuracy: 92.35%
 
 ### Training Performance
 
-Based on benchmark results [README.md L172](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L172-L172)
+Based on benchmark results **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L172-L172)
 
 :
 
@@ -642,7 +642,7 @@ Based on benchmark results [README.md L172](https://github.com/ThalesMMS/Swift-N
 3. **No GPU:** All computations run on CPU without Metal acceleration
 4. **Memory Access Patterns:** Non-contiguous memory access during convolution may cause cache misses
 
-**Sources:** [README.md L172](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L172-L172)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L172-L172)
 
  [mnist_cnn.swift L1-L14](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift#L1-L14)
 
@@ -693,9 +693,9 @@ end
 | **Training Speed** | Slower (explicit loops) | Faster (optimized BLAS/GPU) |
 | **Educational Value** | High (transparent operations) | Medium (abstracted backends) |
 
-**Sources:** [README.md L32-L62](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L32-L62)
+**Sources:** README.md
 
- [README.md L165-L176](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L176)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L176)
 
  [mnist_cnn.swift](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift)
 
@@ -790,7 +790,7 @@ No command-line arguments are supported. All hyperparameters are fixed in the so
 * MNIST dataset files in `./data/`: * `train-images.idx3-ubyte` * `train-labels.idx1-ubyte` * `t10k-images.idx3-ubyte` * `t10k-labels.idx1-ubyte`
 * Writable `./logs/` directory (created automatically if missing)
 
-**Sources:** [README.md L106-L126](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L106-L126)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L106-L126)
 
  [mnist_cnn.swift L3-L7](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift#L3-L7)
 
@@ -842,17 +842,17 @@ end
 
 For details on the other implementations, see:
 
-* [MNIST MLP Implementation](#4.1) - Multi-backend fully connected network
-* [Attention Model Implementation](#4.3) - Transformer-style self-attention
-* [Training Visualization](#6.1) - Log analysis and plotting
+* [MNIST MLP Implementation](4a%20MNIST-MLP-Implementation.md) - Multi-backend fully connected network
+* [Attention Model Implementation](4c%20Attention-Model-Implementation.md) - Transformer-style self-attention
+* [Training Visualization](6a%20Training-Visualization.md) - Log analysis and plotting
 
-**Sources:** [README.md L1-L31](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L1-L31)
+**Sources:** README.md
 
- [README.md L192-L198](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 

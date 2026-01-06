@@ -13,12 +13,12 @@ This page provides an overview of the four neural network training implementatio
 
 For detailed documentation of specific implementations, see:
 
-* MNIST MLP with GPU acceleration: [MNIST MLP Implementation](#4.1)
-* CNN architecture details: [MNIST CNN Implementation](#4.2)
-* Self-attention mechanism: [Attention Model Implementation](#4.3)
-* Educational XOR example: [Simple MLP (XOR Example)](#4.4)
+* MNIST MLP with GPU acceleration: [MNIST MLP Implementation](4a%20MNIST-MLP-Implementation.md)
+* CNN architecture details: [MNIST CNN Implementation](4b%20MNIST-CNN-Implementation.md)
+* Self-attention mechanism: [Attention Model Implementation](4c%20Attention-Model-Implementation.md)
+* Educational XOR example: [Simple MLP (XOR Example)](4d%20Simple-MLP-%28XOR-Example%29.md)
 
-For GPU acceleration options available in the MLP implementation, see [GPU Acceleration](#5).
+For GPU acceleration options available in the MLP implementation, see [GPU Acceleration](5%20GPU-Acceleration.md).
 
 **Sources:** [README.md L1-L18](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L1-L18)
 
@@ -35,7 +35,7 @@ The repository contains four distinct training systems, each designed for specif
 
 **Sources:** [README.md L5-L8](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L5-L8)
 
- [README.md L32-L80](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L32-L80)
+ README.md
 
 ## Training System Architecture
 
@@ -291,7 +291,7 @@ The network uses sigmoid activation throughout, with 4 hidden neurons sufficient
 
 **Sources:** [mlp_simple.swift L1-L235](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mlp_simple.swift#L1-L235)
 
- [README.md L81-L89](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L81-L89)
+ README.md
 
 ### MNIST MLP
 
@@ -315,7 +315,7 @@ The production-ready MLP implements a standard feedforward network for digit cla
 
 **Sources:** [mnist_mlp.swift L358-L430](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L358-L430)
 
- [README.md L32-L46](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L32-L46)
+ README.md
 
 ### MNIST CNN
 
@@ -355,7 +355,7 @@ The CNN reduces parameter count significantly (16,090 total parameters) compared
 
 **Sources:** [mnist_cnn.swift L1-L583](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift#L1-L583)
 
- [README.md L48-L62](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L48-L62)
+ README.md
 
 ### MNIST Attention
 
@@ -410,7 +410,7 @@ The attention model treats the image as a sequence of 49 patch tokens (7×7 grid
 
 **Sources:** [mnist_attention_pool.swift L1-L972](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L1-L972)
 
- [README.md L63-L79](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L63-L79)
+ README.md
 
 ## Training Configuration
 
@@ -461,7 +461,7 @@ Configuration parsing at [mnist_attention_pool.swift L880-L912](https://github.c
 | `--lr` | Float | 0.01 | Learning rate |
 | `--seed` | Integer | 1 | Random seed |
 
-**Sources:** [README.md L140-L163](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L163)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L140-L163)
 
  [mnist_mlp.swift L2182-L2254](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L2182-L2254)
 
@@ -515,7 +515,7 @@ All MNIST implementations produce CSV training logs with epoch-level metrics:
 * CNN: [mnist_cnn.swift L498-L501](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift#L498-L501)  writes at [mnist_cnn.swift L571-L574](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_cnn.swift#L571-L574)
 * Attention: [mnist_attention_pool.swift L935-L938](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L935-L938)  writes at [mnist_attention_pool.swift L953-L956](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L953-L956)
 
-**Sources:** [README.md L24-L30](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L24-L30)
+**Sources:** README.md
 
  [mnist_mlp.swift L1338-L1513](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L1338-L1513)
 
@@ -532,11 +532,11 @@ Only the MNIST MLP system supports model serialization:
 * **Writing:** `saveModelBinary()` at [mnist_mlp.swift L1906-L1967](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L1906-L1967)
 * **Structure:** 1. Hidden layer dimensions (2 × Int32) 2. Output layer dimensions (2 × Int32) 3. Hidden weights (inputSize × hiddenSize × Double) 4. Hidden biases (hiddenSize × Double) 5. Output weights (hiddenSize × outputSize × Double) 6. Output biases (outputSize × Double)
 
-For details on the binary format, see [Model Binary Format](#8).
+For details on the binary format, see [Model Binary Format](8%20Model-Binary-Format.md).
 
 **Sources:** [mnist_mlp.swift L1906-L1967](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L1906-L1967)
 
- [README.md L28](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L28-L28)
+ README.md
 
 ## Performance Characteristics
 
@@ -556,7 +556,7 @@ Based on default configurations (from benchmark table in README):
 3. **MNIST CNN:** Best accuracy-to-time ratio for CPU training; spatial inductive bias helps despite fewer parameters
 4. **MNIST Attention:** Requires longer training or different hyperparameters to match other architectures
 
-**Sources:** [README.md L165-L176](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L176)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L165-L176)
 
 ## Training System Selection Guide
 
@@ -589,31 +589,31 @@ Based on default configurations (from benchmark table in README):
 * Experimenting with patch-based image processing
 * Understanding attention backward passes
 
-**Sources:** [README.md L1-L89](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L1-L89)
+**Sources:** README.md
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 
-* [Training Systems](#4-training-systems)
-* [Purpose and Scope](#4-purpose-and-scope)
-* [Training System Overview](#4-training-system-overview)
-* [Training System Architecture](#4-training-system-architecture)
-* [Training Loop Comparison](#4-training-loop-comparison)
-* [Model Architecture Details](#4-model-architecture-details)
-* [Simple MLP (XOR)](#4-simple-mlp-xor)
-* [MNIST MLP](#4-mnist-mlp)
-* [MNIST CNN](#4-mnist-cnn)
-* [MNIST Attention](#4-mnist-attention)
-* [Training Configuration](#4-training-configuration)
-* [Command-Line Interface](#4-command-line-interface)
-* [Initialization Strategies](#4-initialization-strategies)
-* [Output Artifacts](#4-output-artifacts)
-* [Training Logs](#4-training-logs)
-* [Model Serialization](#4-model-serialization)
-* [Performance Characteristics](#4-performance-characteristics)
-* [Training System Selection Guide](#4-training-system-selection-guide)
+* [Training Systems](4%20Training-Systems.md)
+* [Purpose and Scope](4%20Training-Systems.md)
+* [Training System Overview](4%20Training-Systems.md)
+* [Training System Architecture](4%20Training-Systems.md)
+* [Training Loop Comparison](4%20Training-Systems.md)
+* [Model Architecture Details](4%20Training-Systems.md)
+* [Simple MLP (XOR)](4%20Training-Systems.md)
+* [MNIST MLP](4%20Training-Systems.md)
+* [MNIST CNN](4%20Training-Systems.md)
+* [MNIST Attention](4%20Training-Systems.md)
+* [Training Configuration](4%20Training-Systems.md)
+* [Command-Line Interface](4%20Training-Systems.md)
+* [Initialization Strategies](4%20Training-Systems.md)
+* [Output Artifacts](4%20Training-Systems.md)
+* [Training Logs](4%20Training-Systems.md)
+* [Model Serialization](4%20Training-Systems.md)
+* [Performance Characteristics](4%20Training-Systems.md)
+* [Training System Selection Guide](4%20Training-Systems.md)
 
 Ask Devin about Swift-Neural-Networks

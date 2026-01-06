@@ -9,9 +9,9 @@
 
 This document describes the `plot_comparison.py` utility, which analyzes training logs produced by Swift training executables and generates multi-panel visualizations of model performance. The tool reads CSV log files containing per-epoch metrics and produces a comprehensive training summary with loss curves, timing analysis, and statistical summaries.
 
-For information about the training systems that generate these logs, see [Training Systems](#4). For the log file format specification, see [Training Logs Format](#9). For interactive model inference, see [Interactive Digit Recognizer](#6.2).
+For information about the training systems that generate these logs, see [Training Systems](4%20Training-Systems.md). For the log file format specification, see [Training Logs Format](9%20Training-Logs-Format.md). For interactive model inference, see [Interactive Digit Recognizer](6b%20Interactive-Digit-Recognizer.md).
 
-**Sources:** [README.md L1-L217](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L1-L217)
+**Sources:** README.md
 
  [plot_comparison.py L1-L120](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/plot_comparison.py#L1-L120)
 
@@ -72,7 +72,7 @@ end
 
 **Sources:** [plot_comparison.py L1-L120](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/plot_comparison.py#L1-L120)
 
- [README.md L192-L198](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
 
 ---
 
@@ -128,7 +128,7 @@ Note that the hardcoded `LOG_FILE` path points to a specific training run. To an
 
 **Sources:** [plot_comparison.py L11-L16](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/plot_comparison.py#L11-L16)
 
- [README.md L29-L30](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L29-L30)
+ README.md
 
 ---
 
@@ -276,7 +276,7 @@ pip install -r requirements.txt
 
 **Sources:** [requirements.txt L1-L3](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/requirements.txt#L1-L3)
 
- [README.md L208-L212](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L208-L212)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L208-L212)
 
 ---
 
@@ -303,7 +303,7 @@ Final Loss:          0.204398
 ✓ Graph saved to: training_comparison.png
 ```
 
-**Sources:** [README.md L192-L198](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
 
  [plot_comparison.py L104-L116](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/plot_comparison.py#L104-L116)
 
@@ -353,19 +353,19 @@ The visualization tool is designed to work with log files produced by any of the
 
 | Training System | Default Log File | Documentation |
 | --- | --- | --- |
-| MNIST MLP | `logs/training_loss_c.txt` | See [MNIST MLP Implementation](#4.1) |
-| MNIST CNN | `logs/training_loss_cnn.txt` | See [MNIST CNN Implementation](#4.2) |
-| MNIST Attention | `logs/training_loss_attention_mnist.txt` | See [Attention Model Implementation](#4.3) |
+| MNIST MLP | `logs/training_loss_c.txt` | See [MNIST MLP Implementation](4a%20MNIST-MLP-Implementation.md) |
+| MNIST CNN | `logs/training_loss_cnn.txt` | See [MNIST CNN Implementation](4b%20MNIST-CNN-Implementation.md) |
+| MNIST Attention | `logs/training_loss_attention_mnist.txt` | See [Attention Model Implementation](4c%20Attention-Model-Implementation.md) |
 
 All training systems write logs in the same CSV format (epoch, loss, time), ensuring compatibility with the visualization tool regardless of model architecture or backend selection.
 
-**Sources:** [README.md L29-L30](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L29-L30)
+**Sources:** README.md
 
- [README.md L192-L198](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L192-L198)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 

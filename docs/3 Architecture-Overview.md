@@ -10,7 +10,7 @@
 
 This page describes the high-level architecture of the Swift-Neural-Networks repository, explaining how the Swift training executables, Python analysis utilities, and MNIST data files interact to form a complete machine learning pipeline. It covers the system's major components, data flow patterns, and the separation between training (Swift) and analysis/inference (Python) subsystems.
 
-For detailed information about individual training implementations, see [Training Systems](#4). For GPU acceleration specifics, see [GPU Acceleration](#5). For Python utility details, see [Python Utilities](#6).
+For detailed information about individual training implementations, see [Training Systems](4%20Training-Systems.md). For GPU acceleration specifics, see [GPU Acceleration](5%20GPU-Acceleration.md). For Python utility details, see [Python Utilities](6%20Python-Utilities.md).
 
 ## System Components
 
@@ -62,7 +62,7 @@ subgraph Data ["Data Layer"]
 end
 ```
 
-**Sources:** [README.md L1-L218](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L1-L218)
+**Sources:** README.md
 
  [mnist_mlp.swift L358-L367](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L358-L367)
 
@@ -389,7 +389,7 @@ subgraph Swift_Outputs ["Swift Training Outputs"]
 end
 ```
 
-**Sources:** [README.md L193-L212](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L193-L212)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L193-L212)
 
  Python files referenced in README
 
@@ -438,7 +438,7 @@ REUSE -.-> BATCH_LOOP
 7. **Analysis:** `python plot_comparison.py` generates visualizations
 8. **Inference:** `python digit_recognizer.py` loads model for interactive use
 
-**Sources:** [README.md L102-L151](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L102-L151)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L102-L151)
 
  [mnist_mlp.swift L2094-L2222](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L2094-L2222)
 
@@ -453,37 +453,37 @@ REUSE -.-> BATCH_LOOP
 | `plot_comparison.py` | Python | Training visualization | CSV logs | PNG plot |
 | `digit_recognizer.py` | Python | Interactive inference | Binary model | GUI display |
 
-**Sources:** [README.md L14-L31](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L14-L31)
+**Sources:** README.md
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 
-* [Architecture Overview](#3-architecture-overview)
-* [Purpose and Scope](#3-purpose-and-scope)
-* [System Components](#3-system-components)
-* [Component Diagram](#3-component-diagram)
-* [Data Flow Architecture](#3-data-flow-architecture)
-* [End-to-End Data Pipeline](#3-end-to-end-data-pipeline)
-* [Training Executable Architecture](#3-training-executable-architecture)
-* [Generic Training Executable Flow](#3-generic-training-executable-flow)
-* [Backend Selection Architecture](#3-backend-selection-architecture)
-* [GemmEngine Protocol and Implementations](#3-gemmengine-protocol-and-implementations)
-* [Backend Selection Logic](#3-backend-selection-logic)
-* [Network Architecture Data Structures](#3-network-architecture-data-structures)
-* [MLP Network Structure](#3-mlp-network-structure)
-* [CNN Network Structure](#3-cnn-network-structure)
-* [Output Artifacts](#3-output-artifacts)
-* [Training Logs Format](#3-training-logs-format)
-* [Binary Model Format](#3-binary-model-format)
-* [Python Integration Architecture](#3-python-integration-architecture)
-* [Python Component Interactions](#3-python-component-interactions)
-* [Memory Management Strategy](#3-memory-management-strategy)
-* [Buffer Reuse Pattern (MPS Training)](#3-buffer-reuse-pattern-mps-training)
-* [Execution Flow Summary](#3-execution-flow-summary)
-* [Complete System Execution Sequence](#3-complete-system-execution-sequence)
-* [Component Responsibilities](#3-component-responsibilities)
+* [Architecture Overview](3%20Architecture-Overview.md)
+* [Purpose and Scope](3%20Architecture-Overview.md)
+* [System Components](3%20Architecture-Overview.md)
+* [Component Diagram](3%20Architecture-Overview.md)
+* [Data Flow Architecture](3%20Architecture-Overview.md)
+* [End-to-End Data Pipeline](3%20Architecture-Overview.md)
+* [Training Executable Architecture](3%20Architecture-Overview.md)
+* [Generic Training Executable Flow](3%20Architecture-Overview.md)
+* [Backend Selection Architecture](3%20Architecture-Overview.md)
+* [GemmEngine Protocol and Implementations](3%20Architecture-Overview.md)
+* [Backend Selection Logic](3%20Architecture-Overview.md)
+* [Network Architecture Data Structures](3%20Architecture-Overview.md)
+* [MLP Network Structure](3%20Architecture-Overview.md)
+* [CNN Network Structure](3%20Architecture-Overview.md)
+* [Output Artifacts](3%20Architecture-Overview.md)
+* [Training Logs Format](3%20Architecture-Overview.md)
+* [Binary Model Format](3%20Architecture-Overview.md)
+* [Python Integration Architecture](3%20Architecture-Overview.md)
+* [Python Component Interactions](3%20Architecture-Overview.md)
+* [Memory Management Strategy](3%20Architecture-Overview.md)
+* [Buffer Reuse Pattern (MPS Training)](3%20Architecture-Overview.md)
+* [Execution Flow Summary](3%20Architecture-Overview.md)
+* [Complete System Execution Sequence](3%20Architecture-Overview.md)
+* [Component Responsibilities](3%20Architecture-Overview.md)
 
 Ask Devin about Swift-Neural-Networks

@@ -9,7 +9,7 @@
 
 This page documents the CPU-based backend implementation for matrix operations in the MNIST MLP training system. The `CpuGemmEngine` class provides CPU-optimized GEMM (General Matrix Multiply) operations using Apple's Accelerate framework, specifically the vDSP library. This backend serves as the default execution path and fallback option when GPU acceleration is unavailable.
 
-For information about backend selection logic, see [Backend Selection](#5.1). For GPU-accelerated alternatives, see [MPS Hybrid Mode](#5.3) and [MPSGraph Full GPU Mode](#5.4).
+For information about backend selection logic, see [Backend Selection](5a%20Backend-Selection.md). For GPU-accelerated alternatives, see [MPS Hybrid Mode](5c%20MPS-Hybrid-Mode.md) and [MPSGraph Full GPU Mode](5d%20MPSGraph-Full-GPU-Mode.md).
 
 **Sources:** [mnist_mlp.swift L452-L559](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L452-L559)
 
@@ -398,9 +398,9 @@ The implementation uses the following Accelerate framework functions:
 
 **Sources:** [mnist_mlp.swift L452-L559](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L452-L559)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 

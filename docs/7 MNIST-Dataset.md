@@ -9,7 +9,7 @@
 
 This document describes the MNIST (Modified National Institute of Standards and Technology) dataset used for training digit classification models in this codebase. It covers the dataset structure, IDX binary file format, file organization in the repository, and how the training systems consume this data.
 
-For information about how specific model architectures use this dataset, see [Training Systems](#4). For details on the binary model format that stores trained weights, see [Model Binary Format](#8).
+For information about how specific model architectures use this dataset, see [Training Systems](4%20Training-Systems.md). For details on the binary model format that stores trained weights, see [Model Binary Format](8%20Model-Binary-Format.md).
 
 ---
 
@@ -17,9 +17,9 @@ For information about how specific model architectures use this dataset, see [Tr
 
 The MNIST dataset is a collection of 70,000 grayscale handwritten digit images (0-9) used as a standard benchmark for image classification tasks. The dataset is split into 60,000 training samples and 10,000 test samples. Each image is 28×28 pixels with pixel values ranging from 0-255 representing grayscale intensity.
 
-This codebase stores the dataset in the standardized IDX binary format developed by Yann LeCun. All Swift training implementations ([mnist_mlp.swift](#4.1), [mnist_cnn.swift](#4.2), [mnist_attention_pool.swift](#4.3)) load data from these IDX files during training and evaluation.
+This codebase stores the dataset in the standardized IDX binary format developed by Yann LeCun. All Swift training implementations ([mnist_mlp.swift](4a%20MNIST-MLP-Implementation.md), [mnist_cnn.swift](4b%20MNIST-CNN-Implementation.md), [mnist_attention_pool.swift](4c%20Attention-Model-Implementation.md)) load data from these IDX files during training and evaluation.
 
-**Sources:** [README.md L178-L191](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L191)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L191)
 
 ---
 
@@ -61,7 +61,7 @@ subgraph subGraph0 ["data/ Directory"]
 end
 ```
 
-**Sources:** [README.md L178-L191](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L191)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L191)
 
  [data/train-images.idx3-ubyte](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/data/train-images.idx3-ubyte)
 
@@ -186,7 +186,7 @@ end
 
 **Sources:** [README.md L6-L7](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L6-L7)
 
- [README.md L178-L185](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L185)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L185)
 
 ---
 
@@ -214,7 +214,7 @@ Swift-Neural-Networks/
 
 All training executables will fail if these files are not present in the `data/` directory.
 
-**Sources:** [README.md L188-L190](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L188-L190)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L188-L190)
 
 ---
 
@@ -301,7 +301,7 @@ Each training system performs the following preprocessing:
 5. **Batch Formation:** Group samples into mini-batches
 6. **Architecture-Specific Transform:** * MLP: Flatten 28×28 → 784D vector * CNN: Preserve 28×28 spatial structure * Attention: Divide into 7×7 grid of 4×4 patches
 
-**Sources:** [README.md L32-L79](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L32-L79)
+**Sources:** README.md
 
 ---
 
@@ -333,7 +333,7 @@ Labels remain as integer class indices during training:
 
 **Sources:** [README.md L6-L7](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L6-L7)
 
- [README.md L36-L38](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L36-L38)
+ README.md
 
 ---
 
@@ -346,7 +346,7 @@ The dataset files are excluded from version control to prevent repository bloat:
 
 Developers must download the dataset independently after cloning the repository. The `.gitignore` file contains patterns to exclude these large binary files.
 
-**Sources:** [README.md L24-L28](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L24-L28)
+**Sources:** README.md
 
 ---
 
@@ -361,37 +361,37 @@ While this codebase uses the standard MNIST dataset, there are related datasets 
 
 All use the same IDX format and dimensions, making them compatible with minimal code changes.
 
-**Sources:** [README.md L178-L190](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L190)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L178-L190)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 
-* [MNIST Dataset](#7-mnist-dataset)
-* [Purpose and Overview](#7-purpose-and-overview)
-* [Dataset Files and Organization](#7-dataset-files-and-organization)
-* [IDX Binary File Format](#7-idx-binary-file-format)
-* [Header Structure](#7-header-structure)
-* [Magic Number Format](#7-magic-number-format)
-* [MNIST-Specific Headers](#7-mnist-specific-headers)
-* [Data Characteristics](#7-data-characteristics)
-* [Image Properties](#7-image-properties)
-* [Label Properties](#7-label-properties)
-* [Dataset Statistics](#7-dataset-statistics)
-* [Obtaining the Dataset](#7-obtaining-the-dataset)
-* [Download Sources](#7-download-sources)
-* [Required Setup](#7-required-setup)
-* [Usage in Training Systems](#7-usage-in-training-systems)
-* [Data Loading Process](#7-data-loading-process)
-* [Data Flow Through Model Architectures](#7-data-flow-through-model-architectures)
-* [Preprocessing Steps](#7-preprocessing-steps)
-* [Data Format in Memory](#7-data-format-in-memory)
-* [Raw Pixel Values (Pre-normalization)](#7-raw-pixel-values-pre-normalization)
-* [Normalized Values (Post-normalization)](#7-normalized-values-post-normalization)
-* [Label Encoding](#7-label-encoding)
-* [Git Configuration](#7-git-configuration)
-* [Dataset Variants and Alternatives](#7-dataset-variants-and-alternatives)
+* [MNIST Dataset](7%20MNIST-Dataset.md)
+* [Purpose and Overview](7%20MNIST-Dataset.md)
+* [Dataset Files and Organization](7%20MNIST-Dataset.md)
+* [IDX Binary File Format](7%20MNIST-Dataset.md)
+* [Header Structure](7%20MNIST-Dataset.md)
+* [Magic Number Format](7%20MNIST-Dataset.md)
+* [MNIST-Specific Headers](7%20MNIST-Dataset.md)
+* [Data Characteristics](7%20MNIST-Dataset.md)
+* [Image Properties](7%20MNIST-Dataset.md)
+* [Label Properties](7%20MNIST-Dataset.md)
+* [Dataset Statistics](7%20MNIST-Dataset.md)
+* [Obtaining the Dataset](7%20MNIST-Dataset.md)
+* [Download Sources](7%20MNIST-Dataset.md)
+* [Required Setup](7%20MNIST-Dataset.md)
+* [Usage in Training Systems](7%20MNIST-Dataset.md)
+* [Data Loading Process](7%20MNIST-Dataset.md)
+* [Data Flow Through Model Architectures](7%20MNIST-Dataset.md)
+* [Preprocessing Steps](7%20MNIST-Dataset.md)
+* [Data Format in Memory](7%20MNIST-Dataset.md)
+* [Raw Pixel Values (Pre-normalization)](7%20MNIST-Dataset.md)
+* [Normalized Values (Post-normalization)](7%20MNIST-Dataset.md)
+* [Label Encoding](7%20MNIST-Dataset.md)
+* [Git Configuration](7%20MNIST-Dataset.md)
+* [Dataset Variants and Alternatives](7%20MNIST-Dataset.md)
 
 Ask Devin about Swift-Neural-Networks

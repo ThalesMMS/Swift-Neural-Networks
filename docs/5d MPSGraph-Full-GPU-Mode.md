@@ -10,11 +10,11 @@
 
 This page documents the MPSGraph-based GPU acceleration backend for the MNIST MLP implementation. MPSGraph provides a declarative, graph-based API for defining neural network computations that execute entirely on the GPU with automatic gradient computation and optimized kernel fusion.
 
-For information about the hybrid CPU/GPU MPS mode using custom Metal kernels, see [MPS Hybrid Mode](#5.3). For backend selection and the overall GPU acceleration architecture, see [GPU Acceleration](#5).
+For information about the hybrid CPU/GPU MPS mode using custom Metal kernels, see [MPS Hybrid Mode](5c%20MPS-Hybrid-Mode.md). For backend selection and the overall GPU acceleration architecture, see [GPU Acceleration](5%20GPU-Acceleration.md).
 
 **Sources:** [mnist_mlp.swift L9-L222](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L9-L222)
 
- [README.md L92-L100](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L92-L100)
+ README.md
 
 ---
 
@@ -467,7 +467,7 @@ BUFFER -.-> TENSOR_DATA
 * **Fixed architecture**: Cannot dynamically adjust network size without recompilation
 * **Debugging difficulty**: Graph execution is opaque; no per-operation timing
 
-**Sources:** [README.md L92-L100](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L92-L100)
+**Sources:** README.md
 
  [mnist_mlp.swift L15-L25](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L15-L25)
 
@@ -551,7 +551,7 @@ If MPSGraph is unavailable (e.g., macOS < 11.3), the system falls back to MPS hy
 
  [mnist_mlp.swift L2121-L2135](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L2121-L2135)
 
- [README.md L116-L120](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L116-L120)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L116-L120)
 
 ### Fallback Logic
 
@@ -612,11 +612,11 @@ MPSGraph provides maximum training throughput by executing the entire forward/ba
 
 **Sources:** [mnist_mlp.swift L9-L222](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_mlp.swift#L9-L222)
 
- [README.md L92-L100](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L92-L100)
+ README.md
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 

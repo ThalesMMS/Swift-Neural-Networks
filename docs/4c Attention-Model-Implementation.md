@@ -10,9 +10,9 @@ This document describes the Transformer-style self-attention model implementatio
 
  This is an educational implementation demonstrating single-head self-attention with patch tokenization, position embeddings, feed-forward networks, and mean pooling. The model operates on CPU only and uses pure Swift with manual gradient computation.
 
-For information about other MNIST training systems, see [Training Systems](#4). For GPU-accelerated implementations, see [MNIST MLP Implementation](#4.1).
+For information about other MNIST training systems, see [Training Systems](4%20Training-Systems.md). For GPU-accelerated implementations, see [MNIST MLP Implementation](4a%20MNIST-MLP-Implementation.md).
 
-**Sources:** [README.md L63-L79](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L63-L79)
+**Sources:** README.md
 
  [mnist_attention_pool.swift L1-L16](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L1-L16)
 
@@ -88,7 +88,7 @@ end
 
 **Sources:** [mnist_attention_pool.swift L1-L16](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L1-L16)
 
- [README.md L63-L72](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L63-L72)
+ README.md
 
 ---
 
@@ -117,7 +117,7 @@ The model uses fixed architectural constants and configurable training hyperpara
 
 **Sources:** [mnist_attention_pool.swift L26-L47](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L26-L47)
 
- [README.md L73-L79](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L73-L79)
+ README.md
 
 ---
 
@@ -302,10 +302,10 @@ end
 
 The function performs:
 
-1. **Q/K/V projection** [lines 381-399](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/lines 381-399) : Linear transformations for each token
-2. **Score computation** [lines 401-413](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/lines 401-413) : Dot products between all query-key pairs, scaled by `1/√dModel`
-3. **Softmax normalization** [line 414](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/line 414) : Per-row softmax creates attention weights
-4. **Value aggregation** [lines 416-424](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/lines 416-424) : Weighted sum of values using attention weights
+1. **Q/K/V projection** [mnist_attention_pool.swift L381-L399](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L381-L399) : Linear transformations for each token
+2. **Score computation** [mnist_attention_pool.swift L401-L413](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L401-L413) : Dot products between all query-key pairs, scaled by `1/√dModel`
+3. **Softmax normalization** [mnist_attention_pool.swift L414](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L414) : Per-row softmax creates attention weights
+4. **Value aggregation** [mnist_attention_pool.swift L416-L424](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L416-L424) : Weighted sum of values using attention weights
 
 **Sources:** [mnist_attention_pool.swift L368-L427](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L368-L427)
 
@@ -334,8 +334,8 @@ end
 
 **Implementation:** [feedForward L429-L460](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/feedForward()#L429-L460)
 
-* Layer 1 [lines 443-448](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/lines 443-448) : Expands from `dModel=16` to `ffDim=32` with ReLU
-* Layer 2 [lines 451-456](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/lines 451-456) : Projects back to `dModel=16` (no activation)
+* Layer 1 [mnist_attention_pool.swift L443-L448](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L443-L448) : Expands from `dModel=16` to `ffDim=32` with ReLU
+* Layer 2 [mnist_attention_pool.swift L451-L456](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L451-L456) : Projects back to `dModel=16` (no activation)
 
 **Sources:** [mnist_attention_pool.swift L429-L460](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L429-L460)
 
@@ -490,12 +490,12 @@ The attention mechanism backward pass is the most complex component, computing g
 
 **Key Steps:**
 
-1. **dV computation** [lines 684-704](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/lines 684-704) : Gradient w.r.t. values from attention-weighted upstream gradient
-2. **dalpha computation** [lines 689-696](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/lines 689-696) : Gradient w.r.t. attention weights from dot product with V
-3. **Softmax backward** [lines 706-713](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/lines 706-713) : Converts dalpha to dscores accounting for softmax Jacobian
-4. **dQ and dK computation** [lines 717-732](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/lines 717-732) : Gradients w.r.t. queries and keys from scaled dot products
-5. **Weight gradients** [lines 735-761](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/lines 735-761) : Accumulate gradients for wQ, wK, wV, bQ, bK, bV
-6. **dtokens accumulation** [lines 756-760](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/lines 756-760) : Backprop to token embeddings
+1. **dV computation** [mnist_attention_pool.swift L684-L704](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L684-L704) : Gradient w.r.t. values from attention-weighted upstream gradient
+2. **dalpha computation** [mnist_attention_pool.swift L689-L696](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L689-L696) : Gradient w.r.t. attention weights from dot product with V
+3. **Softmax backward** [mnist_attention_pool.swift L706-L713](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L706-L713) : Converts dalpha to dscores accounting for softmax Jacobian
+4. **dQ and dK computation** [mnist_attention_pool.swift L717-L732](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L717-L732) : Gradients w.r.t. queries and keys from scaled dot products
+5. **Weight gradients** [mnist_attention_pool.swift L735-L761](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L735-L761) : Accumulate gradients for wQ, wK, wV, bQ, bK, bV
+6. **dtokens accumulation** [mnist_attention_pool.swift L756-L760](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L756-L760) : Backprop to token embeddings
 
 **Sources:** [mnist_attention_pool.swift L683-L763](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L683-L763)
 
@@ -629,7 +629,7 @@ The function parses `CommandLine.arguments` and validates each parameter before 
 
 **Sources:** [mnist_attention_pool.swift L880-L912](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L880-L912)
 
- [README.md L153-L161](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L153-L161)
+ **Sources**: [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L153-L161)
 
 ---
 
@@ -751,7 +751,7 @@ The low accuracy (24.53% vs. 10% random) suggests the model requires:
 * Lower learning rate (e.g., 0.001)
 * Possible architecture changes (multiple attention heads, residual connections)
 
-**Sources:** [README.md L169-L176](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L169-L176)
+**Sources:** [Project overview and setup](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/README.md#L169-L176)
 
 ---
 
@@ -782,9 +782,9 @@ The low accuracy (24.53% vs. 10% random) suggests the model requires:
 
 **Sources:** [mnist_attention_pool.swift L1-L971](https://github.com/ThalesMMS/Swift-Neural-Networks/blob/3a1c4fc2/mnist_attention_pool.swift#L1-L971)
 
-Refresh this wiki
 
-Last indexed: 5 January 2026 ([3a1c4f](https://github.com/ThalesMMS/Swift-Neural-Networks/commit/3a1c4fc2))
+
+
 
 ### On this page
 
