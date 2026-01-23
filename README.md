@@ -99,6 +99,58 @@ Training uses 1,000,000 epochs by default.
 
 Note: `--mpsgraph` uses a fixed batch size; leftover samples are dropped to keep the graph static.
 
+## MLX Swift (New!)
+
+This project now includes **MLX Swift** implementations that provide:
+
+- 🚀 **GPU acceleration** on Apple Silicon (M1/M2/M3)
+- ✨ **Automatic differentiation** (no manual backprop!)
+- 📦 **90% less code** compared to manual implementations
+- 📚 **Didactic comments** explaining every concept
+
+### Requirements
+
+- macOS 14.0+ (Sonoma)
+- Apple Silicon (M1/M2/M3)
+- Swift 5.9+ or Xcode 15+
+
+### Build and Run
+
+```bash
+# Build
+swift build
+
+# Run MLP (default)
+swift run MNISTMLX
+
+# Run CNN
+swift run MNISTMLX --model cnn --epochs 3
+
+# Run Attention model
+swift run MNISTMLX --model attention --epochs 5
+
+# Custom hyperparameters
+swift run MNISTMLX -m mlp -e 10 -b 64 -l 0.005
+```
+
+### Available Models
+
+| Model | Architecture | Best Accuracy |
+|-------|-------------|---------------|
+| `mlp` | 784→512→10 (ReLU) | ~97% |
+| `cnn` | Conv(3×3,8)→MaxPool→Linear | ~98% |
+| `attention` | Patches→Attention→Pool→Linear | ~95% |
+
+See [docs/mlx_migration.md](docs/mlx_migration.md) for detailed migration guide.
+
+### Original vs MLX Code
+
+| Component | Original Lines | MLX Lines | Reduction |
+|-----------|---------------|-----------|-----------|
+| CNN | 583 | 100 | **83%** |
+| MLP | 2,223 | 80 | **96%** |
+| Attention | 972 | 180 | **81%** |
+
 ## Build and run
 
 ### Swift

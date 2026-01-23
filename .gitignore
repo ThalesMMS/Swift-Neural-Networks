@@ -5,3 +5,4 @@
 *.bin
 mlp_simple_swift
 mnist_mlp_swift
+/.build
