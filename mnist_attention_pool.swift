@@ -40,7 +40,24 @@ let ffDim = 32                   // feed-forward hidden size
 let trainSamples = 60_000
 let testSamples = 10_000
 
-// Training hyperparameters.
+// =============================================================================
+// MARK: - Configuration
+// =============================================================================
+
+/// Configuration for training hyperparameters
+struct Config {
+    var learningRate: Float = 0.01
+    var epochs: Int = 5
+    var batchSize: Int = 32
+    var rngSeed: UInt64 = 1
+
+    /// Creates a default configuration
+    static func `default`() -> Config {
+        return Config()
+    }
+}
+
+// Training hyperparameters (legacy global variables - to be replaced).
 var learningRate: Float = 0.01
 var epochs = 5
 var batchSize = 32
