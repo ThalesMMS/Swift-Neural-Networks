@@ -524,6 +524,8 @@ let numInputs = 784
 let numOutputs = 10
 let trainSamples = 60_000
 let testSamples = 10_000
+// TODO: FIX THIS UNRESOLVED MERGE CONFLICT. KEEP FUNCTIONALITY.
+// <<<<<<< auto-claude/002-replace-mutable-global-variables-with-configuratio
 
 // Simple RNG for reproducibility without external crates.
 struct SimpleRng {
@@ -566,6 +568,12 @@ struct SimpleRng {
     }
 }
 
+// =======
+var learningRate: Float = 0.01
+var epochs = 10
+var batchSize = 64
+var rngSeed: UInt64 = 1
+// >>>>>>> main
 // Activation types used in the network.
 enum ActivationType {
     case sigmoid
@@ -1285,32 +1293,6 @@ func reluInPlace(_ data: inout [Float], count: Int) {
     }
 }
 
-// Row-wise softmax (in-place).
-func softmaxRows(_ data: inout [Float], rows: Int, cols: Int) {
-    for r in 0..<rows {
-        let base = r * cols
-        var maxVal = data[base]
-        for c in 1..<cols {
-            let v = data[base + c]
-            if v > maxVal {
-                maxVal = v
-            }
-        }
-
-        var sum: Float = 0.0
-        for c in 0..<cols {
-            let e = expf(data[base + c] - maxVal)
-            data[base + c] = e
-            sum += e
-        }
-
-        let inv = 1.0 / sum
-        for c in 0..<cols {
-            data[base + c] *= inv
-        }
-    }
-}
-
 // Create output delta (softmax + cross-entropy) and accumulate loss.
 func computeDeltaAndLoss(
     outputs: [Float],
@@ -1386,31 +1368,6 @@ func reluInPlacePointer(_ data: UnsafeMutablePointer<Float>, count: Int) {
     for i in 0..<count {
         if data[i] < 0 {
             data[i] = 0
-        }
-    }
-}
-
-func softmaxRowsPointer(_ data: UnsafeMutablePointer<Float>, rows: Int, cols: Int) {
-    for r in 0..<rows {
-        let base = r * cols
-        var maxVal = data[base]
-        for c in 1..<cols {
-            let v = data[base + c]
-            if v > maxVal {
-                maxVal = v
-            }
-        }
-
-        var sum: Float = 0.0
-        for c in 0..<cols {
-            let e = expf(data[base + c] - maxVal)
-            data[base + c] = e
-            sum += e
-        }
-
-        let inv = 1.0 / sum
-        for c in 0..<cols {
-            data[base + c] *= inv
         }
     }
 }

@@ -45,6 +45,14 @@ let package = Package(
     // ---------------------------------------------------------------------------
     // Products define what this package exports to other packages or executables.
     products: [
+        // Library: Shared utilities for MNIST projects
+        // Contains SimpleRng, data loaders, and activation functions extracted from
+        // duplicated code across mnist_mlp.swift, mnist_cnn.swift, etc.
+        .library(
+            name: "MNISTCommon",
+            targets: ["MNISTCommon"]
+        ),
+
         // Library: Reusable MNIST data loading utilities
         // Other packages can import this to load MNIST data into MLXArrays.
         .library(
@@ -91,6 +99,20 @@ let package = Package(
     // ---------------------------------------------------------------------------
     // Targets are the basic building blocks of a package.
     targets: [
+        // -----------------------------------------------------------------------
+        // MNISTCommon: Shared utilities library
+        // -----------------------------------------------------------------------
+        // This target provides common utilities extracted from duplicated code:
+        //   - SimpleRng: Reproducible random number generator
+        //   - Data loaders: readMnistImages, readMnistLabels
+        //   - Activations: softmaxRows, softmaxRowsPointer
+        // Pure Swift with no external dependencies.
+        .target(
+            name: "MNISTCommon",
+            dependencies: [],
+            path: "Sources/MNISTCommon"
+        ),
+
         // -----------------------------------------------------------------------
         // MNISTData: Shared data loading library
         // -----------------------------------------------------------------------
@@ -145,7 +167,10 @@ let package = Package(
         //   - MPSGraph backend: Higher-level graph API for training
         .executableTarget(
             name: "MNISTClassic",
-            dependencies: [],
+            dependencies: [
+                // Shared utilities (SimpleRng, data loaders, activations)
+                "MNISTCommon",
+            ],
             path: "Sources/MNISTClassic"
         ),
     ]
