@@ -384,6 +384,105 @@ struct Config {
     var batchSize: Int = 64
     var rngSeed: UInt64 = 1
     var dataPath: String = "./data"
+
+    /// Parses command-line arguments into configuration
+    static func parse() -> Config {
+        var config = Config()
+        let args = CommandLine.arguments
+        var i = 1
+
+        while i < args.count {
+            let arg = args[i]
+
+            switch arg {
+            case "--batch", "-b":
+                i += 1
+                if i < args.count, let val = Int(args[i]), val > 0 {
+                    config.batchSize = val
+                }
+
+            case "--hidden", "-h":
+                i += 1
+                if i < args.count, let val = Int(args[i]), val > 0 {
+                    config.numHidden = val
+                }
+
+            case "--epochs", "-e":
+                i += 1
+                if i < args.count, let val = Int(args[i]), val > 0 {
+                    config.epochs = val
+                }
+
+            case "--lr", "-l":
+                i += 1
+                if i < args.count, let val = Float(args[i]), val > 0 {
+                    config.learningRate = val
+                }
+
+            case "--seed", "-s":
+                i += 1
+                if i < args.count, let val = UInt64(args[i]) {
+                    config.rngSeed = val
+                }
+
+            case "--data", "-d":
+                i += 1
+                if i < args.count {
+                    config.dataPath = args[i]
+                }
+
+            case "--help":
+                printUsage()
+                exit(0)
+
+            default:
+                // Allow flags like --mps and --mpsgraph to pass through
+                if !arg.hasPrefix("--") {
+                    print("Unknown argument: \(arg)")
+                    printUsage()
+                    exit(1)
+                }
+            }
+
+            i += 1
+        }
+
+        return config
+    }
+}
+
+/// Prints usage information
+func printUsage() {
+    print("""
+    MNIST MLP Neural Network Training
+    ==================================
+
+    USAGE:
+      swift mnist_mlp.swift [OPTIONS]
+
+    OPTIONS:
+      --batch, -b <n>       Batch size (default: 64)
+      --hidden, -h <n>      Hidden layer size (default: 512)
+      --epochs, -e <n>      Number of training epochs (default: 10)
+      --lr, -l <f>          Learning rate (default: 0.01)
+      --seed, -s <n>        Random seed (default: 1)
+      --data, -d <path>     Path to MNIST data directory (default: ./data)
+      --mps                 Use Metal Performance Shaders for GPU acceleration
+      --mpsgraph            Use MPSGraph for GPU acceleration
+      --help                Show this help message
+
+    EXAMPLES:
+      swift mnist_mlp.swift --epochs 5 --lr 0.005
+      swift mnist_mlp.swift --mps --batch 128 --hidden 256
+      swift mnist_mlp.swift --mpsgraph --epochs 3
+
+    ARCHITECTURE:
+      Multi-Layer Perceptron (784 → [hidden] → 10)
+      - Input: 784 features (28×28 MNIST images)
+      - Hidden: ReLU activation
+      - Output: Softmax with cross-entropy loss
+      - Optimizer: Stochastic Gradient Descent (SGD)
+    """)
 }
 
 // Sequential MLP for MNIST (Swift port for study and optimization).
@@ -2069,61 +2168,16 @@ func readMnistLabels(path: String, count: Int) -> [UInt8] {
     }
 }
 
-func applyCliOverrides() {
-    let args = CommandLine.arguments
-    var i = 1
-    while i < args.count {
-        let arg = args[i]
-        switch arg {
-        case "--batch":
-            guard i + 1 < args.count, let value = Int(args[i + 1]), value > 0 else {
-                print("Invalid value for --batch")
-                exit(1)
-            }
-            batchSize = value
-            i += 1
-        case "--hidden":
-            guard i + 1 < args.count, let value = Int(args[i + 1]), value > 0 else {
-                print("Invalid value for --hidden")
-                exit(1)
-            }
-            numHidden = value
-            i += 1
-        case "--epochs":
-            guard i + 1 < args.count, let value = Int(args[i + 1]), value > 0 else {
-                print("Invalid value for --epochs")
-                exit(1)
-            }
-            epochs = value
-            i += 1
-        case "--lr":
-            guard i + 1 < args.count, let value = Float(args[i + 1]), value > 0 else {
-                print("Invalid value for --lr")
-                exit(1)
-            }
-            learningRate = value
-            i += 1
-        case "--seed":
-            guard i + 1 < args.count, let value = UInt64(args[i + 1]) else {
-                print("Invalid value for --seed")
-                exit(1)
-            }
-            rngSeed = value
-            i += 1
-        case "--help":
-            print("""
-Usage: mnist_mlp_swift [--mps] [--mpsgraph] [--batch N] [--hidden N] [--epochs N] [--lr F] [--seed N]
-""")
-            exit(0)
-        default:
-            break
-        }
-        i += 1
-    }
-}
-
 func main() {
-    applyCliOverrides()
+    // Parse command-line configuration
+    let config = Config.parse()
+
+    // Apply config to global variables (for compatibility with existing code)
+    numHidden = config.numHidden
+    learningRate = config.learningRate
+    epochs = config.epochs
+    batchSize = config.batchSize
+    rngSeed = config.rngSeed
 
     let useMpsGraph = CommandLine.arguments.contains("--mpsgraph")
     let useMPS = CommandLine.arguments.contains("--mps") || useMpsGraph
@@ -2132,18 +2186,18 @@ func main() {
 
     print("Loading training data...")
     let loadStart = Date()
-    let trainImages = readMnistImages(path: "./data/train-images.idx3-ubyte", count: trainSamples)
-    let trainLabels = readMnistLabels(path: "./data/train-labels.idx1-ubyte", count: trainSamples)
+    let trainImages = readMnistImages(path: "\(config.dataPath)/train-images.idx3-ubyte", count: config.trainSamples)
+    let trainLabels = readMnistLabels(path: "\(config.dataPath)/train-labels.idx1-ubyte", count: config.trainSamples)
 
     print("Loading test data...")
-    let testImages = readMnistImages(path: "./data/t10k-images.idx3-ubyte", count: testSamples)
-    let testLabels = readMnistLabels(path: "./data/t10k-labels.idx1-ubyte", count: testSamples)
+    let testImages = readMnistImages(path: "\(config.dataPath)/t10k-images.idx3-ubyte", count: config.testSamples)
+    let testLabels = readMnistLabels(path: "\(config.dataPath)/t10k-labels.idx1-ubyte", count: config.testSamples)
     let loadTime = Date().timeIntervalSince(loadStart)
     print(String(format: "Data loading time: %.2f seconds", loadTime))
 
     print("Initializing neural network...")
-    print("Config: hidden=\(numHidden) batch=\(batchSize) epochs=\(epochs) lr=\(learningRate) seed=\(rngSeed)")
-    var rng = SimpleRng(seed: rngSeed)
+    print("Config: hidden=\(config.numHidden) batch=\(config.batchSize) epochs=\(config.epochs) lr=\(config.learningRate) seed=\(config.rngSeed)")
+    var rng = SimpleRng(seed: config.rngSeed)
     var nn = initializeNetwork(rng: &rng)
 
     print("Training neural network...")
