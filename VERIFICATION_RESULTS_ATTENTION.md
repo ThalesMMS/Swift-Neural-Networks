@@ -4,7 +4,7 @@
 **Command:** `swift mnist_attention_pool.swift --help`
 
 **Result:** PASSED
-```
+```text
 MNIST Attention Pool - Self-Attention Model for MNIST
 ======================================================
 

@@ -1008,7 +1008,9 @@ func main() {
     print("Config: patch=\(patch)x\(patch) tokens=\(seqLen) d=\(dModel) ff=\(ffDim) batch=\(config.batchSize) epochs=\(config.epochs) lr=\(config.learningRate) seed=\(config.rngSeed)")
 
     var rng = SimpleRng(seed: config.rngSeed)
-    rng.reseedFromTime()
+    if config.rngSeed == 0 {
+        rng.reseedFromTime()
+    }
     var model = initModel(rng: &rng)
 
     // Training log file.

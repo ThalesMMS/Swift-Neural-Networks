@@ -1244,11 +1244,13 @@ func initializeLayer(
 }
 
 /// Builds a two-layer neural network using Xavier initialization for weights.
-/// - Parameters:
-///   - rng: A seedable pseudo-random number generator passed by reference; it will be reseeded from the current time and advanced during initialization.
+    /// - Parameters:
+    ///   - rng: A seedable pseudo-random number generator passed by reference; it will only be reseeded from the current time when `config.rngSeed == 0`, and is advanced during initialization.
 /// - Returns: A `NeuralNetwork` with a hidden layer of size `config.numHidden` (ReLU) and an output layer of size `numOutputs` (Softmax).
 func initializeNetwork(config: Config, rng: inout SimpleRng) -> NeuralNetwork {
-    rng.reseedFromTime()
+    if config.rngSeed == 0 {
+        rng.reseedFromTime()
+    }
     let hidden = initializeLayer(
         inputSize: numInputs,
         outputSize: config.numHidden,
