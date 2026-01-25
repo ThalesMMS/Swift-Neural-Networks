@@ -167,7 +167,10 @@ let package = Package(
         //   - MPSGraph backend: Higher-level graph API for training
         .executableTarget(
             name: "MNISTClassic",
-            dependencies: [],
+            dependencies: [
+                // Shared utilities (SimpleRng, data loaders, activations)
+                "MNISTCommon",
+            ],
             path: "Sources/MNISTClassic"
         ),
     ]

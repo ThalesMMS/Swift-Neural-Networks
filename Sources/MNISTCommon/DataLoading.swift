@@ -47,7 +47,7 @@ import Foundation
 /// let images = readMnistImages(path: "./data/train-images.idx3-ubyte", count: 60000)
 /// // Returns 60000 * 784 = 47,040,000 float values
 /// ```
-func readMnistImages(path: String, count: Int) -> [Float] {
+public func readMnistImages(path: String, count: Int) -> [Float] {
     let url = URL(fileURLWithPath: path)
     guard let data = try? Data(contentsOf: url) else {
         print("Could not open file \(path)")
@@ -110,7 +110,7 @@ func readMnistImages(path: String, count: Int) -> [Float] {
 /// let labels = readMnistLabels(path: "./data/train-labels.idx1-ubyte", count: 60000)
 /// // Returns 60,000 UInt8 values, each in range 0-9
 /// ```
-func readMnistLabels(path: String, count: Int) -> [UInt8] {
+public func readMnistLabels(path: String, count: Int) -> [UInt8] {
     let url = URL(fileURLWithPath: path)
     guard let data = try? Data(contentsOf: url) else {
         print("Could not open file \(path)")

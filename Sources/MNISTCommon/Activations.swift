@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Array-based activation functions
 
 // Row-wise softmax (in-place).
-func softmaxRows(_ data: inout [Float], rows: Int, cols: Int) {
+public func softmaxRows(_ data: inout [Float], rows: Int, cols: Int) {
     for r in 0..<rows {
         let base = r * cols
         var maxVal = data[base]
@@ -31,7 +31,7 @@ func softmaxRows(_ data: inout [Float], rows: Int, cols: Int) {
 // MARK: - Pointer-based versions for MPS shared buffers
 
 /// Row-wise softmax using unsafe pointers.
-func softmaxRowsPointer(_ data: UnsafeMutablePointer<Float>, rows: Int, cols: Int) {
+public func softmaxRowsPointer(_ data: UnsafeMutablePointer<Float>, rows: Int, cols: Int) {
     for r in 0..<rows {
         let base = r * cols
         var maxVal = data[base]
