@@ -186,4 +186,8 @@ func main() {
 // Execute main
 // =============================================================================
 
+// Force unbuffered output for immediate console feedback
+import Darwin
+setbuf(__stdoutp, nil)
+
 main()
