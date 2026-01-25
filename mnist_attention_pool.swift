@@ -51,17 +51,88 @@ struct Config {
     var batchSize: Int = 32
     var rngSeed: UInt64 = 1
 
-    /// Creates a default configuration
-    static func `default`() -> Config {
-        return Config()
+    /// Parses command-line arguments into configuration
+    ///
+    /// This is a simple hand-rolled parser. For production code,
+    /// consider using Swift Argument Parser package.
+    static func parse() -> Config {
+        var config = Config()
+        let args = CommandLine.arguments
+        var i = 1
+
+        while i < args.count {
+            let arg = args[i]
+
+            switch arg {
+            case "--batch", "-b":
+                i += 1
+                if i < args.count, let val = Int(args[i]), val > 0 {
+                    config.batchSize = val
+                }
+
+            case "--epochs", "-e":
+                i += 1
+                if i < args.count, let val = Int(args[i]), val > 0 {
+                    config.epochs = val
+                }
+
+            case "--lr", "-l":
+                i += 1
+                if i < args.count, let val = Float(args[i]), val > 0 {
+                    config.learningRate = val
+                }
+
+            case "--seed", "-s":
+                i += 1
+                if i < args.count, let val = UInt64(args[i]) {
+                    config.rngSeed = val
+                }
+
+            case "--help", "-h":
+                printUsage()
+                exit(0)
+
+            default:
+                print("Unknown argument: \(arg)")
+                printUsage()
+                exit(1)
+            }
+
+            i += 1
+        }
+
+        return config
     }
 }
 
-// Training hyperparameters (legacy global variables - to be replaced).
-var learningRate: Float = 0.01
-var epochs = 5
-var batchSize = 32
-var rngSeed: UInt64 = 1
+/// Prints usage information
+func printUsage() {
+    print("""
+    MNIST Attention Pool - Self-Attention Model for MNIST
+    ======================================================
+
+    USAGE:
+      swift mnist_attention_pool.swift [OPTIONS]
+
+    OPTIONS:
+      --batch, -b <n>    Batch size (default: 32)
+      --epochs, -e <n>   Number of training epochs (default: 5)
+      --lr, -l <f>       Learning rate (default: 0.01)
+      --seed, -s <n>     RNG seed for reproducibility (default: 1)
+      --help, -h         Show this help message
+
+    EXAMPLES:
+      swift mnist_attention_pool.swift --epochs 10
+      swift mnist_attention_pool.swift -b 64 -e 5 -l 0.005
+      swift mnist_attention_pool.swift --seed 42
+
+    MODEL ARCHITECTURE:
+      - 4×4 patches → 49 tokens
+      - Self-attention with Q/K/V projections
+      - Feed-forward MLP per token
+      - Mean-pool → logits → softmax
+    """)
+}
 
 // Tiny xorshift RNG for reproducible init without external deps.
 struct SimpleRng {
@@ -514,11 +585,16 @@ func trainEpoch(
     images: [Float],
     labels: [UInt8],
     indices: inout [Int],
-    rng: inout SimpleRng
+    rng: inout SimpleRng,
+    config: Config
 ) -> Float {
     rng.shuffle(&indices)
 
     var grads = Grads()
+
+    // Extract config values for local use.
+    let batchSize = config.batchSize
+    let learningRate = config.learningRate
 
     // Reusable buffers to avoid per-batch allocations.
     var batchInputs = [Float](repeating: 0, count: batchSize * numInputs)
@@ -831,8 +907,9 @@ func trainEpoch(
 }
 
 // Evaluate accuracy by running forward passes in batches.
-func testAccuracy(model: AttnModel, images: [Float], labels: [UInt8]) -> Float {
+func testAccuracy(model: AttnModel, images: [Float], labels: [UInt8], config: Config) -> Float {
     let n = labels.count
+    let batchSize = config.batchSize
 
     var batchInputs = [Float](repeating: 0, count: batchSize * numInputs)
     var patches = [Float](repeating: 0, count: batchSize * seqLen * patchDim)
@@ -894,42 +971,9 @@ func testAccuracy(model: AttnModel, images: [Float], labels: [UInt8]) -> Float {
     return 100.0 * Float(correct) / Float(n)
 }
 
-func applyCliOverrides() {
-    let args = CommandLine.arguments
-    var i = 1
-    while i < args.count {
-        let arg = args[i]
-        switch arg {
-        case "--batch":
-            guard i + 1 < args.count, let v = Int(args[i + 1]), v > 0 else { exit(1) }
-            batchSize = v
-            i += 1
-        case "--epochs":
-            guard i + 1 < args.count, let v = Int(args[i + 1]), v > 0 else { exit(1) }
-            epochs = v
-            i += 1
-        case "--lr":
-            guard i + 1 < args.count, let v = Float(args[i + 1]), v > 0 else { exit(1) }
-            learningRate = v
-            i += 1
-        case "--seed":
-            guard i + 1 < args.count, let v = UInt64(args[i + 1]) else { exit(1) }
-            rngSeed = v
-            i += 1
-        case "--help":
-            print("""
-Usage: mnist_attention_pool_swift [--batch N] [--epochs N] [--lr F] [--seed N]
-""")
-            exit(0)
-        default:
-            break
-        }
-        i += 1
-    }
-}
-
 func main() {
-    applyCliOverrides()
+    // Parse command-line configuration.
+    let config = Config.parse()
 
     let programStart = Date()
 
@@ -942,9 +986,9 @@ func main() {
     let loadTime = Date().timeIntervalSince(loadStart)
     print(String(format: "Data loading time: %.2f seconds", loadTime))
 
-    print("Config: patch=\(patch)x\(patch) tokens=\(seqLen) d=\(dModel) ff=\(ffDim) batch=\(batchSize) epochs=\(epochs) lr=\(learningRate) seed=\(rngSeed)")
+    print("Config: patch=\(patch)x\(patch) tokens=\(seqLen) d=\(dModel) ff=\(ffDim) batch=\(config.batchSize) epochs=\(config.epochs) lr=\(config.learningRate) seed=\(config.rngSeed)")
 
-    var rng = SimpleRng(seed: rngSeed)
+    var rng = SimpleRng(seed: config.rngSeed)
     rng.reseedFromTime()
     var model = initModel(rng: &rng)
 
@@ -959,12 +1003,12 @@ func main() {
 
     print("Training...")
     let trainStart = Date()
-    for e in 0..<epochs {
+    for e in 0..<config.epochs {
         let t0 = Date()
-        let avgLoss = trainEpoch(model: &model, images: trainImages, labels: trainLabels, indices: &indices, rng: &rng)
+        let avgLoss = trainEpoch(model: &model, images: trainImages, labels: trainLabels, indices: &indices, rng: &rng, config: config)
         let dt = Float(Date().timeIntervalSince(t0))
 
-        let acc = testAccuracy(model: model, images: testImages, labels: testLabels)
+        let acc = testAccuracy(model: model, images: testImages, labels: testLabels, config: config)
         print(String(format: "Epoch %d | loss=%.6f | time=%.3fs | test_acc=%.2f%%", e + 1, avgLoss, dt, acc))
 
         if let h = logHandle {
@@ -974,7 +1018,7 @@ func main() {
     }
     let trainTime = Date().timeIntervalSince(trainStart)
 
-    let finalAcc = testAccuracy(model: model, images: testImages, labels: testLabels)
+    let finalAcc = testAccuracy(model: model, images: testImages, labels: testLabels, config: config)
     print(String(format: "Final Test Accuracy: %.2f%%", finalAcc))
 
     let totalTime = Date().timeIntervalSince(programStart)
