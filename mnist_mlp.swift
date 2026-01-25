@@ -26,19 +26,20 @@ func trainMpsGraph(
     images: [Float],
     labels: [UInt8],
     numSamples: Int,
+    config: Config,
     rng: inout SimpleRng
 ) {
     guard let device = MTLCreateSystemDefaultDevice(),
           let queue = device.makeCommandQueue() else {
         print("MPSGraph device unavailable, falling back to CPU.")
         let cpu = CpuGemmEngine()
-        train(nn: &nn, images: images, labels: labels, numSamples: numSamples, engine: cpu, rng: &rng)
+        train(nn: &nn, images: images, labels: labels, numSamples: numSamples, config: config, engine: cpu, rng: &rng)
         return
     }
 
     let graph = MPSGraph()
-    let inputShape = [NSNumber(value: batchSize), NSNumber(value: numInputs)]
-    let labelShape = [NSNumber(value: batchSize), NSNumber(value: numOutputs)]
+    let inputShape = [NSNumber(value: config.batchSize), NSNumber(value: numInputs)]
+    let labelShape = [NSNumber(value: config.batchSize), NSNumber(value: numOutputs)]
 
     let inputTensor = graph.placeholder(shape: inputShape, dataType: .float32, name: "input")
     let labelTensor = graph.placeholder(shape: labelShape, dataType: .float32, name: "labels")
@@ -47,9 +48,9 @@ func trainMpsGraph(
         return array.withUnsafeBufferPointer { Data(buffer: $0) }
     }
 
-    let w1Shape = [NSNumber(value: numInputs), NSNumber(value: numHidden)]
-    let b1Shape = [NSNumber(value: numHidden)]
-    let w2Shape = [NSNumber(value: numHidden), NSNumber(value: numOutputs)]
+    let w1Shape = [NSNumber(value: numInputs), NSNumber(value: config.numHidden)]
+    let b1Shape = [NSNumber(value: config.numHidden)]
+    let w2Shape = [NSNumber(value: config.numHidden), NSNumber(value: numOutputs)]
     let b2Shape = [NSNumber(value: numOutputs)]
 
     let w1Var = graph.variable(with: dataFromArray(nn.hidden.weights), shape: w1Shape, dataType: .float32, name: "W1")
@@ -84,11 +85,11 @@ func trainMpsGraph(
           let gradB2 = grads[b2Read] else {
         print("Failed to build MPSGraph gradients, falling back to CPU.")
         let cpu = CpuGemmEngine()
-        train(nn: &nn, images: images, labels: labels, numSamples: numSamples, engine: cpu, rng: &rng)
+        train(nn: &nn, images: images, labels: labels, numSamples: numSamples, config: config, engine: cpu, rng: &rng)
         return
     }
 
-    let lrTensor = graph.constant(Double(learningRate), dataType: .float32)
+    let lrTensor = graph.constant(Double(config.learningRate), dataType: .float32)
     let w1Update = graph.subtraction(w1Read, graph.multiplication(gradW1, lrTensor, name: nil), name: "W1_update")
     let b1Update = graph.subtraction(b1Read, graph.multiplication(gradB1, lrTensor, name: nil), name: "b1_update")
     let w2Update = graph.subtraction(w2Read, graph.multiplication(gradW2, lrTensor, name: nil), name: "W2_update")
@@ -116,13 +117,13 @@ func trainMpsGraph(
     )
 
     // Input/label buffers to feed the graph.
-    let inputBytes = batchSize * numInputs * MemoryLayout<Float>.size
-    let labelBytes = batchSize * numOutputs * MemoryLayout<Float>.size
+    let inputBytes = config.batchSize * numInputs * MemoryLayout<Float>.size
+    let labelBytes = config.batchSize * numOutputs * MemoryLayout<Float>.size
     guard let inputBuffer = device.makeBuffer(length: inputBytes, options: .storageModeShared),
           let labelBuffer = device.makeBuffer(length: labelBytes, options: .storageModeShared) else {
         print("Failed to allocate MPSGraph buffers, falling back to CPU.")
         let cpu = CpuGemmEngine()
-        train(nn: &nn, images: images, labels: labels, numSamples: numSamples, engine: cpu, rng: &rng)
+        train(nn: &nn, images: images, labels: labels, numSamples: numSamples, config: config, engine: cpu, rng: &rng)
         return
     }
 
@@ -130,14 +131,14 @@ func trainMpsGraph(
     let labelData = MPSGraphTensorData(labelBuffer, shape: labelShape, dataType: .float32)
 
     // Keep a fixed batch size (drop the remainder to simplify the graph).
-    let effectiveSamples = (numSamples / batchSize) * batchSize
+    let effectiveSamples = (numSamples / config.batchSize) * config.batchSize
     if effectiveSamples < numSamples {
         print("MPSGraph: descartando \(numSamples - effectiveSamples) amostras para manter batch fixo.")
     }
 
     var indices = Array(0..<effectiveSamples)
-    let inputPtr = inputBuffer.contents().bindMemory(to: Float.self, capacity: batchSize * numInputs)
-    let labelPtr = labelBuffer.contents().bindMemory(to: Float.self, capacity: batchSize * numOutputs)
+    let inputPtr = inputBuffer.contents().bindMemory(to: Float.self, capacity: config.batchSize * numInputs)
+    let labelPtr = labelBuffer.contents().bindMemory(to: Float.self, capacity: config.batchSize * numOutputs)
 
     images.withUnsafeBufferPointer { imagesBuf in
         labels.withUnsafeBufferPointer { labelsBuf in
@@ -146,7 +147,7 @@ func trainMpsGraph(
                 return
             }
 
-            for epoch in 0..<epochs {
+            for epoch in 0..<config.epochs {
                 var totalLoss: Float = 0.0
                 let startTime = Date()
 
@@ -158,9 +159,9 @@ func trainMpsGraph(
                     }
                 }
 
-                for batchStart in stride(from: 0, to: effectiveSamples, by: batchSize) {
+                for batchStart in stride(from: 0, to: effectiveSamples, by: config.batchSize) {
                     // Copy inputs into the GPU buffer.
-                    for i in 0..<batchSize {
+                    for i in 0..<config.batchSize {
                         let srcIndex = indices[batchStart + i]
                         let srcOffset = srcIndex * numInputs
                         let dstOffset = i * numInputs
@@ -170,7 +171,7 @@ func trainMpsGraph(
 
                     // One-hot labels into the GPU buffer.
                     memset(labelPtr, 0, labelBytes)
-                    for i in 0..<batchSize {
+                    for i in 0..<config.batchSize {
                         let label = Int(labelsBase[indices[batchStart + i]])
                         labelPtr[i * numOutputs + label] = 1.0
                     }
@@ -188,7 +189,7 @@ func trainMpsGraph(
                         let ndarray = lossData.mpsndarray()
                         var lossValue: Float = 0.0
                         ndarray.readBytes(&lossValue, strideBytes: nil)
-                        totalLoss += lossValue * Float(batchSize)
+                        totalLoss += lossValue * Float(config.batchSize)
                     }
                 }
 
@@ -225,9 +226,9 @@ func trainMpsGraph(
        let b1Data = readResults[b1Read],
        let w2Data = readResults[w2Read],
        let b2Data = readResults[b2Read] {
-        nn.hidden.weights = readTensor(w1Data, count: numInputs * numHidden)
-        nn.hidden.biases = readTensor(b1Data, count: numHidden)
-        nn.output.weights = readTensor(w2Data, count: numHidden * numOutputs)
+        nn.hidden.weights = readTensor(w1Data, count: numInputs * config.numHidden)
+        nn.hidden.biases = readTensor(b1Data, count: config.numHidden)
+        nn.output.weights = readTensor(w2Data, count: config.numHidden * numOutputs)
         nn.output.biases = readTensor(b2Data, count: numOutputs)
     } else {
         print("Warning: failed to read weights from MPSGraph, keeping previous values.")
@@ -239,26 +240,27 @@ func testMpsGraph(
     nn: NeuralNetwork,
     images: [Float],
     labels: [UInt8],
-    numSamples: Int
+    numSamples: Int,
+    config: Config
 ) {
     guard let device = MTLCreateSystemDefaultDevice(),
           let queue = device.makeCommandQueue() else {
         print("MPSGraph device unavailable, falling back to CPU test.")
-        test(nn: nn, images: images, labels: labels, numSamples: numSamples)
+        test(nn: nn, images: images, labels: labels, numSamples: numSamples, config: config)
         return
     }
 
     let graph = MPSGraph()
-    let inputShape = [NSNumber(value: batchSize), NSNumber(value: numInputs)]
+    let inputShape = [NSNumber(value: config.batchSize), NSNumber(value: numInputs)]
     let inputTensor = graph.placeholder(shape: inputShape, dataType: .float32, name: "input")
 
     func dataFromArray(_ array: [Float]) -> Data {
         return array.withUnsafeBufferPointer { Data(buffer: $0) }
     }
 
-    let w1Shape = [NSNumber(value: numInputs), NSNumber(value: numHidden)]
-    let b1Shape = [NSNumber(value: numHidden)]
-    let w2Shape = [NSNumber(value: numHidden), NSNumber(value: numOutputs)]
+    let w1Shape = [NSNumber(value: numInputs), NSNumber(value: config.numHidden)]
+    let b1Shape = [NSNumber(value: config.numHidden)]
+    let w2Shape = [NSNumber(value: config.numHidden), NSNumber(value: numOutputs)]
     let b2Shape = [NSNumber(value: numOutputs)]
 
     let w1Var = graph.variable(with: dataFromArray(nn.hidden.weights), shape: w1Shape, dataType: .float32, name: "W1_test")
@@ -292,26 +294,26 @@ func testMpsGraph(
         compilationDescriptor: nil
     )
 
-    let inputBytes = batchSize * numInputs * MemoryLayout<Float>.size
+    let inputBytes = config.batchSize * numInputs * MemoryLayout<Float>.size
     guard let inputBuffer = device.makeBuffer(length: inputBytes, options: .storageModeShared) else {
         print("Failed to allocate MPSGraph test buffers, falling back to CPU test.")
-        test(nn: nn, images: images, labels: labels, numSamples: numSamples)
+        test(nn: nn, images: images, labels: labels, numSamples: numSamples, config: config)
         return
     }
     let inputData = MPSGraphTensorData(inputBuffer, shape: inputShape, dataType: .float32)
-    let inputPtr = inputBuffer.contents().bindMemory(to: Float.self, capacity: batchSize * numInputs)
+    let inputPtr = inputBuffer.contents().bindMemory(to: Float.self, capacity: config.batchSize * numInputs)
 
-    let fullBatches = numSamples / batchSize
-    let remainder = numSamples - fullBatches * batchSize
+    let fullBatches = numSamples / config.batchSize
+    let remainder = numSamples - fullBatches * config.batchSize
     var correct = 0
-    var logitsHost = [Float](repeating: 0.0, count: batchSize * numOutputs)
+    var logitsHost = [Float](repeating: 0.0, count: config.batchSize * numOutputs)
 
     images.withUnsafeBufferPointer { imagesBuf in
         guard let imagesBase = imagesBuf.baseAddress else { return }
         for batch in 0..<fullBatches {
-            let start = batch * batchSize
+            let start = batch * config.batchSize
             let src = imagesBase.advanced(by: start * numInputs)
-            inputPtr.update(from: src, count: batchSize * numInputs)
+            inputPtr.update(from: src, count: config.batchSize * numInputs)
 
             let outputs = executable.run(
                 with: queue,
@@ -327,7 +329,7 @@ func testMpsGraph(
                 ndarray.readBytes(ptr, strideBytes: nil)
             }
 
-            for i in 0..<batchSize {
+            for i in 0..<config.batchSize {
                 let base = i * numOutputs
                 var maxVal = logitsHost[base]
                 var maxIdx = 0
@@ -350,8 +352,9 @@ func testMpsGraph(
             nn: nn,
             images: images,
             labels: labels,
-            start: fullBatches * batchSize,
-            count: remainder
+            start: fullBatches * config.batchSize,
+            count: remainder,
+            config: config
         )
     }
 
@@ -487,14 +490,9 @@ func printUsage() {
 
 // Sequential MLP for MNIST (Swift port for study and optimization).
 let numInputs = 784
-var numHidden = 512
 let numOutputs = 10
 let trainSamples = 60_000
 let testSamples = 10_000
-var learningRate: Float = 0.01
-var epochs = 10
-var batchSize = 64
-var rngSeed: UInt64 = 1
 
 // Simple RNG for reproducibility without external crates.
 struct SimpleRng {
@@ -1209,16 +1207,16 @@ func initializeLayer(
 }
 
 // Network construction 784 -> 512 -> 10.
-func initializeNetwork(rng: inout SimpleRng) -> NeuralNetwork {
+func initializeNetwork(config: Config, rng: inout SimpleRng) -> NeuralNetwork {
     rng.reseedFromTime()
     let hidden = initializeLayer(
         inputSize: numInputs,
-        outputSize: numHidden,
+        outputSize: config.numHidden,
         activation: .relu,
         rng: &rng
     )
     let output = initializeLayer(
-        inputSize: numHidden,
+        inputSize: config.numHidden,
         outputSize: numOutputs,
         activation: .softmax,
         rng: &rng
@@ -1462,6 +1460,7 @@ func train(
     images: [Float],
     labels: [UInt8],
     numSamples: Int,
+    config: Config,
     engine: GemmEngine,
     rng: inout SimpleRng
 ) {
@@ -1473,20 +1472,20 @@ func train(
     defer { try? logHandle?.close() }
 
     // Buffers reused to avoid per-batch allocations.
-    var batchInputs = [Float](repeating: 0.0, count: batchSize * numInputs)
-    var batchLabels = [UInt8](repeating: 0, count: batchSize)
-    var a1 = [Float](repeating: 0.0, count: batchSize * numHidden)
-    var a2 = [Float](repeating: 0.0, count: batchSize * numOutputs)
-    var dZ2 = [Float](repeating: 0.0, count: batchSize * numOutputs)
-    var dZ1 = [Float](repeating: 0.0, count: batchSize * numHidden)
-    var gradW1 = [Float](repeating: 0.0, count: numInputs * numHidden)
-    var gradW2 = [Float](repeating: 0.0, count: numHidden * numOutputs)
-    var gradB1 = [Float](repeating: 0.0, count: numHidden)
+    var batchInputs = [Float](repeating: 0.0, count: config.batchSize * numInputs)
+    var batchLabels = [UInt8](repeating: 0, count: config.batchSize)
+    var a1 = [Float](repeating: 0.0, count: config.batchSize * config.numHidden)
+    var a2 = [Float](repeating: 0.0, count: config.batchSize * numOutputs)
+    var dZ2 = [Float](repeating: 0.0, count: config.batchSize * numOutputs)
+    var dZ1 = [Float](repeating: 0.0, count: config.batchSize * config.numHidden)
+    var gradW1 = [Float](repeating: 0.0, count: numInputs * config.numHidden)
+    var gradW2 = [Float](repeating: 0.0, count: config.numHidden * numOutputs)
+    var gradB1 = [Float](repeating: 0.0, count: config.numHidden)
     var gradB2 = [Float](repeating: 0.0, count: numOutputs)
 
     var indices = Array(0..<numSamples)
 
-    for epoch in 0..<epochs {
+    for epoch in 0..<config.epochs {
         var totalLoss: Float = 0.0
         let startTime = Date()
 
@@ -1498,8 +1497,8 @@ func train(
             }
         }
 
-        for batchStart in stride(from: 0, to: numSamples, by: batchSize) {
-            let batchCount = min(batchSize, numSamples - batchStart)
+        for batchStart in stride(from: 0, to: numSamples, by: config.batchSize) {
+            let batchCount = min(config.batchSize, numSamples - batchStart)
             let scale = 1.0 / Float(batchCount)
 
             // Copy batch into a contiguous buffer.
@@ -1518,26 +1517,26 @@ func train(
             gemm(
                 engine: engine,
                 m: batchCount,
-                n: numHidden,
+                n: config.numHidden,
                 k: numInputs,
                 a: batchInputs,
                 lda: numInputs,
                 b: nn.hidden.weights,
-                ldb: numHidden,
+                ldb: config.numHidden,
                 c: &a1,
-                ldc: numHidden
+                ldc: config.numHidden
             )
-            addBias(&a1, rows: batchCount, cols: numHidden, bias: nn.hidden.biases)
-            reluInPlace(&a1, count: batchCount * numHidden)
+            addBias(&a1, rows: batchCount, cols: config.numHidden, bias: nn.hidden.biases)
+            reluInPlace(&a1, count: batchCount * config.numHidden)
 
             // Forward: output layer.
             gemm(
                 engine: engine,
                 m: batchCount,
                 n: numOutputs,
-                k: numHidden,
+                k: config.numHidden,
                 a: a1,
-                lda: numHidden,
+                lda: config.numHidden,
                 b: nn.output.weights,
                 ldb: numOutputs,
                 c: &a2,
@@ -1559,11 +1558,11 @@ func train(
             // Output-layer gradients: dW2 = A1^T * dZ2.
             gemm(
                 engine: engine,
-                m: numHidden,
+                m: config.numHidden,
                 n: numOutputs,
                 k: batchCount,
                 a: a1,
-                lda: numHidden,
+                lda: config.numHidden,
                 b: dZ2,
                 ldb: numOutputs,
                 c: &gradW2,
@@ -1581,18 +1580,18 @@ func train(
             gemm(
                 engine: engine,
                 m: batchCount,
-                n: numHidden,
+                n: config.numHidden,
                 k: numOutputs,
                 a: dZ2,
                 lda: numOutputs,
                 b: nn.output.weights,
                 ldb: numOutputs,
                 c: &dZ1,
-                ldc: numHidden,
+                ldc: config.numHidden,
                 transposeA: false,
                 transposeB: true
             )
-            for i in 0..<(batchCount * numHidden) {
+            for i in 0..<(batchCount * config.numHidden) {
                 if a1[i] <= 0 {
                     dZ1[i] = 0
                 }
@@ -1602,35 +1601,35 @@ func train(
             gemm(
                 engine: engine,
                 m: numInputs,
-                n: numHidden,
+                n: config.numHidden,
                 k: batchCount,
                 a: batchInputs,
                 lda: numInputs,
                 b: dZ1,
-                ldb: numHidden,
+                ldb: config.numHidden,
                 c: &gradW1,
-                ldc: numHidden,
+                ldc: config.numHidden,
                 transposeA: true,
                 transposeB: false,
                 alpha: scale
             )
-            sumRows(dZ1, rows: batchCount, cols: numHidden, result: &gradB1)
+            sumRows(dZ1, rows: batchCount, cols: config.numHidden, result: &gradB1)
             for i in 0..<gradB1.count {
                 gradB1[i] *= scale
             }
 
             // Update weights and biases (SGD).
             for i in 0..<nn.output.weights.count {
-                nn.output.weights[i] -= learningRate * gradW2[i]
+                nn.output.weights[i] -= config.learningRate * gradW2[i]
             }
             for i in 0..<nn.output.biases.count {
-                nn.output.biases[i] -= learningRate * gradB2[i]
+                nn.output.biases[i] -= config.learningRate * gradB2[i]
             }
             for i in 0..<nn.hidden.weights.count {
-                nn.hidden.weights[i] -= learningRate * gradW1[i]
+                nn.hidden.weights[i] -= config.learningRate * gradW1[i]
             }
             for i in 0..<nn.hidden.biases.count {
-                nn.hidden.biases[i] -= learningRate * gradB1[i]
+                nn.hidden.biases[i] -= config.learningRate * gradB1[i]
             }
         }
 
@@ -1651,6 +1650,7 @@ func trainMps(
     images: [Float],
     labels: [UInt8],
     numSamples: Int,
+    config: Config,
     engine: MpsGemmEngine,
     rng: inout SimpleRng
 ) {
@@ -1664,22 +1664,22 @@ func trainMps(
     guard let kernels = MpsKernels(device: engine.device) else {
         print("Metal kernels unavailable, falling back to CPU training.")
         let cpu = CpuGemmEngine()
-        train(nn: &nn, images: images, labels: labels, numSamples: numSamples, engine: cpu, rng: &rng)
+        train(nn: &nn, images: images, labels: labels, numSamples: numSamples, config: config, engine: cpu, rng: &rng)
         return
     }
 
     // Persistent buffers to avoid per-batch allocation.
-    let batchInputs = engine.makeBuffer(count: batchSize * numInputs, label: "batchInputs")
-    let batchLabels = MpsBufferU8(device: engine.device, count: batchSize, label: "batchLabels")
-    let loss = engine.makeBuffer(count: batchSize, label: "loss")
+    let batchInputs = engine.makeBuffer(count: config.batchSize * numInputs, label: "batchInputs")
+    let batchLabels = MpsBufferU8(device: engine.device, count: config.batchSize, label: "batchLabels")
+    let loss = engine.makeBuffer(count: config.batchSize, label: "loss")
 
-    let a1 = engine.makeBuffer(count: batchSize * numHidden, label: "a1")
-    let a2 = engine.makeBuffer(count: batchSize * numOutputs, label: "a2")
-    let dZ2 = engine.makeBuffer(count: batchSize * numOutputs, label: "dZ2")
-    let dZ1 = engine.makeBuffer(count: batchSize * numHidden, label: "dZ1")
-    let gradW1 = engine.makeBuffer(count: numInputs * numHidden, label: "gradW1")
-    let gradW2 = engine.makeBuffer(count: numHidden * numOutputs, label: "gradW2")
-    let gradB1 = engine.makeBuffer(count: numHidden, label: "gradB1")
+    let a1 = engine.makeBuffer(count: config.batchSize * config.numHidden, label: "a1")
+    let a2 = engine.makeBuffer(count: config.batchSize * numOutputs, label: "a2")
+    let dZ2 = engine.makeBuffer(count: config.batchSize * numOutputs, label: "dZ2")
+    let dZ1 = engine.makeBuffer(count: config.batchSize * config.numHidden, label: "dZ1")
+    let gradW1 = engine.makeBuffer(count: numInputs * config.numHidden, label: "gradW1")
+    let gradW2 = engine.makeBuffer(count: config.numHidden * numOutputs, label: "gradW2")
+    let gradB1 = engine.makeBuffer(count: config.numHidden, label: "gradB1")
     let gradB2 = engine.makeBuffer(count: numOutputs, label: "gradB2")
 
     let w1 = engine.makeBuffer(count: nn.hidden.weights.count, label: "W1", initial: nn.hidden.weights)
@@ -1689,7 +1689,7 @@ func trainMps(
 
     var indices = Array(0..<numSamples)
 
-    for epoch in 0..<epochs {
+    for epoch in 0..<config.epochs {
         var totalLoss: Float = 0.0
         let startTime = Date()
 
@@ -1701,8 +1701,8 @@ func trainMps(
             }
         }
 
-        for batchStart in stride(from: 0, to: numSamples, by: batchSize) {
-            let batchCount = min(batchSize, numSamples - batchStart)
+        for batchStart in stride(from: 0, to: numSamples, by: config.batchSize) {
+            let batchCount = min(config.batchSize, numSamples - batchStart)
             let scale = 1.0 / Float(batchCount)
 
             // Copy batch into a contiguous buffer.
@@ -1725,7 +1725,7 @@ func trainMps(
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
                 m: batchCount,
-                n: numHidden,
+                n: config.numHidden,
                 k: numInputs,
                 a: batchInputs,
                 b: w1,
@@ -1735,15 +1735,15 @@ func trainMps(
                 alpha: 1.0,
                 beta: 0.0
             )
-            kernels.encodeAddBias(commandBuffer: commandBuffer, data: a1, bias: b1, rows: batchCount, cols: numHidden)
-            kernels.encodeRelu(commandBuffer: commandBuffer, data: a1, count: batchCount * numHidden)
+            kernels.encodeAddBias(commandBuffer: commandBuffer, data: a1, bias: b1, rows: batchCount, cols: config.numHidden)
+            kernels.encodeRelu(commandBuffer: commandBuffer, data: a1, count: batchCount * config.numHidden)
 
             // Forward: output layer.
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
                 m: batchCount,
                 n: numOutputs,
-                k: numHidden,
+                k: config.numHidden,
                 a: a1,
                 b: w2,
                 c: a2,
@@ -1769,7 +1769,7 @@ func trainMps(
             // Output-layer gradients: dW2 = A1^T * dZ2.
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
-                m: numHidden,
+                m: config.numHidden,
                 n: numOutputs,
                 k: batchCount,
                 a: a1,
@@ -1793,7 +1793,7 @@ func trainMps(
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
                 m: batchCount,
-                n: numHidden,
+                n: config.numHidden,
                 k: numOutputs,
                 a: dZ2,
                 b: w2,
@@ -1803,13 +1803,13 @@ func trainMps(
                 alpha: 1.0,
                 beta: 0.0
             )
-            kernels.encodeReluGrad(commandBuffer: commandBuffer, activations: a1, grads: dZ1, count: batchCount * numHidden)
+            kernels.encodeReluGrad(commandBuffer: commandBuffer, activations: a1, grads: dZ1, count: batchCount * config.numHidden)
 
             // Hidden-layer gradients: dW1 = X^T * dZ1.
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
                 m: numInputs,
-                n: numHidden,
+                n: config.numHidden,
                 k: batchCount,
                 a: batchInputs,
                 b: dZ1,
@@ -1824,7 +1824,7 @@ func trainMps(
                 data: dZ1,
                 output: gradB1,
                 rows: batchCount,
-                cols: numHidden,
+                cols: config.numHidden,
                 scale: scale
             )
 
@@ -1834,28 +1834,28 @@ func trainMps(
                 weights: w2,
                 grads: gradW2,
                 count: w2.count,
-                learningRate: learningRate
+                learningRate: config.learningRate
             )
             kernels.encodeSgdUpdate(
                 commandBuffer: commandBuffer,
                 weights: b2,
                 grads: gradB2,
                 count: b2.count,
-                learningRate: learningRate
+                learningRate: config.learningRate
             )
             kernels.encodeSgdUpdate(
                 commandBuffer: commandBuffer,
                 weights: w1,
                 grads: gradW1,
                 count: w1.count,
-                learningRate: learningRate
+                learningRate: config.learningRate
             )
             kernels.encodeSgdUpdate(
                 commandBuffer: commandBuffer,
                 weights: b1,
                 grads: gradB1,
                 count: b1.count,
-                learningRate: learningRate
+                learningRate: config.learningRate
             )
 
             commandBuffer.commit()
@@ -1902,17 +1902,18 @@ func testMps(
     images: [Float],
     labels: [UInt8],
     numSamples: Int,
+    config: Config,
     engine: MpsGemmEngine
 ) {
     guard let kernels = MpsKernels(device: engine.device) else {
         print("Metal kernels unavailable, falling back to CPU test.")
-        test(nn: nn, images: images, labels: labels, numSamples: numSamples)
+        test(nn: nn, images: images, labels: labels, numSamples: numSamples, config: config)
         return
     }
 
-    let batchInputs = engine.makeBuffer(count: batchSize * numInputs, label: "testInputs")
-    let a1 = engine.makeBuffer(count: batchSize * numHidden, label: "testA1")
-    let a2 = engine.makeBuffer(count: batchSize * numOutputs, label: "testA2")
+    let batchInputs = engine.makeBuffer(count: config.batchSize * numInputs, label: "testInputs")
+    let a1 = engine.makeBuffer(count: config.batchSize * config.numHidden, label: "testA1")
+    let a2 = engine.makeBuffer(count: config.batchSize * numOutputs, label: "testA2")
 
     let w1 = engine.makeBuffer(count: nn.hidden.weights.count, label: "testW1", initial: nn.hidden.weights)
     let b1 = engine.makeBuffer(count: nn.hidden.biases.count, label: "testB1", initial: nn.hidden.biases)
@@ -1922,8 +1923,8 @@ func testMps(
     var correct = 0
     images.withUnsafeBufferPointer { imagesBuf in
         guard let imagesBase = imagesBuf.baseAddress else { return }
-        for batchStart in stride(from: 0, to: numSamples, by: batchSize) {
-            let batchCount = min(batchSize, numSamples - batchStart)
+        for batchStart in stride(from: 0, to: numSamples, by: config.batchSize) {
+            let batchCount = min(config.batchSize, numSamples - batchStart)
             let src = imagesBase.advanced(by: batchStart * numInputs)
             batchInputs.pointer.update(from: src, count: batchCount * numInputs)
 
@@ -1934,7 +1935,7 @@ func testMps(
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
                 m: batchCount,
-                n: numHidden,
+                n: config.numHidden,
                 k: numInputs,
                 a: batchInputs,
                 b: w1,
@@ -1944,14 +1945,14 @@ func testMps(
                 alpha: 1.0,
                 beta: 0.0
             )
-            kernels.encodeAddBias(commandBuffer: commandBuffer, data: a1, bias: b1, rows: batchCount, cols: numHidden)
-            kernels.encodeRelu(commandBuffer: commandBuffer, data: a1, count: batchCount * numHidden)
+            kernels.encodeAddBias(commandBuffer: commandBuffer, data: a1, bias: b1, rows: batchCount, cols: config.numHidden)
+            kernels.encodeRelu(commandBuffer: commandBuffer, data: a1, count: batchCount * config.numHidden)
 
             engine.encodeGemm(
                 commandBuffer: commandBuffer,
                 m: batchCount,
                 n: numOutputs,
-                k: numHidden,
+                k: config.numHidden,
                 a: a1,
                 b: w2,
                 c: a2,
@@ -1996,10 +1997,11 @@ func testCpuRange(
     images: [Float],
     labels: [UInt8],
     start: Int,
-    count: Int
+    count: Int,
+    config: Config
 ) -> Int {
     var correct = 0
-    var hidden = [Float](repeating: 0.0, count: numHidden)
+    var hidden = [Float](repeating: 0.0, count: config.numHidden)
     var output = [Float](repeating: 0.0, count: numOutputs)
 
     for i in 0..<count {
@@ -2007,11 +2009,11 @@ func testCpuRange(
         let base = index * numInputs
 
         // Forward hidden layer.
-        for h in 0..<numHidden {
+        for h in 0..<config.numHidden {
             var sum = nn.hidden.biases[h]
             let wBase = h
             for j in 0..<numInputs {
-                sum += images[base + j] * nn.hidden.weights[wBase + j * numHidden]
+                sum += images[base + j] * nn.hidden.weights[wBase + j * config.numHidden]
             }
             hidden[h] = max(0.0, sum)
         }
@@ -2020,7 +2022,7 @@ func testCpuRange(
         for o in 0..<numOutputs {
             var sum = nn.output.biases[o]
             let wBase = o
-            for h in 0..<numHidden {
+            for h in 0..<config.numHidden {
                 sum += hidden[h] * nn.output.weights[wBase + h * numOutputs]
             }
             output[o] = sum
@@ -2045,8 +2047,8 @@ func testCpuRange(
 }
 
 // Evaluate accuracy on the test set (CPU).
-func test(nn: NeuralNetwork, images: [Float], labels: [UInt8], numSamples: Int) {
-    let correct = testCpuRange(nn: nn, images: images, labels: labels, start: 0, count: numSamples)
+func test(nn: NeuralNetwork, images: [Float], labels: [UInt8], numSamples: Int, config: Config) {
+    let correct = testCpuRange(nn: nn, images: images, labels: labels, start: 0, count: numSamples, config: config)
     let accuracy = Float(correct) / Float(numSamples) * 100.0
     print(String(format: "Test Accuracy: %.2f%%", accuracy))
 }
@@ -2172,13 +2174,6 @@ func main() {
     // Parse command-line configuration
     let config = Config.parse()
 
-    // Apply config to global variables (for compatibility with existing code)
-    numHidden = config.numHidden
-    learningRate = config.learningRate
-    epochs = config.epochs
-    batchSize = config.batchSize
-    rngSeed = config.rngSeed
-
     let useMpsGraph = CommandLine.arguments.contains("--mpsgraph")
     let useMPS = CommandLine.arguments.contains("--mps") || useMpsGraph
 
@@ -2198,7 +2193,7 @@ func main() {
     print("Initializing neural network...")
     print("Config: hidden=\(config.numHidden) batch=\(config.batchSize) epochs=\(config.epochs) lr=\(config.learningRate) seed=\(config.rngSeed)")
     var rng = SimpleRng(seed: config.rngSeed)
-    var nn = initializeNetwork(rng: &rng)
+    var nn = initializeNetwork(config: config, rng: &rng)
 
     print("Training neural network...")
     let trainStart = Date()
@@ -2211,6 +2206,7 @@ func main() {
             images: trainImages,
             labels: trainLabels,
             numSamples: trainImages.count / numInputs,
+            config: config,
             rng: &rng
         )
         usedGraph = true
@@ -2228,6 +2224,7 @@ func main() {
                 images: trainImages,
                 labels: trainLabels,
                 numSamples: trainImages.count / numInputs,
+                config: config,
                 engine: cpu,
                 rng: &rng
             )
@@ -2238,6 +2235,7 @@ func main() {
                 images: trainImages,
                 labels: trainLabels,
                 numSamples: trainImages.count / numInputs,
+                config: config,
                 engine: mps,
                 rng: &rng
             )
@@ -2258,7 +2256,8 @@ func main() {
             nn: nn,
             images: testImages,
             labels: testLabels,
-            numSamples: testImages.count / numInputs
+            numSamples: testImages.count / numInputs,
+            config: config
         )
         testedOnGPU = true
     }
@@ -2273,6 +2272,7 @@ func main() {
                 images: testImages,
                 labels: testLabels,
                 numSamples: testImages.count / numInputs,
+                config: config,
                 engine: engine
             )
             testedOnGPU = true
@@ -2285,7 +2285,8 @@ func main() {
             nn: nn,
             images: testImages,
             labels: testLabels,
-            numSamples: testImages.count / numInputs
+            numSamples: testImages.count / numInputs,
+            config: config
         )
     }
 
