@@ -96,6 +96,89 @@ func gatherBatchToPointer(
     }
 }
 
+// MARK: - Model Initialization
+
+/// Initialize a dense layer with Xavier/Glorot initialization.
+func initializeLayer(
+    inputSize: Int,
+    outputSize: Int,
+    activation: ActivationType,
+    rng: inout SimpleRng
+) -> DenseLayer {
+    let limit = sqrtf(6.0 / Float(inputSize + outputSize))
+    var weights = [Float](repeating: 0.0, count: inputSize * outputSize)
+    for i in 0..<weights.count {
+        weights[i] = rng.uniform(-limit, limit)
+    }
+    let biases = [Float](repeating: 0.0, count: outputSize)
+    return DenseLayer(
+        inputSize: inputSize,
+        outputSize: outputSize,
+        weights: weights,
+        biases: biases,
+        activation: activation
+    )
+}
+
+/// Network construction 784 -> 512 -> 10.
+func initializeNetwork(rng: inout SimpleRng) -> NeuralNetwork {
+    rng.reseedFromTime()
+    let hidden = initializeLayer(
+        inputSize: numInputs,
+        outputSize: numHidden,
+        activation: .relu,
+        rng: &rng
+    )
+    let output = initializeLayer(
+        inputSize: numHidden,
+        outputSize: numOutputs,
+        activation: .softmax,
+        rng: &rng
+    )
+    return NeuralNetwork(hidden: hidden, output: output)
+}
+
+// MARK: - Model Persistence
+
+/// Save the trained model to a binary file.
+func saveModel(nn: NeuralNetwork, filename: String) {
+    FileManager.default.createFile(atPath: filename, contents: nil)
+    guard let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: filename)) else {
+        print("Could not open file \(filename) for writing model")
+        exit(1)
+    }
+    defer { try? handle.close() }
+
+    func writeInt32(_ value: Int32) {
+        var v = value
+        handle.write(Data(bytes: &v, count: MemoryLayout<Int32>.size))
+    }
+
+    func writeDouble(_ value: Double) {
+        var v = value
+        handle.write(Data(bytes: &v, count: MemoryLayout<Double>.size))
+    }
+
+    writeInt32(Int32(nn.hidden.inputSize))
+    writeInt32(Int32(nn.hidden.outputSize))
+    writeInt32(Int32(nn.output.outputSize))
+
+    for w in nn.hidden.weights {
+        writeDouble(Double(w))
+    }
+    for b in nn.hidden.biases {
+        writeDouble(Double(b))
+    }
+    for w in nn.output.weights {
+        writeDouble(Double(w))
+    }
+    for b in nn.output.biases {
+        writeDouble(Double(b))
+    }
+
+    print("Model saved to \(filename)")
+}
+
 // MARK: - CPU Training
 
 /// Training with shuffling and minibatches.
