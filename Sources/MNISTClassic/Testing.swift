@@ -4,15 +4,8 @@ import Metal
 import MetalPerformanceShaders
 #endif
 
-// MARK: - Global Testing Parameters
-// These are shared with training and defined in Training.swift.
-
-let numInputs = 784
-var numHidden = 512
-let numOutputs = 10
-var batchSize = 64
-
 // MARK: - Testing Functions
+// Note: Global testing parameters (numInputs, numHidden, batchSize, etc.) are defined in Training.swift
 
 #if canImport(MetalPerformanceShaders)
 // Optimized test using MPS (GPU inference).

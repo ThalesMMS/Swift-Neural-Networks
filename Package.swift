@@ -51,12 +51,19 @@ let package = Package(
             name: "MNISTData",
             targets: ["MNISTData"]
         ),
-        
+
         // Executable: Main training program with all models
         // Run with: swift run MNISTMLX --model cnn
         .executable(
             name: "MNISTMLX",
             targets: ["MNISTMLX"]
+        ),
+
+        // Executable: Classic MLP implementation (refactored from mnist_mlp.swift)
+        // Run with: swift run MNISTClassic --help
+        .executable(
+            name: "MNISTClassic",
+            targets: ["MNISTClassic"]
         ),
     ],
     
@@ -111,20 +118,35 @@ let package = Package(
             dependencies: [
                 // Our data loading library
                 "MNISTData",
-                
+
                 // MLX core for array operations
                 .product(name: "MLX", package: "mlx-swift"),
-                
+
                 // Neural network layers (Conv2d, Linear, Embedding, etc.)
                 .product(name: "MLXNN", package: "mlx-swift"),
-                
+
                 // Optimizers (SGD, Adam, AdamW, etc.)
                 .product(name: "MLXOptimizers", package: "mlx-swift"),
-                
+
                 // Random number generation for weight initialization
                 .product(name: "MLXRandom", package: "mlx-swift"),
             ],
             path: "Sources/MNISTMLX"
+        ),
+
+        // -----------------------------------------------------------------------
+        // MNISTClassic: Classic MLP implementation with CPU/GPU backends
+        // -----------------------------------------------------------------------
+        // This is the refactored version of mnist_mlp.swift (2222 lines).
+        // It uses system frameworks for CPU (Accelerate) and GPU (Metal/MPS).
+        // Run with: swift run MNISTClassic --help
+        //   - CPU backend: Pure Swift + Accelerate (vDSP for GEMM)
+        //   - MPS backend: Metal Performance Shaders for GPU acceleration
+        //   - MPSGraph backend: Higher-level graph API for training
+        .executableTarget(
+            name: "MNISTClassic",
+            dependencies: [],
+            path: "Sources/MNISTClassic"
         ),
     ]
 )

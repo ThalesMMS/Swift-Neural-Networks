@@ -4,17 +4,8 @@ import Foundation
 import Metal
 import MetalPerformanceShadersGraph
 
-// MARK: - Global Training Parameters
-// These are shared across modules and defined in Training.swift.
-
-let numInputs = 784
-var numHidden = 512
-let numOutputs = 10
-var learningRate: Float = 0.01
-var epochs = 10
-var batchSize = 64
-
 // MARK: - MPSGraph Training Functions
+// Note: Global training parameters (numInputs, numHidden, etc.) are defined in Training.swift
 
 // Training with MPSGraph to keep the whole flow on the GPU.
 func trainMpsGraph(
