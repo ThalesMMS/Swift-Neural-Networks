@@ -1,3 +1,16 @@
+// ============================================================================
+// DEPRECATED: This monolithic file has been refactored into a modular structure.
+//
+// Please use the new modular implementation located in:
+//   - Sources/NeuralNetwork/
+//   - Sources/Layers/
+//   - Sources/Training/
+//   - Sources/Utils/
+//   - Sources/Main/
+//
+// This file is kept for reference only and will be removed in a future version.
+// ============================================================================
+
 import Foundation
 import Accelerate
 import Darwin
