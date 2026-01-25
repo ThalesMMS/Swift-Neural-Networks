@@ -368,6 +368,24 @@ import MetalPerformanceShaders
 import MetalPerformanceShadersGraph
 #endif
 
+// =============================================================================
+// MARK: - Configuration
+// =============================================================================
+
+/// Configuration for MNIST MLP training
+struct Config {
+    var numInputs: Int = 784
+    var numHidden: Int = 512
+    var numOutputs: Int = 10
+    var trainSamples: Int = 60_000
+    var testSamples: Int = 10_000
+    var learningRate: Float = 0.01
+    var epochs: Int = 10
+    var batchSize: Int = 64
+    var rngSeed: UInt64 = 1
+    var dataPath: String = "./data"
+}
+
 // Sequential MLP for MNIST (Swift port for study and optimization).
 let numInputs = 784
 var numHidden = 512
