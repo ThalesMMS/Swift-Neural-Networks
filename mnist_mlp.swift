@@ -378,48 +378,6 @@ var learningRate: Float = 0.01
 var epochs = 10
 var batchSize = 64
 var rngSeed: UInt64 = 1
-
-// Simple RNG for reproducibility without external crates.
-struct SimpleRng {
-    private var state: UInt64
-
-    // Explicit seed (if zero, use a fixed value).
-    init(seed: UInt64) {
-        self.state = seed == 0 ? 0x9e3779b97f4a7c15 : seed
-    }
-
-    // Reseed based on the current time.
-    mutating func reseedFromTime() {
-        let nanos = UInt64(Date().timeIntervalSince1970 * 1_000_000_000)
-        state = nanos == 0 ? 0x9e3779b97f4a7c15 : nanos
-    }
-
-    // Basic xorshift to generate u32.
-    mutating func nextUInt32() -> UInt32 {
-        var x = state
-        x ^= x << 13
-        x ^= x >> 7
-        x ^= x << 17
-        state = x
-        return UInt32(truncatingIfNeeded: x >> 32)
-    }
-
-    // Convert to [0, 1).
-    mutating func nextFloat() -> Float {
-        return Float(nextUInt32()) / Float(UInt32.max)
-    }
-
-    // Uniform sample in [low, high).
-    mutating func uniform(_ low: Float, _ high: Float) -> Float {
-        return low + (high - low) * nextFloat()
-    }
-
-    // Integer sample in [0, upper).
-    mutating func nextInt(upper: Int) -> Int {
-        return upper == 0 ? 0 : Int(nextUInt32()) % upper
-    }
-}
-
 // Activation types used in the network.
 enum ActivationType {
     case sigmoid
@@ -1128,32 +1086,6 @@ func reluInPlace(_ data: inout [Float], count: Int) {
     }
 }
 
-// Row-wise softmax (in-place).
-func softmaxRows(_ data: inout [Float], rows: Int, cols: Int) {
-    for r in 0..<rows {
-        let base = r * cols
-        var maxVal = data[base]
-        for c in 1..<cols {
-            let v = data[base + c]
-            if v > maxVal {
-                maxVal = v
-            }
-        }
-
-        var sum: Float = 0.0
-        for c in 0..<cols {
-            let e = expf(data[base + c] - maxVal)
-            data[base + c] = e
-            sum += e
-        }
-
-        let inv = 1.0 / sum
-        for c in 0..<cols {
-            data[base + c] *= inv
-        }
-    }
-}
-
 // Create output delta (softmax + cross-entropy) and accumulate loss.
 func computeDeltaAndLoss(
     outputs: [Float],
@@ -1229,31 +1161,6 @@ func reluInPlacePointer(_ data: UnsafeMutablePointer<Float>, count: Int) {
     for i in 0..<count {
         if data[i] < 0 {
             data[i] = 0
-        }
-    }
-}
-
-func softmaxRowsPointer(_ data: UnsafeMutablePointer<Float>, rows: Int, cols: Int) {
-    for r in 0..<rows {
-        let base = r * cols
-        var maxVal = data[base]
-        for c in 1..<cols {
-            let v = data[base + c]
-            if v > maxVal {
-                maxVal = v
-            }
-        }
-
-        var sum: Float = 0.0
-        for c in 0..<cols {
-            let e = expf(data[base + c] - maxVal)
-            data[base + c] = e
-            sum += e
-        }
-
-        let inv = 1.0 / sum
-        for c in 0..<cols {
-            data[base + c] *= inv
         }
     }
 }
@@ -1973,83 +1880,6 @@ func saveModel(nn: NeuralNetwork, filename: String) {
     print("Model saved to \(filename)")
 }
 
-// MNIST IDX uses big-endian integers.
-func readMnistImages(path: String, count: Int) -> [Float] {
-    let url = URL(fileURLWithPath: path)
-    guard let data = try? Data(contentsOf: url) else {
-        print("Could not open file \(path)")
-        exit(1)
-    }
-
-    return data.withUnsafeBytes { rawBuf in
-        guard let base = rawBuf.bindMemory(to: UInt8.self).baseAddress else {
-            return []
-        }
-        var offset = 0
-
-        func readU32BE() -> UInt32 {
-            let b0 = UInt32(base[offset]) << 24
-            let b1 = UInt32(base[offset + 1]) << 16
-            let b2 = UInt32(base[offset + 2]) << 8
-            let b3 = UInt32(base[offset + 3])
-            offset += 4
-            return b0 | b1 | b2 | b3
-        }
-
-        _ = readU32BE()
-        let total = Int(readU32BE())
-        let rows = Int(readU32BE())
-        let cols = Int(readU32BE())
-        let imageSize = rows * cols
-        let actualCount = min(count, total)
-
-        var images = [Float](repeating: 0.0, count: actualCount * imageSize)
-        for i in 0..<actualCount {
-            let baseIndex = i * imageSize
-            for j in 0..<imageSize {
-                images[baseIndex + j] = Float(base[offset]) / 255.0
-                offset += 1
-            }
-        }
-        return images
-    }
-}
-
-// Read IDX labels (0-9).
-func readMnistLabels(path: String, count: Int) -> [UInt8] {
-    let url = URL(fileURLWithPath: path)
-    guard let data = try? Data(contentsOf: url) else {
-        print("Could not open file \(path)")
-        exit(1)
-    }
-
-    return data.withUnsafeBytes { rawBuf in
-        guard let base = rawBuf.bindMemory(to: UInt8.self).baseAddress else {
-            return []
-        }
-        var offset = 0
-
-        func readU32BE() -> UInt32 {
-            let b0 = UInt32(base[offset]) << 24
-            let b1 = UInt32(base[offset + 1]) << 16
-            let b2 = UInt32(base[offset + 2]) << 8
-            let b3 = UInt32(base[offset + 3])
-            offset += 4
-            return b0 | b1 | b2 | b3
-        }
-
-        _ = readU32BE()
-        let total = Int(readU32BE())
-        let actualCount = min(count, total)
-
-        var labels = [UInt8](repeating: 0, count: actualCount)
-        for i in 0..<actualCount {
-            labels[i] = base[offset]
-            offset += 1
-        }
-        return labels
-    }
-}
 
 func applyCliOverrides() {
     let args = CommandLine.arguments
