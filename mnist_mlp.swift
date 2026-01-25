@@ -20,7 +20,15 @@ import Metal
 #endif
 
 #if canImport(MetalPerformanceShadersGraph)
-// Training with MPSGraph to keep the whole flow on the GPU.
+/// Trains the neural network using an MPSGraph-backed computation graph and writes updated parameters back into `nn`.
+/// - Parameters:
+///   - nn: The neural network to train; its weights and biases are updated in place with the final trained parameters.
+///   - images: Flat array of input samples (row-major, length >= `numSamples * numInputs`).
+///   - labels: Array of label bytes (0–9) for each sample (length >= `numSamples`).
+///   - numSamples: Number of samples from `images`/`labels` to consider for training.
+///   - config: Training configuration (batch size, epochs, learning rate, model dimensions, etc.).
+///   - rng: Pseudorandom number generator used for shuffling; its state is mutated.
+/// - Note: Falls back to the CPU training implementation if no suitable Metal device/queue is available or if graph construction/execution fails. The function keeps a fixed batch size (dropping trailing samples when necessary) and prints per-epoch loss and timing.
 func trainMpsGraph(
     nn: inout NeuralNetwork,
     images: [Float],
@@ -44,6 +52,8 @@ func trainMpsGraph(
     let inputTensor = graph.placeholder(shape: inputShape, dataType: .float32, name: "input")
     let labelTensor = graph.placeholder(shape: labelShape, dataType: .float32, name: "labels")
 
+    /// Create a Data object containing the contiguous binary contents of the given Float array.
+    /// - Returns: A `Data` value containing the array's in-memory representation (contiguous `Float` values in native endianness).
     func dataFromArray(_ array: [Float]) -> Data {
         return array.withUnsafeBufferPointer { Data(buffer: $0) }
     }
@@ -235,7 +245,14 @@ func trainMpsGraph(
     }
 }
 
-// Test using MPSGraph (GPU inference).
+/// Evaluates the neural network on the provided dataset using MPSGraph-backed batched inference.
+/// - Note: If a suitable Metal/MPSGraph device or required buffers cannot be created, this function falls back to the CPU test path and prints a warning.
+/// - Parameters:
+///   - nn: The neural network to evaluate.
+///   - images: Flattened input images arranged row-major (each image is `config.numInputs` floats, typically normalized to [0,1]).
+///   - labels: Ground-truth labels for the inputs (one byte per sample, values 0–9).
+///   - numSamples: The number of samples from `images`/`labels` to evaluate.
+///   - config: Configuration that provides batch size and model dimensions used for batching and tensor shapes; also affects fallback behavior and reporting.
 func testMpsGraph(
     nn: NeuralNetwork,
     images: [Float],
@@ -254,6 +271,8 @@ func testMpsGraph(
     let inputShape = [NSNumber(value: config.batchSize), NSNumber(value: numInputs)]
     let inputTensor = graph.placeholder(shape: inputShape, dataType: .float32, name: "input")
 
+    /// Create a Data object containing the contiguous binary contents of the given Float array.
+    /// - Returns: A `Data` value containing the array's in-memory representation (contiguous `Float` values in native endianness).
     func dataFromArray(_ array: [Float]) -> Data {
         return array.withUnsafeBufferPointer { Data(buffer: $0) }
     }
@@ -388,7 +407,19 @@ struct Config {
     var rngSeed: UInt64 = 1
     var dataPath: String = "./data"
 
-    /// Parses command-line arguments into configuration
+    /// Parses command-line arguments into a Config instance.
+    /// 
+    /// Recognized flags:
+    /// - --batch, -b <int>        : set batchSize (must be > 0)
+    /// - --hidden, -h <int>       : set numHidden (must be > 0)
+    /// - --epochs, -e <int>       : set epochs (must be > 0)
+    /// - --lr, -l <float>         : set learningRate (must be > 0)
+    /// - --seed, -s <uint64>      : set rngSeed
+    /// - --data, -d <path>        : set dataPath
+    /// - --help                   : print usage and exit
+    /// 
+    /// If an unknown non-flag argument is encountered, prints usage and exits with code 1.
+    /// @returns: A Config populated from the parsed command-line flags or left at defaults when flags are absent.
     static func parse() -> Config {
         var config = Config()
         let args = CommandLine.arguments
@@ -454,7 +485,7 @@ struct Config {
     }
 }
 
-/// Prints usage information
+/// Prints the command-line usage and help message describing available options, example invocations, and a brief architecture summary for the MNIST MLP training tool.
 func printUsage() {
     print("""
     MNIST MLP Neural Network Training
@@ -1184,7 +1215,13 @@ func gemm(
     }
 }
 
-// Initialize a layer with Xavier and zero biases.
+/// Create a dense layer with Xavier/Glorot-initialized weights and zero biases.
+/// - Parameters:
+///   - inputSize: Number of inputs to the layer (columns of the weight matrix).
+///   - outputSize: Number of outputs from the layer (rows of the weight matrix / length of the bias vector).
+///   - activation: Activation function for the layer.
+///   - rng: Pseudorandom generator used to sample initial weights.
+/// - Returns: A `DenseLayer` whose weights are sampled uniformly from [-limit, limit] where limit = sqrt(6 / (Float(inputSize + outputSize))) and whose biases are all zeros.
 func initializeLayer(
     inputSize: Int,
     outputSize: Int,
@@ -1206,7 +1243,10 @@ func initializeLayer(
     )
 }
 
-// Network construction 784 -> 512 -> 10.
+/// Builds a two-layer neural network using Xavier initialization for weights.
+/// - Parameters:
+///   - rng: A seedable pseudo-random number generator passed by reference; it will be reseeded from the current time and advanced during initialization.
+/// - Returns: A `NeuralNetwork` with a hidden layer of size `config.numHidden` (ReLU) and an output layer of size `numOutputs` (Softmax).
 func initializeNetwork(config: Config, rng: inout SimpleRng) -> NeuralNetwork {
     rng.reseedFromTime()
     let hidden = initializeLayer(
@@ -1454,7 +1494,16 @@ func applySgdUpdate(
     vDSP_vsma(grads, 1, &negLr, weights, 1, weights, 1, vDSP_Length(count))
 }
 
-// Training with shuffling and minibatches.
+/// Trains the provided neural network in-place using mini-batch SGD and logs per-epoch loss and timing.
+/// - Parameters:
+///   - nn: The neural network whose weights and biases will be updated in-place.
+///   - images: Flattened input images in row-major order (batch rows of `numInputs` floats); length must be at least `numSamples * numInputs`.
+///   - labels: Label bytes (0–9) aligned with `images`; length must be at least `numSamples`.
+///   - numSamples: Number of samples available in `images`/`labels` to use for training.
+///   - config: Training configuration (batch size, learning rate, epochs, hidden size, etc.).
+///   - engine: GEMM backend used for matrix multiplications.
+///   - rng: Pseudorandom number generator used for shuffling; its state is updated. 
+/// - Note: Writes per-epoch loss and duration to ./logs/training_loss_c.txt.
 func train(
     nn: inout NeuralNetwork,
     images: [Float],
@@ -1644,7 +1693,16 @@ func train(
 }
 
 #if canImport(MetalPerformanceShaders)
-// Optimized training using MPS with shared CPU/GPU buffers.
+/// Trains the neural network in-place using a Metal (MPS) GPU backend and SGD, falling back to the CPU implementation if GPU kernels are unavailable.
+/// - Parameters:
+///   - nn: The neural network to train; weights and biases are updated in place.
+///   - images: Flattened input images as Floats (row-major per example), normalized to [0, 1].
+///   - labels: Corresponding labels as UInt8 values (e.g., 0–9 for MNIST).
+///   - numSamples: Number of training samples contained in `images`/`labels`.
+///   - config: Training configuration (epochs, batchSize, learningRate, hidden size, etc.).
+///   - engine: MPS GEMM engine and Metal device/command queue used for GPU kernels.
+///   - rng: Pseudo-random generator used for epoch shuffling (mutated by the function).
+/// - Note: Per-epoch loss and timing are printed and appended to ./logs/training_loss_c.txt; final trained parameters are copied back into `nn`.
 func trainMps(
     nn: inout NeuralNetwork,
     images: [Float],
@@ -1896,7 +1954,14 @@ func trainMps(
     nn.output.biases = outputBiases
 }
 
-// Optimized test using MPS (GPU inference).
+/// Evaluates the neural network on the provided test dataset using MPS-backed kernels and prints the overall accuracy.
+/// 
+/// - Parameters:
+///   - nn: The neural network to evaluate.
+///   - images: Flattened input images in row-major order (numSamples × numInputs), normalized to the network's expected range.
+///   - labels: Expected class labels (0–9) for each sample.
+///   - numSamples: Number of samples from `images`/`labels` to evaluate (prefix length).
+///   - config: Configuration providing shapes and batch size used during evaluation.
 func testMps(
     nn: NeuralNetwork,
     images: [Float],
@@ -1991,7 +2056,15 @@ func testMps(
 #endif
 
 
-// Evaluate accuracy on the test set (CPU) and return correct count.
+/// Computes the number of correct predictions for a contiguous subset of samples by running a forward pass through the network.
+/// - Parameters:
+///   - nn: The neural network containing hidden and output layer parameters.
+///   - images: Flattened input images in row-major order (numInputs values per sample).
+///   - labels: Ground-truth labels (0–9) for each sample.
+///   - start: Index of the first sample to evaluate.
+///   - count: Number of samples to evaluate starting from `start`.
+///   - config: Configuration providing model dimensions (e.g., `numHidden`).
+/// - Returns: The count of samples within the specified range that the network classifies correctly.
 func testCpuRange(
     nn: NeuralNetwork,
     images: [Float],
@@ -2046,7 +2119,13 @@ func testCpuRange(
     return correct
 }
 
-// Evaluate accuracy on the test set (CPU).
+/// Evaluate the neural network on the provided dataset and print the overall test accuracy as a percentage.
+/// - Parameters:
+///   - nn: The neural network to evaluate.
+///   - images: Flattened input images (normalized floats, row-major, length = numSamples * config.numInputs).
+///   - labels: Ground-truth labels (UInt8 values 0–9) for each sample.
+///   - numSamples: Number of samples from `images`/`labels` to evaluate.
+///   - config: Configuration providing model dimensions used during evaluation.
 func test(nn: NeuralNetwork, images: [Float], labels: [UInt8], numSamples: Int, config: Config) {
     let correct = testCpuRange(nn: nn, images: images, labels: labels, start: 0, count: numSamples, config: config)
     let accuracy = Float(correct) / Float(numSamples) * 100.0
@@ -2134,7 +2213,12 @@ func readMnistImages(path: String, count: Int) -> [Float] {
     }
 }
 
-// Read IDX labels (0-9).
+/// Read up to `count` labels from an MNIST IDX label file.
+/// - Parameters:
+///   - path: Filesystem path to the IDX label file (big-endian IDX format).
+///   - count: Maximum number of labels to read; if the file contains fewer labels, the available labels are returned.
+/// - Returns: An array of `UInt8` label values (0–9). The returned length is `min(count, numberOfLabelsInFile)`.
+/// - Note: If the file cannot be opened, the function prints an error and terminates the process.
 func readMnistLabels(path: String, count: Int) -> [UInt8] {
     let url = URL(fileURLWithPath: path)
     guard let data = try? Data(contentsOf: url) else {
@@ -2170,6 +2254,9 @@ func readMnistLabels(path: String, count: Int) -> [UInt8] {
     }
 }
 
+/// Orchestrates loading MNIST data, initializing the network, training, testing, and saving the trained model using the parsed configuration and available compute backends.
+/// 
+/// Parses command-line options into a `Config`, loads training and test datasets from the configured data path, initializes the RNG and neural network, selects and runs a training backend (MPSGraph, MPS, or CPU) according to availability and flags, then evaluates the trained model with the best available backend (MPSGraph, MPS, or CPU). Reports timing for data loading, training, testing, and overall runtime, and writes the trained model to "mnist_model.bin".
 func main() {
     // Parse command-line configuration
     let config = Config.parse()

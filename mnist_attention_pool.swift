@@ -54,7 +54,9 @@ struct Config {
     /// Parses command-line arguments into configuration
     ///
     /// This is a simple hand-rolled parser. For production code,
-    /// consider using Swift Argument Parser package.
+    /// Parse command-line arguments and produce a Config with any provided overrides.
+    /// Recognized options: `--batch`/`-b` <int>, `--epochs`/`-e` <int>, `--lr`/`-l` <float>, `--seed`/`-s` <uint64>, and `--help`/`-h` (prints usage and exits).
+    /// - Returns: A `Config` populated with values overridden by the parsed arguments; fields not specified on the command line retain their default values.
     static func parse() -> Config {
         var config = Config()
         let args = CommandLine.arguments
@@ -105,7 +107,7 @@ struct Config {
     }
 }
 
-/// Prints usage information
+/// Prints the command-line usage, available options, example invocations, and a brief model architecture summary to standard output.
 func printUsage() {
     print("""
     MNIST Attention Pool - Self-Attention Model for MNIST
@@ -579,7 +581,15 @@ func classifierForward(model: AttnModel, batchCount: Int, pooled: [Float], logit
     }
 }
 
-// Train for one epoch (returns average loss).
+/// Performs a single training epoch over the provided dataset and updates `model` in place using SGD.
+/// - Parameters:
+///   - model: The attention model to be updated.
+///   - images: Flat array of input images (numSamples * numInputs).
+///   - labels: Array of labels for each image.
+///   - indices: Array of sample indices; will be shuffled in-place to randomize minibatch order.
+///   - rng: Random number generator used for shuffling.
+///   - config: Training configuration (controls batch size and learning rate).
+/// - Returns: The average cross-entropy loss across all samples for this epoch.
 func trainEpoch(
     model: inout AttnModel,
     images: [Float],
@@ -906,7 +916,13 @@ func trainEpoch(
     return totalLoss / Float(n)
 }
 
-// Evaluate accuracy by running forward passes in batches.
+/// Compute the model's classification accuracy on the provided dataset.
+/// - Parameters:
+///   - model: The attention model used for inference.
+///   - images: Flattened image data where each sample occupies `numInputs` consecutive floats (length must be samples * `numInputs`).
+///   - labels: Ground-truth class labels (one `UInt8` per sample).
+///   - config: Configuration supplying evaluation batch size.
+/// - Returns: Accuracy as a percentage (0.0 to 100.0) of correctly predicted samples.
 func testAccuracy(model: AttnModel, images: [Float], labels: [UInt8], config: Config) -> Float {
     let n = labels.count
     let batchSize = config.batchSize
@@ -971,6 +987,9 @@ func testAccuracy(model: AttnModel, images: [Float], labels: [UInt8], config: Co
     return 100.0 * Float(correct) / Float(n)
 }
 
+/// Entry point that runs the full training and evaluation pipeline for the compact Transformer-style MNIST model.
+/// 
+/// Parses command-line options, loads MNIST data, initializes RNG and model parameters, runs training for the configured number of epochs while logging per-epoch loss and test accuracy, evaluates final test accuracy, and prints timing summaries. Performs file I/O for reading the dataset and writing a training loss log.
 func main() {
     // Parse command-line configuration.
     let config = Config.parse()
