@@ -46,47 +46,6 @@ var epochs = 5
 var batchSize = 32
 var rngSeed: UInt64 = 1
 
-// Tiny xorshift RNG for reproducible init without external deps.
-struct SimpleRng {
-    private var state: UInt64
-    init(seed: UInt64) {
-        self.state = (seed == 0) ? 0x9e3779b97f4a7c15 : seed
-    }
-
-    mutating func reseedFromTime() {
-        let nanos = UInt64(Date().timeIntervalSince1970 * 1_000_000_000.0)
-        state = (nanos == 0) ? 0x9e3779b97f4a7c15 : nanos
-    }
-
-    mutating func nextUInt32() -> UInt32 {
-        var x = state
-        x ^= x << 13
-        x ^= x >> 7
-        x ^= x << 17
-        state = x
-        return UInt32(truncatingIfNeeded: x >> 32)
-    }
-
-    mutating func nextFloat() -> Float {
-        Float(nextUInt32()) / Float(UInt32.max)
-    }
-
-    mutating func uniform(_ low: Float, _ high: Float) -> Float {
-        low + (high - low) * nextFloat()
-    }
-
-    mutating func nextInt(upper: Int) -> Int {
-        upper == 0 ? 0 : Int(nextUInt32()) % upper
-    }
-
-    mutating func shuffle(_ data: inout [Int]) {
-        if data.count <= 1 { return }
-        for i in stride(from: data.count - 1, through: 1, by: -1) {
-            let j = nextInt(upper: i + 1)
-            data.swapAt(i, j)
-        }
-    }
-}
 
 // MNIST IDX reader (big-endian header, images normalized to [0,1]).
 func readMnistImages(path: String, count: Int) -> [Float] {
