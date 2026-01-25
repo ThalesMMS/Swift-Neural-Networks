@@ -524,8 +524,6 @@ let numInputs = 784
 let numOutputs = 10
 let trainSamples = 60_000
 let testSamples = 10_000
-// TODO: FIX THIS UNRESOLVED MERGE CONFLICT. KEEP FUNCTIONALITY.
-// <<<<<<< auto-claude/002-replace-mutable-global-variables-with-configuratio
 
 // Simple RNG for reproducibility without external crates.
 struct SimpleRng {
@@ -568,12 +566,6 @@ struct SimpleRng {
     }
 }
 
-// =======
-var learningRate: Float = 0.01
-var epochs = 10
-var batchSize = 64
-var rngSeed: UInt64 = 1
-// >>>>>>> main
 // Activation types used in the network.
 enum ActivationType {
     case sigmoid
