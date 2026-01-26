@@ -13,6 +13,68 @@
 import Foundation
 import Darwin
 
+// =============================================================================
+// MARK: - Simple Random Number Generator
+// =============================================================================
+
+/// A simple random number generator using xorshift algorithm.
+/// This provides fast, deterministic pseudo-random number generation
+/// for neural network weight initialization and data shuffling.
+struct SimpleRng {
+    private var state: UInt64
+
+    // Explicit seed (if zero, use a fixed value).
+    init(seed: UInt64) {
+        self.state = seed == 0 ? 0x9e3779b97f4a7c15 : seed
+    }
+
+    // Reseed based on the current time.
+    mutating func reseedFromTime() {
+        let nanos = UInt64(Date().timeIntervalSince1970 * 1_000_000_000)
+        state = nanos == 0 ? 0x9e3779b97f4a7c15 : nanos
+    }
+
+    // Basic xorshift to generate u32.
+    mutating func nextUInt32() -> UInt32 {
+        var x = state
+        x ^= x << 13
+        x ^= x >> 7
+        x ^= x << 17
+        state = x
+        return UInt32(truncatingIfNeeded: x >> 32)
+    }
+
+    // Convert to [0, 1).
+    mutating func nextFloat() -> Float {
+        return Float(nextUInt32()) / Float(UInt32.max)
+    }
+
+    // Uniform sample in [low, high).
+    mutating func uniform(_ low: Float, _ high: Float) -> Float {
+        return low + (high - low) * nextFloat()
+    }
+
+    // Integer sample in [0, upper).
+    mutating func nextInt(upper: Int) -> Int {
+        return upper == 0 ? 0 : Int(nextUInt32()) % upper
+    }
+
+    /// Fisher-Yates shuffle for an array of Int.
+    mutating func shuffle(_ array: inout [Int]) {
+        let n = array.count
+        if n > 1 {
+            for i in stride(from: n - 1, through: 1, by: -1) {
+                let j = nextInt(upper: i + 1)
+                array.swapAt(i, j)
+            }
+        }
+    }
+}
+
+// =============================================================================
+// MARK: - MNIST Constants and Configuration
+// =============================================================================
+
 // MNIST constants (images are flat 28x28 in row-major order).
 let imgH = 28
 let imgW = 28
@@ -31,14 +93,125 @@ let poolH = imgH / pool
 let poolW = imgW / pool
 let fcIn = convOut * poolH * poolW // 1568
 
-// Training hyperparameters (educational defaults).
-let learningRate: Float = 0.01
-let epochs = 3
-let batchSize = 32
-
 // NOTE: SimpleRng has been extracted to Sources/MNISTCommon/SimpleRng.swift
 // To use this file as a standalone script, you'll need the SimpleRng implementation.
 // For package-based builds: import MNISTCommon
+
+// =============================================================================
+// MARK: - Command-Line Argument Parsing
+// =============================================================================
+
+/// Configuration parsed from command-line arguments
+struct Config {
+    var epochs: Int = 3
+    var batchSize: Int = 32
+    var learningRate: Float = 0.01
+    var dataPath: String = "./data"
+    var seed: UInt64 = 1
+
+    /// Parses command-line arguments into configuration
+    ///
+    /// This is a simple hand-rolled parser. For production code,
+    /// consider using Swift Argument Parser package.
+    static func parse() -> Config {
+        var config = Config()
+        let args = CommandLine.arguments
+        var i = 1
+
+        while i < args.count {
+            let arg = args[i]
+
+            switch arg {
+            case "--epochs", "-e":
+                i += 1
+                if i < args.count, let val = Int(args[i]) {
+                    config.epochs = val
+                }
+
+            case "--batch", "-b":
+                i += 1
+                if i < args.count, let val = Int(args[i]) {
+                    config.batchSize = val
+                }
+
+            case "--lr", "-l":
+                i += 1
+                if i < args.count, let val = Float(args[i]) {
+                    config.learningRate = val
+                }
+
+            case "--data", "-d":
+                i += 1
+                if i < args.count {
+                    config.dataPath = args[i]
+                }
+
+            case "--seed", "-s":
+                i += 1
+                if i < args.count, let val = UInt64(args[i]) {
+                    config.seed = val
+                }
+
+            case "--help", "-h":
+                printUsage()
+                exit(0)
+
+            default:
+                print("Unknown argument: \(arg)")
+                printUsage()
+                exit(1)
+            }
+
+            i += 1
+        }
+
+        return config
+    }
+}
+
+/// Prints usage information
+func printUsage() {
+    print("""
+    MNIST CNN - Convolutional Neural Network for MNIST
+    ===================================================
+
+    USAGE:
+      swift mnist_cnn.swift [OPTIONS]
+
+    OPTIONS:
+      --epochs, -e <n>      Number of training epochs (default: 3)
+      --batch, -b <n>       Batch size (default: 32)
+      --lr, -l <f>          Learning rate (default: 0.01)
+      --data, -d <path>     Path to MNIST data directory (default: ./data)
+      --seed, -s <n>        Random seed for reproducibility (default: 1)
+      --help, -h            Show this help message
+
+    EXAMPLES:
+      swift mnist_cnn.swift --epochs 5
+      swift mnist_cnn.swift -e 10 -b 64 -l 0.005
+      swift mnist_cnn.swift --seed 42
+
+    MODEL ARCHITECTURE:
+      Input:  28×28 grayscale images (784 pixels)
+      Conv:   3×3 kernel, 8 filters, ReLU activation
+      Pool:   2×2 max pooling
+      FC:     Fully connected layer to 10 classes
+      Output: 10-class softmax (digits 0-9)
+
+    EXPECTED DATA FILES:
+      <data-path>/train-images.idx3-ubyte
+      <data-path>/train-labels.idx1-ubyte
+      <data-path>/t10k-images.idx3-ubyte
+      <data-path>/t10k-labels.idx1-ubyte
+
+    OUTPUT:
+      logs/training_loss_cnn.txt - Training loss per epoch
+    """)
+}
+
+// =============================================================================
+// MARK: - Core Functions
+// =============================================================================
 
 // Stable softmax for a single row.
 func softmaxRowInPlace(_ row: inout [Float]) {
@@ -327,8 +500,93 @@ func convBackward(model: Cnn, batch: Int, input: [Float], convGrad: [Float], gra
     }
 }
 
+// =============================================================================
+// MARK: - MNIST Data Loading
+// =============================================================================
+
+// MNIST IDX file readers (big-endian format).
+func readMnistImages(path: String, count: Int) -> [Float] {
+    let url = URL(fileURLWithPath: path)
+    guard let data = try? Data(contentsOf: url) else {
+        print("Could not open file \(path)")
+        exit(1)
+    }
+
+    return data.withUnsafeBytes { rawBuf in
+        guard let base = rawBuf.bindMemory(to: UInt8.self).baseAddress else {
+            return []
+        }
+        var offset = 0
+
+        func readU32BE() -> UInt32 {
+            let b0 = UInt32(base[offset]) << 24
+            let b1 = UInt32(base[offset + 1]) << 16
+            let b2 = UInt32(base[offset + 2]) << 8
+            let b3 = UInt32(base[offset + 3])
+            offset += 4
+            return b0 | b1 | b2 | b3
+        }
+
+        _ = readU32BE()
+        let total = Int(readU32BE())
+        let rows = Int(readU32BE())
+        let cols = Int(readU32BE())
+        let imageSize = rows * cols
+        let actualCount = min(count, total)
+
+        var images = [Float](repeating: 0.0, count: actualCount * imageSize)
+        for i in 0..<actualCount {
+            let baseIndex = i * imageSize
+            for j in 0..<imageSize {
+                images[baseIndex + j] = Float(base[offset]) / 255.0
+                offset += 1
+            }
+        }
+        return images
+    }
+}
+
+func readMnistLabels(path: String, count: Int) -> [UInt8] {
+    let url = URL(fileURLWithPath: path)
+    guard let data = try? Data(contentsOf: url) else {
+        print("Could not open file \(path)")
+        exit(1)
+    }
+
+    return data.withUnsafeBytes { rawBuf in
+        guard let base = rawBuf.bindMemory(to: UInt8.self).baseAddress else {
+            return []
+        }
+        var offset = 0
+
+        func readU32BE() -> UInt32 {
+            let b0 = UInt32(base[offset]) << 24
+            let b1 = UInt32(base[offset + 1]) << 16
+            let b2 = UInt32(base[offset + 2]) << 8
+            let b3 = UInt32(base[offset + 3])
+            offset += 4
+            return b0 | b1 | b2 | b3
+        }
+
+        _ = readU32BE()
+        let total = Int(readU32BE())
+        let actualCount = min(count, total)
+
+        var labels = [UInt8](repeating: 0, count: actualCount)
+        for i in 0..<actualCount {
+            labels[i] = base[offset]
+            offset += 1
+        }
+        return labels
+    }
+}
+
+// =============================================================================
+// MARK: - Model Evaluation
+// =============================================================================
+
 // Evaluate accuracy by running forward passes in batches.
-func testAccuracy(model: Cnn, images: [Float], labels: [UInt8]) -> Float {
+func testAccuracy(model: Cnn, images: [Float], labels: [UInt8], batchSize: Int) -> Float {
     let n = labels.count
     var correct = 0
 
@@ -369,16 +627,18 @@ func testAccuracy(model: Cnn, images: [Float], labels: [UInt8]) -> Float {
 }
 
 func main() {
+    // Parse command-line arguments
+    let config = Config.parse()
+
     print("Loading MNIST...")
-    let trainImages = readMnistImages(path: "./data/train-images.idx3-ubyte", count: trainSamples)
-    let trainLabels = readMnistLabels(path: "./data/train-labels.idx1-ubyte", count: trainSamples)
-    let testImages  = readMnistImages(path: "./data/t10k-images.idx3-ubyte", count: testSamples)
-    let testLabels  = readMnistLabels(path: "./data/t10k-labels.idx1-ubyte", count: testSamples)
+    let trainImages = readMnistImages(path: "\(config.dataPath)/train-images.idx3-ubyte", count: trainSamples)
+    let trainLabels = readMnistLabels(path: "\(config.dataPath)/train-labels.idx1-ubyte", count: trainSamples)
+    let testImages  = readMnistImages(path: "\(config.dataPath)/t10k-images.idx3-ubyte", count: testSamples)
+    let testLabels  = readMnistLabels(path: "\(config.dataPath)/t10k-labels.idx1-ubyte", count: testSamples)
 
     print("Train: \(trainLabels.count) | Test: \(testLabels.count)")
 
-    var rng = SimpleRng(seed: 1)
-    rng.reseedFromTime()
+    var rng = SimpleRng(seed: config.seed)
     var model = initCnn(rng: &rng)
 
     try? FileManager.default.createDirectory(atPath: "./logs", withIntermediateDirectories: true)
@@ -387,17 +647,17 @@ func main() {
     defer { try? logHandle?.close() }
 
     // Training buffers (reused each batch to avoid allocations).
-    var batchInputs = [Float](repeating: 0, count: batchSize * numInputs)
-    var batchLabels = [UInt8](repeating: 0, count: batchSize)
+    var batchInputs = [Float](repeating: 0, count: config.batchSize * numInputs)
+    var batchLabels = [UInt8](repeating: 0, count: config.batchSize)
 
-    var convAct = [Float](repeating: 0, count: batchSize * convOut * imgH * imgW)
-    var poolOut = [Float](repeating: 0, count: batchSize * fcIn)
-    var poolIdx = [UInt8](repeating: 0, count: batchSize * convOut * poolH * poolW)
-    var logits = [Float](repeating: 0, count: batchSize * numClasses)
-    var delta  = [Float](repeating: 0, count: batchSize * numClasses)
+    var convAct = [Float](repeating: 0, count: config.batchSize * convOut * imgH * imgW)
+    var poolOut = [Float](repeating: 0, count: config.batchSize * fcIn)
+    var poolIdx = [UInt8](repeating: 0, count: config.batchSize * convOut * poolH * poolW)
+    var logits = [Float](repeating: 0, count: config.batchSize * numClasses)
+    var delta  = [Float](repeating: 0, count: config.batchSize * numClasses)
 
-    var dPool = [Float](repeating: 0, count: batchSize * fcIn)
-    var dConv = [Float](repeating: 0, count: batchSize * convOut * imgH * imgW)
+    var dPool = [Float](repeating: 0, count: config.batchSize * fcIn)
+    var dConv = [Float](repeating: 0, count: config.batchSize * convOut * imgH * imgW)
 
     var gradFcW = [Float](repeating: 0, count: fcIn * numClasses)
     var gradFcB = [Float](repeating: 0, count: numClasses)
@@ -406,16 +666,16 @@ func main() {
 
     var indices = Array(0..<trainLabels.count)
 
-    print("Training CNN: epochs=\(epochs) batch=\(batchSize) lr=\(learningRate)")
+    print("Training CNN: epochs=\(config.epochs) batch=\(config.batchSize) lr=\(config.learningRate)")
 
-    for e in 0..<epochs {
+    for e in 0..<config.epochs {
         let t0 = Date()
         rng.shuffle(&indices)
 
         var totalLoss: Float = 0
         var start = 0
         while start < indices.count {
-            let bsz = min(batchSize, indices.count - start)
+            let bsz = min(config.batchSize, indices.count - start)
             let scale = 1.0 / Float(bsz)
 
             // Gather a random mini-batch into contiguous buffers.
@@ -443,10 +703,10 @@ func main() {
             convBackward(model: model, batch: bsz, input: batchInputs, convGrad: dConv, gradW: &gradConvW, gradB: &gradConvB)
 
             // SGD update (no momentum, no weight decay).
-            for i in 0..<model.fcW.count { model.fcW[i] -= learningRate * gradFcW[i] }
-            for i in 0..<model.fcB.count { model.fcB[i] -= learningRate * gradFcB[i] }
-            for i in 0..<model.convW.count { model.convW[i] -= learningRate * gradConvW[i] }
-            for i in 0..<model.convB.count { model.convB[i] -= learningRate * gradConvB[i] }
+            for i in 0..<model.fcW.count { model.fcW[i] -= config.learningRate * gradFcW[i] }
+            for i in 0..<model.fcB.count { model.fcB[i] -= config.learningRate * gradFcB[i] }
+            for i in 0..<model.convW.count { model.convW[i] -= config.learningRate * gradConvW[i] }
+            for i in 0..<model.convB.count { model.convB[i] -= config.learningRate * gradConvB[i] }
 
             start += bsz
         }
@@ -461,7 +721,7 @@ func main() {
     }
 
     print("Testing...")
-    let acc = testAccuracy(model: model, images: testImages, labels: testLabels)
+    let acc = testAccuracy(model: model, images: testImages, labels: testLabels, batchSize: config.batchSize)
     print(String(format: "Test Accuracy: %.2f%%", acc))
 }
 

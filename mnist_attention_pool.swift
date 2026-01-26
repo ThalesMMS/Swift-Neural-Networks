@@ -40,100 +40,84 @@ let ffDim = 32                   // feed-forward hidden size
 let trainSamples = 60_000
 let testSamples = 10_000
 
-// =============================================================================
-// MARK: - Configuration
-// =============================================================================
+// MARK: - Global Configuration Parameters
 
-/// Configuration for training hyperparameters
-struct Config {
-    var learningRate: Float = 0.01
-    var epochs: Int = 5
-    var batchSize: Int = 32
-    var rngSeed: UInt64 = 1
+/// Batch size for training and evaluation
+var batchSize = 32
 
-    /// Parses command-line arguments into configuration
-    ///
-    /// This is a simple hand-rolled parser. For production code,
-    /// Parse command-line arguments and produce a Config with any provided overrides.
-    /// Recognized options: `--batch`/`-b` <int>, `--epochs`/`-e` <int>, `--lr`/`-l` <float>, `--seed`/`-s` <uint64>, and `--help`/`-h` (prints usage and exits).
-    /// - Returns: A `Config` populated with values overridden by the parsed arguments; fields not specified on the command line retain their default values.
-    static func parse() -> Config {
-        var config = Config()
-        let args = CommandLine.arguments
-        var i = 1
+/// Learning rate for SGD optimizer
+var learningRate: Float = 0.01
 
-        while i < args.count {
-            let arg = args[i]
+/// Number of training epochs
+var epochs = 5
 
-            switch arg {
-            case "--batch", "-b":
-                i += 1
-                if i < args.count, let val = Int(args[i]), val > 0 {
-                    config.batchSize = val
-                }
+/// Random number generator seed for reproducibility
+var rngSeed: UInt64 = 1
 
-            case "--epochs", "-e":
-                i += 1
-                if i < args.count, let val = Int(args[i]), val > 0 {
-                    config.epochs = val
-                }
+// MARK: - CLI Argument Parsing
 
-            case "--lr", "-l":
-                i += 1
-                if i < args.count, let val = Float(args[i]), val > 0 {
-                    config.learningRate = val
-                }
-
-            case "--seed", "-s":
-                i += 1
-                if i < args.count, let val = UInt64(args[i]) {
-                    config.rngSeed = val
-                }
-
-            case "--help", "-h":
-                printUsage()
-                exit(0)
-
-            default:
-                print("Unknown argument: \(arg)")
-                printUsage()
+/// Parses command-line arguments and overrides global configuration parameters.
+///
+/// Supported arguments:
+/// - `--batch, -b N`: Set batch size (default: 32)
+/// - `--epochs, -e N`: Set number of training epochs (default: 5)
+/// - `--lr, -l F`: Set learning rate (default: 0.01)
+/// - `--seed, -s N`: Set RNG seed for reproducibility (default: 1)
+/// - `--help, -h`: Display usage information and exit
+///
+/// Invalid arguments are silently ignored. Invalid values for recognized arguments
+/// will print an error message and exit with status code 1.
+func applyCliOverrides() {
+    let args = CommandLine.arguments
+    var i = 1
+    while i < args.count {
+        let arg = args[i]
+        switch arg {
+        case "--batch", "-b":
+            guard i + 1 < args.count, let value = Int(args[i + 1]), value > 0 else {
+                print("Invalid value for --batch")
                 exit(1)
             }
-
+            batchSize = value
             i += 1
+        case "--epochs", "-e":
+            guard i + 1 < args.count, let value = Int(args[i + 1]), value > 0 else {
+                print("Invalid value for --epochs")
+                exit(1)
+            }
+            epochs = value
+            i += 1
+        case "--lr", "-l":
+            guard i + 1 < args.count, let value = Float(args[i + 1]), value > 0 else {
+                print("Invalid value for --lr")
+                exit(1)
+            }
+            learningRate = value
+            i += 1
+        case "--seed", "-s":
+            guard i + 1 < args.count, let value = UInt64(args[i + 1]) else {
+                print("Invalid value for --seed")
+                exit(1)
+            }
+            rngSeed = value
+            i += 1
+        case "--help", "-h":
+            print("""
+Usage: mnist_attention_pool [OPTIONS]
+
+OPTIONS:
+  --batch, -b N      Batch size (default: 32)
+  --epochs, -e N     Number of training epochs (default: 5)
+  --lr, -l F         Learning rate (default: 0.01)
+  --seed, -s N       Random seed for reproducibility (default: 1)
+  --help, -h         Show this help message
+""")
+            exit(0)
+        default:
+            break
         }
-
-        return config
+        i += 1
     }
-}
-
-/// Prints the command-line usage, available options, example invocations, and a brief model architecture summary to standard output.
-func printUsage() {
-    print("""
-    MNIST Attention Pool - Self-Attention Model for MNIST
-    ======================================================
-
-    USAGE:
-      swift mnist_attention_pool.swift [OPTIONS]
-
-    OPTIONS:
-      --batch, -b <n>    Batch size (default: 32)
-      --epochs, -e <n>   Number of training epochs (default: 5)
-      --lr, -l <f>       Learning rate (default: 0.01)
-      --seed, -s <n>     RNG seed for reproducibility (default: 1)
-      --help, -h         Show this help message
-
-    EXAMPLES:
-      swift mnist_attention_pool.swift --epochs 10
-      swift mnist_attention_pool.swift -b 64 -e 5 -l 0.005
-      swift mnist_attention_pool.swift --seed 42
-
-    MODEL ARCHITECTURE:
-      - 4×4 patches → 49 tokens
-      - Self-attention with Q/K/V projections
-      - Feed-forward MLP per token
-      - Mean-pool → logits → softmax
-    """)
 }
 
 
@@ -469,23 +453,17 @@ func classifierForward(model: AttnModel, batchCount: Int, pooled: [Float], logit
 ///   - labels: Array of labels for each image.
 ///   - indices: Array of sample indices; will be shuffled in-place to randomize minibatch order.
 ///   - rng: Random number generator used for shuffling.
-///   - config: Training configuration (controls batch size and learning rate).
 /// - Returns: The average cross-entropy loss across all samples for this epoch.
 func trainEpoch(
     model: inout AttnModel,
     images: [Float],
     labels: [UInt8],
     indices: inout [Int],
-    rng: inout SimpleRng,
-    config: Config
+    rng: inout SimpleRng
 ) -> Float {
     rng.shuffle(&indices)
 
     var grads = Grads()
-
-    // Extract config values for local use.
-    let batchSize = config.batchSize
-    let learningRate = config.learningRate
 
     // Reusable buffers to avoid per-batch allocations.
     var batchInputs = [Float](repeating: 0, count: batchSize * numInputs)
@@ -802,11 +780,9 @@ func trainEpoch(
 ///   - model: The attention model used for inference.
 ///   - images: Flattened image data where each sample occupies `numInputs` consecutive floats (length must be samples * `numInputs`).
 ///   - labels: Ground-truth class labels (one `UInt8` per sample).
-///   - config: Configuration supplying evaluation batch size.
 /// - Returns: Accuracy as a percentage (0.0 to 100.0) of correctly predicted samples.
-func testAccuracy(model: AttnModel, images: [Float], labels: [UInt8], config: Config) -> Float {
+func testAccuracy(model: AttnModel, images: [Float], labels: [UInt8]) -> Float {
     let n = labels.count
-    let batchSize = config.batchSize
 
     var batchInputs = [Float](repeating: 0, count: batchSize * numInputs)
     var patches = [Float](repeating: 0, count: batchSize * seqLen * patchDim)
@@ -869,11 +845,11 @@ func testAccuracy(model: AttnModel, images: [Float], labels: [UInt8], config: Co
 }
 
 /// Entry point that runs the full training and evaluation pipeline for the compact Transformer-style MNIST model.
-/// 
+///
 /// Parses command-line options, loads MNIST data, initializes RNG and model parameters, runs training for the configured number of epochs while logging per-epoch loss and test accuracy, evaluates final test accuracy, and prints timing summaries. Performs file I/O for reading the dataset and writing a training loss log.
 func main() {
     // Parse command-line configuration.
-    let config = Config.parse()
+    applyCliOverrides()
 
     let programStart = Date()
 
@@ -886,10 +862,10 @@ func main() {
     let loadTime = Date().timeIntervalSince(loadStart)
     print(String(format: "Data loading time: %.2f seconds", loadTime))
 
-    print("Config: patch=\(patch)x\(patch) tokens=\(seqLen) d=\(dModel) ff=\(ffDim) batch=\(config.batchSize) epochs=\(config.epochs) lr=\(config.learningRate) seed=\(config.rngSeed)")
+    print("Config: patch=\(patch)x\(patch) tokens=\(seqLen) d=\(dModel) ff=\(ffDim) batch=\(batchSize) epochs=\(epochs) lr=\(learningRate) seed=\(rngSeed)")
 
-    var rng = SimpleRng(seed: config.rngSeed)
-    if config.rngSeed == 0 {
+    var rng = SimpleRng(seed: rngSeed)
+    if rngSeed == 0 {
         rng.reseedFromTime()
     }
     var model = initModel(rng: &rng)
@@ -905,12 +881,12 @@ func main() {
 
     print("Training...")
     let trainStart = Date()
-    for e in 0..<config.epochs {
+    for e in 0..<epochs {
         let t0 = Date()
-        let avgLoss = trainEpoch(model: &model, images: trainImages, labels: trainLabels, indices: &indices, rng: &rng, config: config)
+        let avgLoss = trainEpoch(model: &model, images: trainImages, labels: trainLabels, indices: &indices, rng: &rng)
         let dt = Float(Date().timeIntervalSince(t0))
 
-        let acc = testAccuracy(model: model, images: testImages, labels: testLabels, config: config)
+        let acc = testAccuracy(model: model, images: testImages, labels: testLabels)
         print(String(format: "Epoch %d | loss=%.6f | time=%.3fs | test_acc=%.2f%%", e + 1, avgLoss, dt, acc))
 
         if let h = logHandle {
@@ -920,7 +896,7 @@ func main() {
     }
     let trainTime = Date().timeIntervalSince(trainStart)
 
-    let finalAcc = testAccuracy(model: model, images: testImages, labels: testLabels, config: config)
+    let finalAcc = testAccuracy(model: model, images: testImages, labels: testLabels)
     print(String(format: "Final Test Accuracy: %.2f%%", finalAcc))
 
     let totalTime = Date().timeIntervalSince(programStart)
@@ -929,6 +905,131 @@ func main() {
     print(String(format: "Train: %.2fs", trainTime))
     print(String(format: "Total: %.2fs", totalTime))
     print("=============")
+}
+
+// MARK: - Helper Functions
+
+// Simple RNG for reproducible weight initialization.
+struct SimpleRng {
+    private var state: UInt64
+
+    init(seed: UInt64) {
+        self.state = seed == 0 ? 0x9e3779b97f4a7c15 : seed
+    }
+
+    mutating func reseedFromTime() {
+        let nanos = UInt64(Date().timeIntervalSince1970 * 1_000_000_000)
+        state = nanos == 0 ? 0x9e3779b97f4a7c15 : nanos
+    }
+
+    mutating func nextUInt32() -> UInt32 {
+        var x = state
+        x ^= x << 13
+        x ^= x >> 7
+        x ^= x << 17
+        state = x
+        return UInt32(truncatingIfNeeded: x >> 32)
+    }
+
+    mutating func nextFloat() -> Float {
+        return Float(nextUInt32()) / Float(UInt32.max)
+    }
+
+    mutating func uniform(_ low: Float, _ high: Float) -> Float {
+        return low + (high - low) * nextFloat()
+    }
+
+    mutating func nextInt(upper: Int) -> Int {
+        return upper == 0 ? 0 : Int(nextUInt32()) % upper
+    }
+
+    /// Fisher-Yates shuffle for an array of Int.
+    mutating func shuffle(_ array: inout [Int]) {
+        let n = array.count
+        if n > 1 {
+            for i in stride(from: n - 1, through: 1, by: -1) {
+                let j = nextInt(upper: i + 1)
+                array.swapAt(i, j)
+            }
+        }
+    }
+}
+
+// MNIST IDX file readers (big-endian format).
+func readMnistImages(path: String, count: Int) -> [Float] {
+    let url = URL(fileURLWithPath: path)
+    guard let data = try? Data(contentsOf: url) else {
+        print("Could not open file \(path)")
+        exit(1)
+    }
+
+    return data.withUnsafeBytes { rawBuf in
+        guard let base = rawBuf.bindMemory(to: UInt8.self).baseAddress else {
+            return []
+        }
+        var offset = 0
+
+        func readU32BE() -> UInt32 {
+            let b0 = UInt32(base[offset]) << 24
+            let b1 = UInt32(base[offset + 1]) << 16
+            let b2 = UInt32(base[offset + 2]) << 8
+            let b3 = UInt32(base[offset + 3])
+            offset += 4
+            return b0 | b1 | b2 | b3
+        }
+
+        _ = readU32BE()
+        let total = Int(readU32BE())
+        let rows = Int(readU32BE())
+        let cols = Int(readU32BE())
+        let imageSize = rows * cols
+        let actualCount = min(count, total)
+
+        var images = [Float](repeating: 0.0, count: actualCount * imageSize)
+        for i in 0..<actualCount {
+            let baseIndex = i * imageSize
+            for j in 0..<imageSize {
+                images[baseIndex + j] = Float(base[offset]) / 255.0
+                offset += 1
+            }
+        }
+        return images
+    }
+}
+
+func readMnistLabels(path: String, count: Int) -> [UInt8] {
+    let url = URL(fileURLWithPath: path)
+    guard let data = try? Data(contentsOf: url) else {
+        print("Could not open file \(path)")
+        exit(1)
+    }
+
+    return data.withUnsafeBytes { rawBuf in
+        guard let base = rawBuf.bindMemory(to: UInt8.self).baseAddress else {
+            return []
+        }
+        var offset = 0
+
+        func readU32BE() -> UInt32 {
+            let b0 = UInt32(base[offset]) << 24
+            let b1 = UInt32(base[offset + 1]) << 16
+            let b2 = UInt32(base[offset + 2]) << 8
+            let b3 = UInt32(base[offset + 3])
+            offset += 4
+            return b0 | b1 | b2 | b3
+        }
+
+        _ = readU32BE()
+        let total = Int(readU32BE())
+        let actualCount = min(count, total)
+
+        var labels = [UInt8](repeating: 0, count: actualCount)
+        for i in 0..<actualCount {
+            labels[i] = base[offset]
+            offset += 1
+        }
+        return labels
+    }
 }
 
 main()

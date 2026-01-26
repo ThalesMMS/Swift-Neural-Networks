@@ -40,6 +40,7 @@ struct Config {
     var batchSize: Int = 32
     var learningRate: Float = 0.01
     var dataPath: String = "./data"
+    var seed: UInt64 = 1
     
     /// Parses command-line arguments into configuration
     ///
@@ -83,7 +84,13 @@ struct Config {
                 if i < args.count {
                     config.dataPath = args[i]
                 }
-                
+
+            case "--seed", "-s":
+                i += 1
+                if i < args.count, let val = UInt64(args[i]) {
+                    config.seed = val
+                }
+
             case "--help", "-h":
                 printUsage()
                 exit(0)
@@ -116,6 +123,7 @@ func printUsage() {
       --batch, -b <n>       Batch size (default: 32)
       --lr, -l <f>          Learning rate (default: 0.01)
       --data, -d <path>     Path to MNIST data directory (default: ./data)
+      --seed, -s <n>        Random seed for reproducibility (default: 1)
       --help, -h            Show this help message
     
     EXAMPLES:
@@ -308,7 +316,13 @@ func main() {
     print("  Batch Size:    \(config.batchSize)")
     print("  Learning Rate: \(config.learningRate)")
     print("  Data Path:     \(config.dataPath)")
-    
+    print("  Seed:          \(config.seed)")
+
+    // =========================================================================
+    // Set Random Seed
+    // =========================================================================
+    MLX.seed(config.seed)
+
     // =========================================================================
     // Load MNIST Dataset
     // =========================================================================

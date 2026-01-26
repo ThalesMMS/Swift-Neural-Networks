@@ -16,12 +16,12 @@ var rngSeed: UInt64 = 1
 /// Parses command-line arguments and overrides global configuration parameters.
 ///
 /// Supported arguments:
-/// - `--batch N`: Set batch size (default: 64)
+/// - `--batch, -b N`: Set batch size (default: 64)
 /// - `--hidden N`: Set number of hidden units (default: 512)
-/// - `--epochs N`: Set number of training epochs (default: 10)
-/// - `--lr F`: Set learning rate (default: 0.01)
-/// - `--seed N`: Set RNG seed for reproducibility (default: 1)
-/// - `--help`: Display usage information and exit
+/// - `--epochs, -e N`: Set number of training epochs (default: 10)
+/// - `--lr, -l F`: Set learning rate (default: 0.01)
+/// - `--seed, -s N`: Set RNG seed for reproducibility (default: 1)
+/// - `--help, -h`: Display usage information and exit
 ///
 /// Invalid arguments are silently ignored. Invalid values for recognized arguments
 /// will print an error message and exit with status code 1.
@@ -31,7 +31,7 @@ func applyCliOverrides() {
     while i < args.count {
         let arg = args[i]
         switch arg {
-        case "--batch":
+        case "--batch", "-b":
             guard i + 1 < args.count, let value = Int(args[i + 1]), value > 0 else {
                 print("Invalid value for --batch")
                 exit(1)
@@ -45,30 +45,38 @@ func applyCliOverrides() {
             }
             numHidden = value
             i += 1
-        case "--epochs":
+        case "--epochs", "-e":
             guard i + 1 < args.count, let value = Int(args[i + 1]), value > 0 else {
                 print("Invalid value for --epochs")
                 exit(1)
             }
             epochs = value
             i += 1
-        case "--lr":
+        case "--lr", "-l":
             guard i + 1 < args.count, let value = Float(args[i + 1]), value > 0 else {
                 print("Invalid value for --lr")
                 exit(1)
             }
             learningRate = value
             i += 1
-        case "--seed":
+        case "--seed", "-s":
             guard i + 1 < args.count, let value = UInt64(args[i + 1]) else {
                 print("Invalid value for --seed")
                 exit(1)
             }
             rngSeed = value
             i += 1
-        case "--help":
+        case "--help", "-h":
             print("""
-Usage: mnist_mlp_swift [--mps] [--mpsgraph] [--batch N] [--hidden N] [--epochs N] [--lr F] [--seed N]
+Usage: mnist_mlp_swift [OPTIONS]
+
+OPTIONS:
+  --batch, -b N      Batch size (default: 64)
+  --hidden N         Number of hidden units (default: 512)
+  --epochs, -e N     Number of training epochs (default: 10)
+  --lr, -l F         Learning rate (default: 0.01)
+  --seed, -s N       Random seed for reproducibility (default: 1)
+  --help, -h         Show this help message
 """)
             exit(0)
         default:

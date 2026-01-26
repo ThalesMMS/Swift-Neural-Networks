@@ -415,12 +415,12 @@ struct Config {
     /// 
     /// Recognized flags:
     /// - --batch, -b <int>        : set batchSize (must be > 0)
-    /// - --hidden, -h <int>       : set numHidden (must be > 0)
+    /// - --hidden, -n <int>       : set numHidden (must be > 0)
     /// - --epochs, -e <int>       : set epochs (must be > 0)
     /// - --lr, -l <float>         : set learningRate (must be > 0)
     /// - --seed, -s <uint64>      : set rngSeed
     /// - --data, -d <path>        : set dataPath
-    /// - --help                   : print usage and exit
+    /// - --help, -h               : print usage and exit
     /// 
     /// If an unknown non-flag argument is encountered, prints usage and exits with code 1.
     /// @returns: A Config populated from the parsed command-line flags or left at defaults when flags are absent.
@@ -439,7 +439,7 @@ struct Config {
                     config.batchSize = val
                 }
 
-            case "--hidden", "-h":
+            case "--hidden", "-n":
                 i += 1
                 if i < args.count, let val = Int(args[i]), val > 0 {
                     config.numHidden = val
@@ -469,7 +469,7 @@ struct Config {
                     config.dataPath = args[i]
                 }
 
-            case "--help":
+            case "--help", "-h":
                 printUsage()
                 exit(0)
 
@@ -500,14 +500,14 @@ func printUsage() {
 
     OPTIONS:
       --batch, -b <n>       Batch size (default: 64)
-      --hidden, -h <n>      Hidden layer size (default: 512)
+      --hidden, -n <n>      Hidden layer size (default: 512)
       --epochs, -e <n>      Number of training epochs (default: 10)
       --lr, -l <f>          Learning rate (default: 0.01)
       --seed, -s <n>        Random seed (default: 1)
       --data, -d <path>     Path to MNIST data directory (default: ./data)
       --mps                 Use Metal Performance Shaders for GPU acceleration
       --mpsgraph            Use MPSGraph for GPU acceleration
-      --help                Show this help message
+      --help, -h            Show this help message
 
     EXAMPLES:
       swift mnist_mlp.swift --epochs 5 --lr 0.005
@@ -1285,6 +1285,36 @@ func reluInPlace(_ data: inout [Float], count: Int) {
     for i in 0..<count {
         if data[i] < 0 {
             data[i] = 0
+        }
+    }
+}
+
+// Softmax over matrix rows (in-place, numerically stable).
+func softmaxRows(_ data: inout [Float], rows: Int, cols: Int) {
+    for r in 0..<rows {
+        let base = r * cols
+
+        // Find max for numerical stability
+        var maxVal = data[base]
+        for c in 1..<cols {
+            let v = data[base + c]
+            if v > maxVal {
+                maxVal = v
+            }
+        }
+
+        // Compute exp(x - max) and sum
+        var sum: Float = 0.0
+        for c in 0..<cols {
+            let e = exp(data[base + c] - maxVal)
+            data[base + c] = e
+            sum += e
+        }
+
+        // Normalize
+        let inv = 1.0 / sum
+        for c in 0..<cols {
+            data[base + c] *= inv
         }
     }
 }

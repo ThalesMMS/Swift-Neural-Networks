@@ -177,5 +177,79 @@ let package = Package(
                 .process("Shaders")
             ]
         ),
+
+        // -----------------------------------------------------------------------
+        // MARK: - Test Targets
+        // -----------------------------------------------------------------------
+
+        // -----------------------------------------------------------------------
+        // MNISTCommonTests: Tests for shared utilities
+        // -----------------------------------------------------------------------
+        // Tests for:
+        //   - SimpleRng: Reproducibility and random number generation
+        //   - Activations: softmaxRows, softmaxRowsPointer correctness
+        //   - Data loaders: readMnistImages, readMnistLabels
+        .testTarget(
+            name: "MNISTCommonTests",
+            dependencies: [
+                "MNISTCommon",
+            ],
+            path: "Tests/MNISTCommonTests"
+        ),
+
+        // -----------------------------------------------------------------------
+        // MNISTDataTests: Tests for MNIST data loading
+        // -----------------------------------------------------------------------
+        // Tests for:
+        //   - IDX file format parsing (headers, magic numbers)
+        //   - Image normalization ([0,255] → [0.0,1.0])
+        //   - Batch creation and shuffling
+        //   - Error handling (missing files, invalid format)
+        .testTarget(
+            name: "MNISTDataTests",
+            dependencies: [
+                "MNISTData",
+                .product(name: "MLX", package: "mlx-swift"),
+            ],
+            path: "Tests/MNISTDataTests"
+        ),
+
+        // -----------------------------------------------------------------------
+        // MNISTMLXTests: Tests for MLX-based models
+        // -----------------------------------------------------------------------
+        // Tests for:
+        //   - MLP model: Forward pass shapes, gradient flow
+        //   - CNN model: Convolution, pooling, forward pass shapes
+        //   - Loss functions: Cross-entropy correctness
+        //   - Accuracy computation
+        .testTarget(
+            name: "MNISTMLXTests",
+            dependencies: [
+                "MNISTMLX",
+                "MNISTData",
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXNN", package: "mlx-swift"),
+                .product(name: "MLXOptimizers", package: "mlx-swift"),
+                .product(name: "MLXRandom", package: "mlx-swift"),
+            ],
+            path: "Tests/MNISTMLXTests"
+        ),
+
+        // -----------------------------------------------------------------------
+        // MNISTClassicTests: Tests for classic CPU/GPU backends
+        // -----------------------------------------------------------------------
+        // Tests for:
+        //   - CPU GEMM operations (matrix multiplication)
+        //   - GEMM transpose modes (transposeA, transposeB)
+        //   - GEMM scaling (alpha, beta parameters)
+        //   - Backend correctness
+        .testTarget(
+            name: "MNISTClassicTests",
+            dependencies: [
+                "MNISTClassic",
+                "MNISTCommon",
+            ],
+            path: "Tests/MNISTClassicTests"
+        ),
     ]
 )

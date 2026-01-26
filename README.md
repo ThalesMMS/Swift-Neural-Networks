@@ -1,5 +1,7 @@
 # Swift Neural Network Models
 
+[![CI](https://github.com/ThalesMMS/Swift-Neural-Networks-dev/workflows/CI/badge.svg)](https://github.com/ThalesMMS/Swift-Neural-Networks-dev/actions)
+
 Authors: Antonio Neto and Thales Matheus
 
 ## Overview
@@ -92,6 +94,37 @@ Architecture:
 
 Training uses 1,000,000 epochs by default.
 
+## Unified CLI Interface
+
+All implementations now support a consistent set of command-line flags for easy experimentation:
+
+| Flag | Short | Description | Default |
+| --- | --- | --- | --- |
+| `--batch` | `-b` | Batch size | 64 (MLP), 32 (CNN/Attention) |
+| `--epochs` | `-e` | Number of training epochs | 10 (MLP), 3 (CNN), 5 (Attention) |
+| `--lr` | `-l` | Learning rate | 0.01 |
+| `--seed` | `-s` | RNG seed for reproducibility | 1 |
+| `--help` | `-h` | Display usage information | - |
+
+Model-specific flags (where applicable):
+- `--hidden` / `-n`: Hidden layer size (MLP only, default: 512)
+- `--model` / `-m`: Model architecture (MNISTMLX: mlp, cnn, attention)
+- `--mps`: Use MPS GPU backend (Classic/single-file)
+- `--mpsgraph`: Use MPSGraph backend (Classic/single-file)
+- `--data` / `-d`: Path to MNIST data directory (default: `./data`)
+
+Examples:
+```bash
+# MNISTClassic with custom hyperparameters
+swift run MNISTClassic -b 128 -e 5 -l 0.005 -s 42
+
+# MNISTMLX CNN with reproducible seed
+swift run MNISTMLX -m cnn -e 3 -s 42
+
+# Single-file MLP with GPU and custom params
+./mnist_mlp_swift --mps -b 64 -e 10 -l 0.01 -s 123
+```
+
 ## Swift GPU acceleration
 
 `mnist_mlp.swift` includes GPU paths for faster training and testing:
@@ -128,9 +161,15 @@ swift run MNISTMLX --model cnn --epochs 3
 # Run Attention model
 swift run MNISTMLX --model attention --epochs 5
 
-# Custom hyperparameters
-swift run MNISTMLX -m mlp -e 10 -b 64 -l 0.005
+# Custom hyperparameters with short-form flags
+swift run MNISTMLX -m mlp -e 10 -b 64 -l 0.005 -s 42
+
+# Display help
+swift run MNISTMLX --help
 ```
+
+Common flags: `--batch` / `-b`, `--epochs` / `-e`, `--lr` / `-l`, `--seed` / `-s`, `--help` / `-h`
+Model selection: `--model` / `-m` (mlp, cnn, attention)
 
 Available models:
 
@@ -193,8 +232,11 @@ swift run MNISTClassic --mps
 # Run with MPSGraph (fully on-device training)
 swift run MNISTClassic --mpsgraph
 
-# Custom hyperparameters
-swift run MNISTClassic --mps --epochs 10 --batch 128 --lr 0.005 --hidden 512
+# Custom hyperparameters (using short-form flags)
+swift run MNISTClassic --mps -e 10 -b 128 -l 0.005 --hidden 512 -s 42
+
+# Display help
+swift run MNISTClassic --help
 ```
 
 Backend comparison (local runs):
@@ -210,11 +252,12 @@ Command-line options:
 ```bash
 --mps          # Use MPS GEMM + Metal kernels (GPU)
 --mpsgraph     # Use MPSGraph (fully on-device)
---batch N      # Batch size (default: 64)
---hidden N     # Hidden layer size (default: 512)
---epochs N     # Number of epochs (default: 10)
---lr F         # Learning rate (default: 0.01)
---seed N       # RNG seed for reproducibility
+--batch, -b    # Batch size (default: 64)
+--hidden, -n   # Hidden layer size (default: 512)
+--epochs, -e   # Number of epochs (default: 10)
+--lr, -l       # Learning rate (default: 0.01)
+--seed, -s     # RNG seed for reproducibility (default: 1)
+--help, -h     # Display usage information
 ```
 
 The legacy monolithic `mnist_mlp.swift` is kept for reference and can still be built directly.
@@ -234,19 +277,21 @@ Run MNIST MLP:
 
 ```bash
 ./mnist_mlp_swift --mps
-./mnist_mlp_swift --mpsgraph
+./mnist_mlp_swift --mpsgraph -b 128 -e 5 -l 0.005 -s 42
 ```
 
 Run MNIST CNN:
 
 ```bash
 ./mnist_cnn_swift
+./mnist_cnn_swift -b 64 -e 5 -l 0.01 -s 42
 ```
 
 Run MNIST attention:
 
 ```bash
 ./mnist_attention_pool_swift
+./mnist_attention_pool_swift -b 32 -e 5 -l 0.01 -s 42
 ```
 
 Run XOR:
@@ -258,27 +303,36 @@ Run XOR:
 Options for `mnist_mlp_swift`:
 
 ```bash
---mps          # Use MPS GEMM + Metal kernels
---mpsgraph     # Use MPSGraph (train and test on GPU)
---batch N      # Batch size (default: 64)
---hidden N     # Hidden layer size (default: 512)
---epochs N     # Epochs (default: 10)
---lr F         # Learning rate (default: 0.01)
---seed N       # RNG seed (default: 1)
---help         # Print usage
+--mps, --mpsgraph  # GPU backends (MPS or MPSGraph)
+--batch, -b        # Batch size (default: 64)
+--hidden, -n       # Hidden layer size (default: 512)
+--epochs, -e       # Epochs (default: 10)
+--lr, -l           # Learning rate (default: 0.01)
+--seed, -s         # RNG seed (default: 1)
+--data, -d         # Data directory (default: ./data)
+--help, -h         # Print usage
+```
+
+Options for `mnist_cnn_swift`:
+
+```bash
+--batch, -b    # Batch size (default: 32)
+--epochs, -e   # Epochs (default: 3)
+--lr, -l       # Learning rate (default: 0.01)
+--seed, -s     # RNG seed (default: 1)
+--data, -d     # Data directory (default: ./data)
+--help, -h     # Print usage
 ```
 
 Options for `mnist_attention_pool_swift`:
 
 ```bash
---batch N      # Batch size (default: 32)
---epochs N     # Epochs (default: 5)
---lr F         # Learning rate (default: 0.01)
---seed N       # RNG seed (default: 1)
---help         # Print usage
+--batch, -b    # Batch size (default: 32)
+--epochs, -e   # Epochs (default: 5)
+--lr, -l       # Learning rate (default: 0.01)
+--seed, -s     # RNG seed (default: 1)
+--help, -h     # Print usage
 ```
-
-Note: `mnist_cnn_swift` uses fixed defaults and has no CLI flags.
 
 ## Benchmarks (local runs)
 
@@ -292,6 +346,65 @@ All runs used the default settings unless noted. Training time is reported as to
 | XOR MLP | Swift | `./mlp_simple_swift` | 1,000,000 | - | 1.78 | 100.00 | Threshold 0.5 |
 
 Note: results vary by hardware and build flags. The Swift MLP CPU run above did not converge well; try `--mps` or `--mpsgraph` for faster and more stable training.
+
+## Continuous Integration
+
+This repository uses GitHub Actions for automated testing and build verification. The CI pipeline runs on every push and pull request to ensure code quality and prevent regressions.
+
+### What runs automatically
+
+The CI workflow (`.github/workflows/ci.yml`) performs the following checks:
+
+- **Build verification**: Compiles all Swift targets using `swift build`
+- **Test execution**: Runs the test suite with `swift test`
+- **Platform**: Tests run on macOS 14 (Apple Silicon) to support GPU-accelerated code
+
+The build status badge at the top of this README shows the current CI status. You can view detailed workflow runs in the [Actions tab](https://github.com/ThalesMMS/Swift-Neural-Networks-dev/actions).
+
+### Running tests locally
+
+To run the same checks that CI performs:
+
+```bash
+# Build all targets
+swift build
+
+# Run the test suite
+swift test
+
+# Build specific targets
+swift build --target MNISTClassic
+swift build --target MNISTMLX
+```
+
+The test suite includes:
+
+- **Smoke tests**: Verify basic module imports and package structure
+- **RNG tests**: Validate random number generator consistency and determinism
+- **Integration tests**: Ensure components work together correctly
+
+### Adding new tests
+
+Tests are located in `Tests/Swift-Neural-NetworksTests/`. To add new tests:
+
+1. Create a new test file or add to existing ones
+2. Import the modules you want to test: `@testable import MNISTCommon`
+3. Write test methods (must start with `test`)
+4. Run locally with `swift test` before pushing
+
+Example test:
+
+```swift
+import XCTest
+@testable import MNISTCommon
+
+final class MyTests: XCTestCase {
+    func testExample() {
+        // Your test code here
+        XCTAssertEqual(2 + 2, 4)
+    }
+}
+```
 
 ## MNIST dataset
 
