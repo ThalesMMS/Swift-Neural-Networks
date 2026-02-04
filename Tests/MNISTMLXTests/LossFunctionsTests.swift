@@ -35,7 +35,7 @@ import MLX
 import MLXNN
 @testable import MNISTMLX
 
-final class LossFunctionsTests: XCTestCase {
+final class LossFunctionsTests: MLXTestCase {
 
     // =============================================================================
     // MARK: - Test Utilities

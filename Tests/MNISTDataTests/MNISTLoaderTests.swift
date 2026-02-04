@@ -15,7 +15,7 @@ import MLX
 @testable import MNISTData
 import Foundation
 
-final class MNISTLoaderTests: XCTestCase {
+final class MNISTLoaderTests: MLXTestCase {
 
     // =============================================================================
     // MARK: - Test Utilities

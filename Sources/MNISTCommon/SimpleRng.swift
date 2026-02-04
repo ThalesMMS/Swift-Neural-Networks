@@ -30,7 +30,7 @@ public struct SimpleRng {
 
     // Convert to [0, 1).
     public mutating func nextFloat() -> Float {
-        return Float(nextUInt32()) / Float(UInt32.max)
+        return Float(nextUInt32()) / (Float(UInt32.max) + 1.0)
     }
 
     // Uniform sample in [low, high).
@@ -39,6 +39,7 @@ public struct SimpleRng {
     }
 
     // Integer sample in [0, upper).
+    // Note: Uses modulo, which introduces a tiny bias for non-power-of-two bounds; acceptable here (upper ≤ 60,000 vs UInt32.max ≈ 4.3B).
     public mutating func nextInt(upper: Int) -> Int {
         return upper == 0 ? 0 : Int(nextUInt32()) % upper
     }

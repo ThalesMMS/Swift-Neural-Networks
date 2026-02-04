@@ -16,7 +16,7 @@ import MLX
 import MLXNN
 @testable import MNISTMLX
 
-final class CNNModelTests: XCTestCase {
+final class CNNModelTests: MLXTestCase {
 
     // =============================================================================
     // MARK: - Test Utilities

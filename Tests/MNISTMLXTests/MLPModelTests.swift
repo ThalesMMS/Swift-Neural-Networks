@@ -15,7 +15,7 @@ import MLX
 import MLXNN
 @testable import MNISTMLX
 
-final class MLPModelTests: XCTestCase {
+final class MLPModelTests: MLXTestCase {
 
     // =============================================================================
     // MARK: - Test Utilities

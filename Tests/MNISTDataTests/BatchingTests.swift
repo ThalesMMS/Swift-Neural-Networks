@@ -16,7 +16,7 @@ import MLX
 @testable import MNISTData
 import Foundation
 
-final class BatchingTests: XCTestCase {
+final class BatchingTests: MLXTestCase {
 
     // =============================================================================
     // MARK: - Test Utilities

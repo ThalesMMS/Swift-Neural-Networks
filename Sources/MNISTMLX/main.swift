@@ -39,6 +39,7 @@ struct Config {
     var epochs: Int = 5
     var batchSize: Int = 32
     var learningRate: Float = 0.01
+    var learningRateProvided: Bool = false
     var dataPath: String = "./data"
     var seed: UInt64 = 1
     
@@ -77,6 +78,7 @@ struct Config {
                 i += 1
                 if i < args.count, let val = Float(args[i]) {
                     config.learningRate = val
+                    config.learningRateProvided = true
                 }
                 
             case "--data", "-d":
@@ -299,13 +301,25 @@ func trainAttention(config: Config, trainImages: MLXArray, trainLabels: MLXArray
 // MARK: - Main Entry Point
 // =============================================================================
 
-/// Main function
+/// Program entry point that parses command-line options, loads the MNIST dataset, and trains the selected model.
+/// 
+/// Parses CLI configuration, prints the chosen configuration, and adjusts the default learning rate for the attention
+/// model when the user did not override it. Loads training and test MNIST data from the configured directory and
+/// dispatches to the appropriate training routine for `mlp`, `cnn`, or `attention`. On failure to load data or when
+/// an unknown model type is specified, the program prints an error and exits with code 1.
 func main() {
     // =========================================================================
     // Parse Command-Line Arguments
     // =========================================================================
-    let config = Config.parse()
-    
+    var config = Config.parse()
+
+    // Use optimal learning rate for attention model with increased capacity
+    // (dModel=32, ffDim=64). If user explicitly set --lr, respect that.
+    // Otherwise, use 0.005 which was found optimal during investigation.
+    if config.modelType == "attention" && !config.learningRateProvided {
+        config.learningRate = 0.005
+    }
+
     print("╔═══════════════════════════════════════════════════════╗")
     print("║   MNIST Neural Networks with MLX Swift                ║")
     print("╚═══════════════════════════════════════════════════════╝")

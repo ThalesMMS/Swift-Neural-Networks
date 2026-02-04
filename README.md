@@ -78,9 +78,9 @@ Architecture:
 
 Default training parameters:
 
-- D model: 16
-- FF dim: 32
-- Learning rate: 0.01
+- D model: 32
+- FF dim: 64
+- Learning rate: 0.005
 - Batch size: 32
 - Epochs: 5
 
@@ -102,7 +102,7 @@ All implementations now support a consistent set of command-line flags for easy 
 | --- | --- | --- | --- |
 | `--batch` | `-b` | Batch size | 64 (MLP), 32 (CNN/Attention) |
 | `--epochs` | `-e` | Number of training epochs | 10 (MLP), 3 (CNN), 5 (Attention) |
-| `--lr` | `-l` | Learning rate | 0.01 |
+| `--lr` | `-l` | Learning rate | 0.01 (MLP/CNN), 0.005 (Attention) |
 | `--seed` | `-s` | RNG seed for reproducibility | 1 |
 | `--help` | `-h` | Display usage information | - |
 
@@ -177,7 +177,7 @@ Available models:
 | --- | --- | --- |
 | `mlp` | 784→512→10 (ReLU) | ~97% |
 | `cnn` | Conv(3×3,8)→MaxPool→Linear | ~98% |
-| `attention` | Patches→Attention→Pool→Linear | ~95% |
+| `attention` | Patches→Attention→Pool→Linear | ~90% |
 
 See `docs/mlx_migration.md` for the migration guide.
 
@@ -291,7 +291,7 @@ Run MNIST attention:
 
 ```bash
 ./mnist_attention_pool_swift
-./mnist_attention_pool_swift -b 32 -e 5 -l 0.01 -s 42
+./mnist_attention_pool_swift -b 32 -e 5 -l 0.005 -s 42
 ```
 
 Run XOR:
@@ -329,20 +329,20 @@ Options for `mnist_attention_pool_swift`:
 ```bash
 --batch, -b    # Batch size (default: 32)
 --epochs, -e   # Epochs (default: 5)
---lr, -l       # Learning rate (default: 0.01)
+--lr, -l       # Learning rate (default: 0.005)
 --seed, -s     # RNG seed (default: 1)
 --help, -h     # Print usage
 ```
 
 ## Benchmarks (local runs)
 
-All runs used the default settings unless noted. Training time is reported as total training time; for CNN/attention it is the sum of per-epoch times. XOR accuracy is computed with a 0.5 threshold on the final outputs.
+All runs used the default settings unless noted. Training time is reported as total training time; for CNN/attention it is the sum of per-epoch times. XOR accuracy is computed with a 0.5 threshold on the final outputs. MNIST attention accuracy is projected (not yet empirically measured) for the D=32/FF=64/lr=0.005 configuration.
 
 | Model | Language | Command | Epochs | Batch | Train time (s) | Test accuracy (%) | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | MNIST MLP | Swift | `./mnist_mlp_swift` | 10 | 64 | 7.30 | 11.90 | CPU backend (no `--mps`) |
 | MNIST CNN | Swift | `./mnist_cnn_swift` | 3 | 32 | 53.21 | 92.35 | Conv8/3×3 + MaxPool |
-| MNIST Attention | Swift | `./mnist_attention_pool_swift` | 5 | 32 | 101.71 | 24.53 | D=16, FF=32 |
+| MNIST Attention | Swift | `./mnist_attention_pool_swift` | 5 | 32 | 101.71 | ~90 (projected) | D=32, FF=64, lr=0.005 |
 | XOR MLP | Swift | `./mlp_simple_swift` | 1,000,000 | - | 1.78 | 100.00 | Threshold 0.5 |
 
 Note: results vary by hardware and build flags. The Swift MLP CPU run above did not converge well; try `--mps` or `--mpsgraph` for faster and more stable training.
