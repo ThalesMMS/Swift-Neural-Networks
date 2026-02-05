@@ -907,6 +907,261 @@ func testAccuracy(model: AttnModel, images: [Float], labels: [UInt8], config: Co
     return 100.0 * Float(correct) / Float(n)
 }
 
+/// Saves the attention model to a binary file in native endianness format.
+/// - Parameters:
+///   - model: The attention model to save.
+///   - filename: Path to the output file where the model will be written.
+///
+/// The file format stores model dimensions as Int32 values followed by all weights and biases as Double values (converted from Float).
+/// The dimensions saved are: patchDim, dModel, seqLen, ffDim, and numClasses.
+func saveModel(model: AttnModel, filename: String) {
+    FileManager.default.createFile(atPath: filename, contents: nil)
+    guard let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: filename)) else {
+        print("Could not open file \(filename) for writing model")
+        exit(1)
+    }
+    defer { try? handle.close() }
+
+    func writeInt32(_ value: Int32) {
+        var v = value
+        handle.write(Data(bytes: &v, count: MemoryLayout<Int32>.size))
+    }
+
+    func writeDouble(_ value: Double) {
+        var v = value
+        handle.write(Data(bytes: &v, count: MemoryLayout<Double>.size))
+    }
+
+    // Write model dimensions.
+    writeInt32(Int32(patchDim))
+    writeInt32(Int32(dModel))
+    writeInt32(Int32(seqLen))
+    writeInt32(Int32(ffDim))
+    writeInt32(Int32(numClasses))
+
+    // Write all weights and biases.
+    for w in model.wPatch { writeDouble(Double(w)) }
+    for b in model.bPatch { writeDouble(Double(b)) }
+    for p in model.pos { writeDouble(Double(p)) }
+    for w in model.wQ { writeDouble(Double(w)) }
+    for b in model.bQ { writeDouble(Double(b)) }
+    for w in model.wK { writeDouble(Double(w)) }
+    for b in model.bK { writeDouble(Double(b)) }
+    for w in model.wV { writeDouble(Double(w)) }
+    for b in model.bV { writeDouble(Double(b)) }
+    for w in model.wFf1 { writeDouble(Double(w)) }
+    for b in model.bFf1 { writeDouble(Double(b)) }
+    for w in model.wFf2 { writeDouble(Double(w)) }
+    for b in model.bFf2 { writeDouble(Double(b)) }
+    for w in model.wCls { writeDouble(Double(w)) }
+    for b in model.bCls { writeDouble(Double(b)) }
+
+    print("Model saved to \(filename)")
+}
+
+/// Loads the attention model from a binary file in native endianness format.
+/// - Parameter filename: Path to the input file where the model is stored.
+/// - Returns: An `AttnModel` instance if the file was successfully loaded and model dimensions match, otherwise `nil`.
+///
+/// The file format reads model dimensions as Int32 values followed by all weights and biases as Double values (converted to Float).
+/// The dimensions expected are: patchDim, dModel, seqLen, ffDim, and numClasses.
+func loadModel(filename: String) -> AttnModel? {
+    guard let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: filename)) else {
+        print("Could not open file \(filename) for reading model")
+        return nil
+    }
+    defer { try? handle.close() }
+
+    func readInt32() -> Int32? {
+        guard let data = try? handle.read(upToCount: MemoryLayout<Int32>.size),
+              data.count == MemoryLayout<Int32>.size else {
+            return nil
+        }
+        return data.withUnsafeBytes { $0.load(as: Int32.self) }
+    }
+
+    func readDouble() -> Double? {
+        guard let data = try? handle.read(upToCount: MemoryLayout<Double>.size),
+              data.count == MemoryLayout<Double>.size else {
+            return nil
+        }
+        return data.withUnsafeBytes { $0.load(as: Double.self) }
+    }
+
+    // Read and validate header.
+    guard let patchDimRead = readInt32(),
+          let dModelRead = readInt32(),
+          let seqLenRead = readInt32(),
+          let ffDimRead = readInt32(),
+          let numClassesRead = readInt32() else {
+        print("Failed to read model header from \(filename)")
+        return nil
+    }
+
+    if patchDimRead != Int32(patchDim) || dModelRead != Int32(dModel) ||
+       seqLenRead != Int32(seqLen) || ffDimRead != Int32(ffDim) ||
+       numClassesRead != Int32(numClasses) {
+        print("Model dimensions mismatch: expected patchDim=\(patchDim), dModel=\(dModel), seqLen=\(seqLen), ffDim=\(ffDim), numClasses=\(numClasses)")
+        print("  but file has patchDim=\(patchDimRead), dModel=\(dModelRead), seqLen=\(seqLenRead), ffDim=\(ffDimRead), numClasses=\(numClassesRead)")
+        return nil
+    }
+
+    // Read all weights and biases.
+    var wPatch = [Float](repeating: 0, count: patchDim * dModel)
+    for i in 0..<wPatch.count {
+        guard let val = readDouble() else {
+            print("Failed to read wPatch[\(i)] from \(filename)")
+            return nil
+        }
+        wPatch[i] = Float(val)
+    }
+
+    var bPatch = [Float](repeating: 0, count: dModel)
+    for i in 0..<bPatch.count {
+        guard let val = readDouble() else {
+            print("Failed to read bPatch[\(i)] from \(filename)")
+            return nil
+        }
+        bPatch[i] = Float(val)
+    }
+
+    var pos = [Float](repeating: 0, count: seqLen * dModel)
+    for i in 0..<pos.count {
+        guard let val = readDouble() else {
+            print("Failed to read pos[\(i)] from \(filename)")
+            return nil
+        }
+        pos[i] = Float(val)
+    }
+
+    var wQ = [Float](repeating: 0, count: dModel * dModel)
+    for i in 0..<wQ.count {
+        guard let val = readDouble() else {
+            print("Failed to read wQ[\(i)] from \(filename)")
+            return nil
+        }
+        wQ[i] = Float(val)
+    }
+
+    var bQ = [Float](repeating: 0, count: dModel)
+    for i in 0..<bQ.count {
+        guard let val = readDouble() else {
+            print("Failed to read bQ[\(i)] from \(filename)")
+            return nil
+        }
+        bQ[i] = Float(val)
+    }
+
+    var wK = [Float](repeating: 0, count: dModel * dModel)
+    for i in 0..<wK.count {
+        guard let val = readDouble() else {
+            print("Failed to read wK[\(i)] from \(filename)")
+            return nil
+        }
+        wK[i] = Float(val)
+    }
+
+    var bK = [Float](repeating: 0, count: dModel)
+    for i in 0..<bK.count {
+        guard let val = readDouble() else {
+            print("Failed to read bK[\(i)] from \(filename)")
+            return nil
+        }
+        bK[i] = Float(val)
+    }
+
+    var wV = [Float](repeating: 0, count: dModel * dModel)
+    for i in 0..<wV.count {
+        guard let val = readDouble() else {
+            print("Failed to read wV[\(i)] from \(filename)")
+            return nil
+        }
+        wV[i] = Float(val)
+    }
+
+    var bV = [Float](repeating: 0, count: dModel)
+    for i in 0..<bV.count {
+        guard let val = readDouble() else {
+            print("Failed to read bV[\(i)] from \(filename)")
+            return nil
+        }
+        bV[i] = Float(val)
+    }
+
+    var wFf1 = [Float](repeating: 0, count: dModel * ffDim)
+    for i in 0..<wFf1.count {
+        guard let val = readDouble() else {
+            print("Failed to read wFf1[\(i)] from \(filename)")
+            return nil
+        }
+        wFf1[i] = Float(val)
+    }
+
+    var bFf1 = [Float](repeating: 0, count: ffDim)
+    for i in 0..<bFf1.count {
+        guard let val = readDouble() else {
+            print("Failed to read bFf1[\(i)] from \(filename)")
+            return nil
+        }
+        bFf1[i] = Float(val)
+    }
+
+    var wFf2 = [Float](repeating: 0, count: ffDim * dModel)
+    for i in 0..<wFf2.count {
+        guard let val = readDouble() else {
+            print("Failed to read wFf2[\(i)] from \(filename)")
+            return nil
+        }
+        wFf2[i] = Float(val)
+    }
+
+    var bFf2 = [Float](repeating: 0, count: dModel)
+    for i in 0..<bFf2.count {
+        guard let val = readDouble() else {
+            print("Failed to read bFf2[\(i)] from \(filename)")
+            return nil
+        }
+        bFf2[i] = Float(val)
+    }
+
+    var wCls = [Float](repeating: 0, count: dModel * numClasses)
+    for i in 0..<wCls.count {
+        guard let val = readDouble() else {
+            print("Failed to read wCls[\(i)] from \(filename)")
+            return nil
+        }
+        wCls[i] = Float(val)
+    }
+
+    var bCls = [Float](repeating: 0, count: numClasses)
+    for i in 0..<bCls.count {
+        guard let val = readDouble() else {
+            print("Failed to read bCls[\(i)] from \(filename)")
+            return nil
+        }
+        bCls[i] = Float(val)
+    }
+
+    print("Model loaded from \(filename)")
+    return AttnModel(
+        wPatch: wPatch,
+        bPatch: bPatch,
+        pos: pos,
+        wQ: wQ,
+        bQ: bQ,
+        wK: wK,
+        bK: bK,
+        wV: wV,
+        bV: bV,
+        wFf1: wFf1,
+        bFf1: bFf1,
+        wFf2: wFf2,
+        bFf2: bFf2,
+        wCls: wCls,
+        bCls: bCls
+    )
+}
+
 // =============================================================================
 // MARK: - Random Number Generator
 // =============================================================================
@@ -983,6 +1238,9 @@ func main() {
 
     let finalAcc = testAccuracy(model: model, images: testImages, labels: testLabels, config: config)
     print(String(format: "Final Test Accuracy: %.2f%%", finalAcc))
+
+    print("Saving model...")
+    saveModel(model: model, filename: "mnist_attention_model.bin")
 
     let totalTime = Date().timeIntervalSince(programStart)
     print("\n=== Summary ===")

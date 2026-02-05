@@ -42,6 +42,7 @@ struct Config {
     var learningRateProvided: Bool = false
     var dataPath: String = "./data"
     var seed: UInt64 = 1
+    var useCompile: Bool = false
     
     /// Parses command-line arguments into configuration
     ///
@@ -93,6 +94,9 @@ struct Config {
                     config.seed = val
                 }
 
+            case "--compile", "-c":
+                config.useCompile = true
+
             case "--help", "-h":
                 printUsage()
                 exit(0)
@@ -126,6 +130,7 @@ func printUsage() {
       --lr, -l <f>          Learning rate (default: 0.01)
       --data, -d <path>     Path to MNIST data directory (default: ./data)
       --seed, -s <n>        Random seed for reproducibility (default: 1)
+      --compile, -c         Enable compiled training for faster execution
       --help, -h            Show this help message
     
     EXAMPLES:
@@ -177,21 +182,36 @@ func trainMLP(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
     // -------------------------------------------------------------------------
     // Training Loop
     // -------------------------------------------------------------------------
+    if config.useCompile {
+        print("   Compilation: enabled ⚡")
+    }
+
     print("Epoch | Loss     | Time")
     print("------|----------|--------")
-    
+
     for epoch in 1...config.epochs {
         let startTime = Date()
-        
-        // Train for one epoch
-        let loss = trainMLPEpoch(
-            model: model,
-            optimizer: optimizer,
-            trainImages: trainImages,
-            trainLabels: trainLabels,
-            batchSize: config.batchSize
-        )
-        
+
+        // Train for one epoch (compiled or uncompiled based on config)
+        let loss: Float
+        if config.useCompile {
+            loss = trainMLPEpochCompiled(
+                model: model,
+                optimizer: optimizer,
+                trainImages: trainImages,
+                trainLabels: trainLabels,
+                batchSize: config.batchSize
+            )
+        } else {
+            loss = trainMLPEpoch(
+                model: model,
+                optimizer: optimizer,
+                trainImages: trainImages,
+                trainLabels: trainLabels,
+                batchSize: config.batchSize
+            )
+        }
+
         let elapsed = Date().timeIntervalSince(startTime)
         print(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
     }
@@ -223,20 +243,36 @@ func trainCNN(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
     // -------------------------------------------------------------------------
     // Training Loop
     // -------------------------------------------------------------------------
+    if config.useCompile {
+        print("   Compilation: enabled ⚡")
+    }
+
     print("Epoch | Loss     | Time")
     print("------|----------|--------")
-    
+
     for epoch in 1...config.epochs {
         let startTime = Date()
-        
-        let loss = trainCNNEpoch(
-            model: model,
-            optimizer: optimizer,
-            trainImages: trainImages,
-            trainLabels: trainLabels,
-            batchSize: config.batchSize
-        )
-        
+
+        // Train for one epoch (compiled or uncompiled based on config)
+        let loss: Float
+        if config.useCompile {
+            loss = trainCNNEpochCompiled(
+                model: model,
+                optimizer: optimizer,
+                trainImages: trainImages,
+                trainLabels: trainLabels,
+                batchSize: config.batchSize
+            )
+        } else {
+            loss = trainCNNEpoch(
+                model: model,
+                optimizer: optimizer,
+                trainImages: trainImages,
+                trainLabels: trainLabels,
+                batchSize: config.batchSize
+            )
+        }
+
         let elapsed = Date().timeIntervalSince(startTime)
         print(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
     }
@@ -271,20 +307,36 @@ func trainAttention(config: Config, trainImages: MLXArray, trainLabels: MLXArray
     // -------------------------------------------------------------------------
     // Training Loop
     // -------------------------------------------------------------------------
+    if config.useCompile {
+        print("   Compilation: enabled ⚡")
+    }
+
     print("Epoch | Loss     | Time")
     print("------|----------|--------")
-    
+
     for epoch in 1...config.epochs {
         let startTime = Date()
-        
-        let loss = trainAttentionEpoch(
-            model: model,
-            optimizer: optimizer,
-            trainImages: trainImages,
-            trainLabels: trainLabels,
-            batchSize: config.batchSize
-        )
-        
+
+        // Train for one epoch (compiled or uncompiled based on config)
+        let loss: Float
+        if config.useCompile {
+            loss = trainAttentionEpochCompiled(
+                model: model,
+                optimizer: optimizer,
+                trainImages: trainImages,
+                trainLabels: trainLabels,
+                batchSize: config.batchSize
+            )
+        } else {
+            loss = trainAttentionEpoch(
+                model: model,
+                optimizer: optimizer,
+                trainImages: trainImages,
+                trainLabels: trainLabels,
+                batchSize: config.batchSize
+            )
+        }
+
         let elapsed = Date().timeIntervalSince(startTime)
         print(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
     }
@@ -331,6 +383,7 @@ func main() {
     print("  Learning Rate: \(config.learningRate)")
     print("  Data Path:     \(config.dataPath)")
     print("  Seed:          \(config.seed)")
+    print("  Compile:       \(config.useCompile ? "enabled" : "disabled")")
 
     // =========================================================================
     // Set Random Seed

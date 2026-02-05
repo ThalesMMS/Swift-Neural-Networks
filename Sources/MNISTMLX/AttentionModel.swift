@@ -441,3 +441,72 @@ public func trainAttentionEpoch(
     
     return totalLoss / Float(batchCount)
 }
+
+// =============================================================================
+// MARK: - Compiled Training (Performance Optimized)
+// =============================================================================
+
+/// For faster training, use the compiled version of this function!
+///
+/// MLX's compile() API can fuse the forward pass, backward pass, and optimizer
+/// update into a single optimized GPU kernel, providing significant speedup.
+///
+/// ## Compiled Training Function
+/// ```swift
+/// trainAttentionEpochCompiled(
+///     model: model,
+///     optimizer: optimizer,
+///     trainImages: trainImages,
+///     trainLabels: trainLabels,
+///     batchSize: batchSize
+/// )
+/// ```
+///
+/// **Location**: `Sources/MNISTMLX/CompiledTraining.swift`
+///
+/// ## Performance Benefits
+/// - Significant speedup on Attention models (many sequential operations)
+/// - Reduced memory bandwidth usage
+/// - Better GPU utilization through kernel fusion
+/// - Lower kernel launch overhead
+///
+/// ## Why Attention Benefits Most from Compilation
+/// Attention models have the most complex operations:
+/// - Patch embedding and positional encoding
+/// - Q/K/V projections (multiple matrix multiplications)
+/// - Attention scores computation (matmul + scaling + softmax)
+/// - Feed-forward networks with multiple layers
+/// - Mean pooling and classification
+///
+/// All of these sequential operations can be fused into optimized kernels!
+///
+/// ## When to Use Compiled Training
+/// - ✓ Training for many epochs (amortizes compilation cost)
+/// - ✓ Attention models (most operations to fuse)
+/// - ✓ Production training pipelines
+/// - ✗ Debugging (uncompiled is easier to debug)
+/// - ✗ Single-epoch experiments
+///
+/// ## Example: Switching to Compiled Training
+/// ```swift
+/// // Uncompiled (easier to debug)
+/// let loss = trainAttentionEpoch(
+///     model: model,
+///     optimizer: optimizer,
+///     trainImages: trainImages,
+///     trainLabels: trainLabels,
+///     batchSize: 128
+/// )
+///
+/// // Compiled (faster, same results)
+/// let loss = trainAttentionEpochCompiled(
+///     model: model,
+///     optimizer: optimizer,
+///     trainImages: trainImages,
+///     trainLabels: trainLabels,
+///     batchSize: 128
+/// )
+/// ```
+///
+/// See `CompiledTraining.swift` for implementation details and more information
+/// about MLX's compilation API.

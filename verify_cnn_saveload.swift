@@ -1,14 +1,8 @@
-// mnist_cnn.swift
-// Minimal CNN for MNIST on CPU using explicit loops (no deps beyond Foundation).
-// Expected files:
-//   ./data/train-images.idx3-ubyte
-//   ./data/train-labels.idx1-ubyte
-//   ./data/t10k-images.idx3-ubyte
-//   ./data/t10k-labels.idx1-ubyte
-//
-// Output:
-//   - logs/training_loss_cnn.txt (epoch,loss,time)
-//   - prints test accuracy
+#!/usr/bin/env swift
+
+// verify_cnn_saveload.swift
+// Verification script for CNN save/load round-trip
+// Tests that saved models can be loaded and produce identical predictions
 
 import Foundation
 import Darwin
@@ -17,24 +11,13 @@ import Darwin
 // MARK: - Simple Random Number Generator
 // =============================================================================
 
-/// A simple random number generator using xorshift algorithm.
-/// This provides fast, deterministic pseudo-random number generation
-/// for neural network weight initialization and data shuffling.
 struct SimpleRng {
     private var state: UInt64
 
-    // Explicit seed (if zero, use a fixed value).
     init(seed: UInt64) {
         self.state = seed == 0 ? 0x9e3779b97f4a7c15 : seed
     }
 
-    // Reseed based on the current time.
-    mutating func reseedFromTime() {
-        let nanos = UInt64(Date().timeIntervalSince1970 * 1_000_000_000)
-        state = nanos == 0 ? 0x9e3779b97f4a7c15 : nanos
-    }
-
-    // Basic xorshift to generate u32.
     mutating func nextUInt32() -> UInt32 {
         var x = state
         x ^= x << 13
@@ -44,22 +27,18 @@ struct SimpleRng {
         return UInt32(truncatingIfNeeded: x >> 32)
     }
 
-    // Convert to [0, 1).
     mutating func nextFloat() -> Float {
         return Float(nextUInt32()) / Float(UInt32.max)
     }
 
-    // Uniform sample in [low, high).
     mutating func uniform(_ low: Float, _ high: Float) -> Float {
         return low + (high - low) * nextFloat()
     }
 
-    // Integer sample in [0, upper).
     mutating func nextInt(upper: Int) -> Int {
         return upper == 0 ? 0 : Int(nextUInt32()) % upper
     }
 
-    /// Fisher-Yates shuffle for an array of Int.
     mutating func shuffle(_ array: inout [Int]) {
         let n = array.count
         if n > 1 {
@@ -75,15 +54,13 @@ struct SimpleRng {
 // MARK: - MNIST Constants and Configuration
 // =============================================================================
 
-// MNIST constants (images are flat 28x28 in row-major order).
 let imgH = 28
 let imgW = 28
-let numInputs = imgH * imgW // 784
+let numInputs = imgH * imgW
 let numClasses = 10
 let trainSamples = 60_000
 let testSamples  = 10_000
 
-// CNN topology: 1x28x28 -> conv -> ReLU -> 2x2 maxpool -> FC(10).
 let convOut = 8
 let kernel = 3
 let pad = 1
@@ -91,129 +68,12 @@ let pool = 2
 
 let poolH = imgH / pool
 let poolW = imgW / pool
-let fcIn = convOut * poolH * poolW // 1568
-
-// NOTE: SimpleRng has been extracted to Sources/MNISTCommon/SimpleRng.swift
-// To use this file as a standalone script, you'll need the SimpleRng implementation.
-// For package-based builds: import MNISTCommon
-
-// =============================================================================
-// MARK: - Command-Line Argument Parsing
-// =============================================================================
-
-/// Configuration parsed from command-line arguments
-struct Config {
-    var epochs: Int = 3
-    var batchSize: Int = 32
-    var learningRate: Float = 0.01
-    var dataPath: String = "./data"
-    var seed: UInt64 = 1
-
-    /// Parses command-line arguments into configuration
-    ///
-    /// This is a simple hand-rolled parser. For production code,
-    /// consider using Swift Argument Parser package.
-    static func parse() -> Config {
-        var config = Config()
-        let args = CommandLine.arguments
-        var i = 1
-
-        while i < args.count {
-            let arg = args[i]
-
-            switch arg {
-            case "--epochs", "-e":
-                i += 1
-                if i < args.count, let val = Int(args[i]) {
-                    config.epochs = val
-                }
-
-            case "--batch", "-b":
-                i += 1
-                if i < args.count, let val = Int(args[i]) {
-                    config.batchSize = val
-                }
-
-            case "--lr", "-l":
-                i += 1
-                if i < args.count, let val = Float(args[i]) {
-                    config.learningRate = val
-                }
-
-            case "--data", "-d":
-                i += 1
-                if i < args.count {
-                    config.dataPath = args[i]
-                }
-
-            case "--seed", "-s":
-                i += 1
-                if i < args.count, let val = UInt64(args[i]) {
-                    config.seed = val
-                }
-
-            case "--help", "-h":
-                printUsage()
-                exit(0)
-
-            default:
-                print("Unknown argument: \(arg)")
-                printUsage()
-                exit(1)
-            }
-
-            i += 1
-        }
-
-        return config
-    }
-}
-
-/// Prints usage information
-func printUsage() {
-    print("""
-    MNIST CNN - Convolutional Neural Network for MNIST
-    ===================================================
-
-    USAGE:
-      swift mnist_cnn.swift [OPTIONS]
-
-    OPTIONS:
-      --epochs, -e <n>      Number of training epochs (default: 3)
-      --batch, -b <n>       Batch size (default: 32)
-      --lr, -l <f>          Learning rate (default: 0.01)
-      --data, -d <path>     Path to MNIST data directory (default: ./data)
-      --seed, -s <n>        Random seed for reproducibility (default: 1)
-      --help, -h            Show this help message
-
-    EXAMPLES:
-      swift mnist_cnn.swift --epochs 5
-      swift mnist_cnn.swift -e 10 -b 64 -l 0.005
-      swift mnist_cnn.swift --seed 42
-
-    MODEL ARCHITECTURE:
-      Input:  28×28 grayscale images (784 pixels)
-      Conv:   3×3 kernel, 8 filters, ReLU activation
-      Pool:   2×2 max pooling
-      FC:     Fully connected layer to 10 classes
-      Output: 10-class softmax (digits 0-9)
-
-    EXPECTED DATA FILES:
-      <data-path>/train-images.idx3-ubyte
-      <data-path>/train-labels.idx1-ubyte
-      <data-path>/t10k-images.idx3-ubyte
-      <data-path>/t10k-labels.idx1-ubyte
-
-    OUTPUT:
-      logs/training_loss_cnn.txt - Training loss per epoch
-    """)
-}
+let fcIn = convOut * poolH * poolW
 
 // =============================================================================
 // MARK: - Core Functions
 // =============================================================================
 
-// Stable softmax for a single row.
 func softmaxRowInPlace(_ row: inout [Float]) {
     var maxv = row[0]
     for v in row.dropFirst() { if v > maxv { maxv = v } }
@@ -228,17 +88,13 @@ func softmaxRowInPlace(_ row: inout [Float]) {
     for i in 0..<row.count { row[i] *= inv }
 }
 
-// CNN parameters stored in flat arrays for cache-friendly loops.
 struct Cnn {
-    // Conv: 1 -> convOut, kernel 3x3, pad=1
-    var convW: [Float] // [convOut * 3 * 3]
-    var convB: [Float] // [convOut]
-    // FC: fcIn -> 10
-    var fcW: [Float]   // [fcIn * 10]
-    var fcB: [Float]   // [10]
+    var convW: [Float]
+    var convB: [Float]
+    var fcW: [Float]
+    var fcB: [Float]
 }
 
-// Xavier/Glorot uniform init for stable activations.
 func xavierInit(limit: Float, rng: inout SimpleRng, w: inout [Float]) {
     for i in 0..<w.count {
         w[i] = rng.uniform(-limit, limit)
@@ -246,7 +102,6 @@ func xavierInit(limit: Float, rng: inout SimpleRng, w: inout [Float]) {
 }
 
 func initCnn(rng: inout SimpleRng) -> Cnn {
-    // Xavier limits based on approximate fan-in/out.
     let fanIn: Float = Float(kernel * kernel)
     let fanOut: Float = Float(kernel * kernel * convOut)
     let convLimit = sqrtf(6.0 / (fanIn + fanOut))
@@ -263,8 +118,6 @@ func initCnn(rng: inout SimpleRng) -> Cnn {
     return Cnn(convW: convW, convB: convB, fcW: fcW, fcB: fcB)
 }
 
-// Forward conv + ReLU.
-// input: [batch * 784], convOutAct: [batch * convOut * 28 * 28]
 func convForwardRelu(model: Cnn, batch: Int, input: [Float], convOutAct: inout [Float]) {
     let spatial = imgH * imgW
     for b in 0..<batch {
@@ -276,7 +129,6 @@ func convForwardRelu(model: Cnn, batch: Int, input: [Float], convOutAct: inout [
             let bias = model.convB[oc]
             let outBase = outBaseB + oc * spatial
 
-            // For each output pixel, accumulate a 3x3 window with zero-padding.
             for oy in 0..<imgH {
                 for ox in 0..<imgW {
                     var sum = bias
@@ -292,17 +144,14 @@ func convForwardRelu(model: Cnn, batch: Int, input: [Float], convOutAct: inout [
                         }
                     }
                     let outIdx = outBase + oy * imgW + ox
-                    convOutAct[outIdx] = (sum > 0) ? sum : 0 // ReLU activation
+                    convOutAct[outIdx] = (sum > 0) ? sum : 0
                 }
             }
         }
     }
 }
 
-// MaxPool 2x2 stride 2. Stores argmax indices for backprop.
 func maxPoolForward(batch: Int, convAct: [Float], poolOut: inout [Float], poolIdx: inout [UInt8]) {
-    // convAct: [batch*convOut*28*28]
-    // poolOut: [batch*convOut*14*14] == [batch*fcIn]
     let convSpatial = imgH * imgW
     let poolSpatial = poolH * poolW
 
@@ -344,8 +193,6 @@ func maxPoolForward(batch: Int, convAct: [Float], poolOut: inout [Float], poolId
     }
 }
 
-// FC forward: logits = X*W + b.
-// x: [batch*fcIn], logits: [batch*10]
 func fcForward(model: Cnn, batch: Int, x: [Float], logits: inout [Float]) {
     for b in 0..<batch {
         let xBase = b * fcIn
@@ -360,9 +207,7 @@ func fcForward(model: Cnn, batch: Int, x: [Float], logits: inout [Float]) {
     }
 }
 
-// Softmax + cross-entropy: returns summed loss and writes delta = (probs - onehot) * scale.
 func softmaxXentBackward(probsInPlace: inout [Float], labels: [UInt8], batch: Int, delta: inout [Float], scale: Float) -> Float {
-    // probsInPlace holds logits and is overwritten with probs.
     var loss: Float = 0
     let eps: Float = 1e-9
 
@@ -387,13 +232,10 @@ func softmaxXentBackward(probsInPlace: inout [Float], labels: [UInt8], batch: In
     return loss
 }
 
-// FC backward: compute gradW, gradB and dX.
 func fcBackward(model: Cnn, batch: Int, x: [Float], delta: [Float], gradW: inout [Float], gradB: inout [Float], dX: inout [Float]) {
-    // Zero gradients (accumulated over batch).
     for i in 0..<gradW.count { gradW[i] = 0 }
     for i in 0..<gradB.count { gradB[i] = 0 }
 
-    // gradW and gradB.
     for b in 0..<batch {
         let xBase = b * fcIn
         let dBase = b * numClasses
@@ -409,7 +251,6 @@ func fcBackward(model: Cnn, batch: Int, x: [Float], delta: [Float], gradW: inout
         }
     }
 
-    // dX = delta * W^T.
     for b in 0..<batch {
         let dBase = b * numClasses
         let outBase = b * fcIn
@@ -424,7 +265,6 @@ func fcBackward(model: Cnn, batch: Int, x: [Float], delta: [Float], gradW: inout
     }
 }
 
-// MaxPool backward: scatter grads to argmax positions, then apply ReLU mask.
 func maxPoolBackwardRelu(batch: Int, convAct: [Float], poolGrad: [Float], poolIdx: [UInt8], convGrad: inout [Float]) {
     let convSpatial = imgH * imgW
     let poolSpatial = poolH * poolW
@@ -444,7 +284,7 @@ func maxPoolBackwardRelu(batch: Int, convAct: [Float], poolGrad: [Float], poolId
                 for px in 0..<poolW {
                     let pI = poolBase + py * poolW + px
                     let g = poolGrad[pI]
-                    let a = Int(poolIdx[pI]) // 0..3
+                    let a = Int(poolIdx[pI])
                     let dy = a / pool
                     let dx = a % pool
 
@@ -457,13 +297,11 @@ func maxPoolBackwardRelu(batch: Int, convAct: [Float], poolGrad: [Float], poolId
         }
     }
 
-    // ReLU backward: zero gradients where activation was <= 0.
     for i in 0..<used {
         if convAct[i] <= 0 { convGrad[i] = 0 }
     }
 }
 
-// Conv backward: gradW and gradB (no dInput since this is the first layer).
 func convBackward(model: Cnn, batch: Int, input: [Float], convGrad: [Float], gradW: inout [Float], gradB: inout [Float]) {
     for i in 0..<gradW.count { gradW[i] = 0 }
     for i in 0..<gradB.count { gradB[i] = 0 }
@@ -500,8 +338,6 @@ func convBackward(model: Cnn, batch: Int, input: [Float], convGrad: [Float], gra
     }
 }
 
-// Saves the CNN model to a binary file.
-// Format: header (4 Int32s) + convW + convB + fcW + fcB (all as Float64).
 func saveModel(model: Cnn, filename: String) {
     FileManager.default.createFile(atPath: filename, contents: nil)
     guard let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: filename)) else {
@@ -520,33 +356,17 @@ func saveModel(model: Cnn, filename: String) {
         handle.write(Data(bytes: &v, count: MemoryLayout<Double>.size))
     }
 
-    // Write model dimensions (header).
     writeInt32(Int32(convOut))
     writeInt32(Int32(kernel))
     writeInt32(Int32(fcIn))
     writeInt32(Int32(numClasses))
 
-    // Write convolutional layer weights and biases.
-    for w in model.convW {
-        writeDouble(Double(w))
-    }
-    for b in model.convB {
-        writeDouble(Double(b))
-    }
-
-    // Write fully connected layer weights and biases.
-    for w in model.fcW {
-        writeDouble(Double(w))
-    }
-    for b in model.fcB {
-        writeDouble(Double(b))
-    }
-
-    print("Model saved to \(filename)")
+    for w in model.convW { writeDouble(Double(w)) }
+    for b in model.convB { writeDouble(Double(b)) }
+    for w in model.fcW { writeDouble(Double(w)) }
+    for b in model.fcB { writeDouble(Double(b)) }
 }
 
-// Loads the CNN model from a binary file.
-// Format: header (4 Int32s) + convW + convB + fcW + fcB (all as Float64).
 func loadModel(filename: String) -> Cnn? {
     guard let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: filename)) else {
         print("Could not open file \(filename) for reading model")
@@ -570,7 +390,6 @@ func loadModel(filename: String) -> Cnn? {
         return data.withUnsafeBytes { $0.load(as: Double.self) }
     }
 
-    // Read and validate header.
     guard let convOutRead = readInt32(),
           let kernelRead = readInt32(),
           let fcInRead = readInt32(),
@@ -581,50 +400,34 @@ func loadModel(filename: String) -> Cnn? {
 
     if convOutRead != Int32(convOut) || kernelRead != Int32(kernel) ||
        fcInRead != Int32(fcIn) || numClassesRead != Int32(numClasses) {
-        print("Model dimensions mismatch: expected convOut=\(convOut), kernel=\(kernel), fcIn=\(fcIn), numClasses=\(numClasses)")
-        print("  but file has convOut=\(convOutRead), kernel=\(kernelRead), fcIn=\(fcInRead), numClasses=\(numClassesRead)")
+        print("Model dimensions mismatch")
         return nil
     }
 
-    // Read convolutional layer weights and biases.
     var convW = [Float](repeating: 0, count: convOut * kernel * kernel)
     for i in 0..<convW.count {
-        guard let val = readDouble() else {
-            print("Failed to read convW[\(i)] from \(filename)")
-            return nil
-        }
+        guard let val = readDouble() else { return nil }
         convW[i] = Float(val)
     }
 
     var convB = [Float](repeating: 0, count: convOut)
     for i in 0..<convB.count {
-        guard let val = readDouble() else {
-            print("Failed to read convB[\(i)] from \(filename)")
-            return nil
-        }
+        guard let val = readDouble() else { return nil }
         convB[i] = Float(val)
     }
 
-    // Read fully connected layer weights and biases.
     var fcW = [Float](repeating: 0, count: fcIn * numClasses)
     for i in 0..<fcW.count {
-        guard let val = readDouble() else {
-            print("Failed to read fcW[\(i)] from \(filename)")
-            return nil
-        }
+        guard let val = readDouble() else { return nil }
         fcW[i] = Float(val)
     }
 
     var fcB = [Float](repeating: 0, count: numClasses)
     for i in 0..<fcB.count {
-        guard let val = readDouble() else {
-            print("Failed to read fcB[\(i)] from \(filename)")
-            return nil
-        }
+        guard let val = readDouble() else { return nil }
         fcB[i] = Float(val)
     }
 
-    print("Model loaded from \(filename)")
     return Cnn(convW: convW, convB: convB, fcW: fcW, fcB: fcB)
 }
 
@@ -632,7 +435,6 @@ func loadModel(filename: String) -> Cnn? {
 // MARK: - MNIST Data Loading
 // =============================================================================
 
-// MNIST IDX file readers (big-endian format).
 func readMnistImages(path: String, count: Int) -> [Float] {
     let url = URL(fileURLWithPath: path)
     guard let data = try? Data(contentsOf: url) else {
@@ -710,83 +512,79 @@ func readMnistLabels(path: String, count: Int) -> [UInt8] {
 }
 
 // =============================================================================
-// MARK: - Model Evaluation
+// MARK: - Prediction Functions
 // =============================================================================
 
-// Evaluate accuracy by running forward passes in batches.
-func testAccuracy(model: Cnn, images: [Float], labels: [UInt8], batchSize: Int) -> Float {
-    let n = labels.count
-    var correct = 0
+func predict(model: Cnn, images: [Float], count: Int) -> [Int] {
+    var predictions = [Int]()
+
+    var convAct = [Float](repeating: 0, count: convOut * imgH * imgW)
+    var poolOut = [Float](repeating: 0, count: fcIn)
+    var poolIdx = [UInt8](repeating: 0, count: convOut * poolH * poolW)
+    var logits = [Float](repeating: 0, count: numClasses)
+
+    for i in 0..<count {
+        let imgStart = i * numInputs
+        let imgEnd = imgStart + numInputs
+        let input = Array(images[imgStart..<imgEnd])
+
+        convForwardRelu(model: model, batch: 1, input: input, convOutAct: &convAct)
+        maxPoolForward(batch: 1, convAct: convAct, poolOut: &poolOut, poolIdx: &poolIdx)
+        fcForward(model: model, batch: 1, x: poolOut, logits: &logits)
+
+        var best = logits[0]
+        var arg = 0
+        for j in 1..<numClasses {
+            if logits[j] > best {
+                best = logits[j]
+                arg = j
+            }
+        }
+        predictions.append(arg)
+    }
+
+    return predictions
+}
+
+// =============================================================================
+// MARK: - Main Verification
+// =============================================================================
+
+func main() {
+    print("=== CNN Save/Load Round-Trip Verification ===\n")
+
+    let dataPath = "./data"
+    let modelFile = "mnist_cnn_model_test.bin"
+    let batchSize = 32
+    let learningRate: Float = 0.01
+    let epochs = 1
+    let trainSubset = 1000  // Train on subset for faster verification
+    let testCount = 100  // Test on first 100 images
+
+    // Load MNIST data
+    print("Loading MNIST data...")
+    let trainImages = readMnistImages(path: "\(dataPath)/train-images.idx3-ubyte", count: trainSubset)
+    let trainLabels = readMnistLabels(path: "\(dataPath)/train-labels.idx1-ubyte", count: trainSubset)
+    let testImages = readMnistImages(path: "\(dataPath)/t10k-images.idx3-ubyte", count: testSamples)
+    let testLabels = readMnistLabels(path: "\(dataPath)/t10k-labels.idx1-ubyte", count: testSamples)
+    print("Loaded \(trainLabels.count) training samples, \(testLabels.count) test samples\n")
+
+    // Initialize and train model
+    print("Initializing CNN model...")
+    var rng = SimpleRng(seed: 42)
+    var model = initCnn(rng: &rng)
+
+    print("Training for \(epochs) epoch...\n")
 
     var batchInputs = [Float](repeating: 0, count: batchSize * numInputs)
+    var batchLabels = [UInt8](repeating: 0, count: batchSize)
     var convAct = [Float](repeating: 0, count: batchSize * convOut * imgH * imgW)
     var poolOut = [Float](repeating: 0, count: batchSize * fcIn)
     var poolIdx = [UInt8](repeating: 0, count: batchSize * convOut * poolH * poolW)
     var logits = [Float](repeating: 0, count: batchSize * numClasses)
-
-    var start = 0
-    while start < n {
-        let bsz = min(batchSize, n - start)
-        let len = bsz * numInputs
-        let srcStart = start * numInputs
-        for i in 0..<len {
-            batchInputs[i] = images[srcStart + i]
-        }
-
-        convForwardRelu(model: model, batch: bsz, input: batchInputs, convOutAct: &convAct)
-        maxPoolForward(batch: bsz, convAct: convAct, poolOut: &poolOut, poolIdx: &poolIdx)
-        fcForward(model: model, batch: bsz, x: poolOut, logits: &logits)
-
-        for b in 0..<bsz {
-            let base = b * numClasses
-            var best = logits[base]
-            var arg = 0
-            for j in 1..<numClasses {
-                let v = logits[base + j]
-                if v > best { best = v; arg = j }
-            }
-            if UInt8(arg) == labels[start + b] { correct += 1 }
-        }
-
-        start += bsz
-    }
-
-    return 100.0 * Float(correct) / Float(n)
-}
-
-func main() {
-    // Parse command-line arguments
-    let config = Config.parse()
-
-    print("Loading MNIST...")
-    let trainImages = readMnistImages(path: "\(config.dataPath)/train-images.idx3-ubyte", count: trainSamples)
-    let trainLabels = readMnistLabels(path: "\(config.dataPath)/train-labels.idx1-ubyte", count: trainSamples)
-    let testImages  = readMnistImages(path: "\(config.dataPath)/t10k-images.idx3-ubyte", count: testSamples)
-    let testLabels  = readMnistLabels(path: "\(config.dataPath)/t10k-labels.idx1-ubyte", count: testSamples)
-
-    print("Train: \(trainLabels.count) | Test: \(testLabels.count)")
-
-    var rng = SimpleRng(seed: config.seed)
-    var model = initCnn(rng: &rng)
-
-    try? FileManager.default.createDirectory(atPath: "./logs", withIntermediateDirectories: true)
-    FileManager.default.createFile(atPath: "./logs/training_loss_cnn.txt", contents: nil)
-    let logHandle = try? FileHandle(forWritingTo: URL(fileURLWithPath: "./logs/training_loss_cnn.txt"))
-    defer { try? logHandle?.close() }
-
-    // Training buffers (reused each batch to avoid allocations).
-    var batchInputs = [Float](repeating: 0, count: config.batchSize * numInputs)
-    var batchLabels = [UInt8](repeating: 0, count: config.batchSize)
-
-    var convAct = [Float](repeating: 0, count: config.batchSize * convOut * imgH * imgW)
-    var poolOut = [Float](repeating: 0, count: config.batchSize * fcIn)
-    var poolIdx = [UInt8](repeating: 0, count: config.batchSize * convOut * poolH * poolW)
-    var logits = [Float](repeating: 0, count: config.batchSize * numClasses)
-    var delta  = [Float](repeating: 0, count: config.batchSize * numClasses)
-
-    var dPool = [Float](repeating: 0, count: config.batchSize * fcIn)
-    var dConv = [Float](repeating: 0, count: config.batchSize * convOut * imgH * imgW)
-
+    var delta = [Float](repeating: 0, count: batchSize * numClasses)
+    var dPool = [Float](repeating: 0, count: batchSize * fcIn)
+    var dConv = [Float](repeating: 0, count: batchSize * convOut * imgH * imgW)
     var gradFcW = [Float](repeating: 0, count: fcIn * numClasses)
     var gradFcB = [Float](repeating: 0, count: numClasses)
     var gradConvW = [Float](repeating: 0, count: convOut * kernel * kernel)
@@ -794,19 +592,15 @@ func main() {
 
     var indices = Array(0..<trainLabels.count)
 
-    print("Training CNN: epochs=\(config.epochs) batch=\(config.batchSize) lr=\(config.learningRate)")
-
-    for e in 0..<config.epochs {
-        let t0 = Date()
+    for e in 0..<epochs {
         rng.shuffle(&indices)
-
         var totalLoss: Float = 0
         var start = 0
+
         while start < indices.count {
-            let bsz = min(config.batchSize, indices.count - start)
+            let bsz = min(batchSize, indices.count - start)
             let scale = 1.0 / Float(bsz)
 
-            // Gather a random mini-batch into contiguous buffers.
             for i in 0..<bsz {
                 let srcIndex = indices[start + i]
                 let srcBase = srcIndex * numInputs
@@ -817,43 +611,85 @@ func main() {
                 batchLabels[i] = trainLabels[srcIndex]
             }
 
-            // Forward: conv -> pool -> FC -> logits.
             convForwardRelu(model: model, batch: bsz, input: batchInputs, convOutAct: &convAct)
             maxPoolForward(batch: bsz, convAct: convAct, poolOut: &poolOut, poolIdx: &poolIdx)
             fcForward(model: model, batch: bsz, x: poolOut, logits: &logits)
-
-            // Softmax + loss + gradient at logits.
             totalLoss += softmaxXentBackward(probsInPlace: &logits, labels: batchLabels, batch: bsz, delta: &delta, scale: scale)
 
-            // Backward: FC -> pool -> conv.
             fcBackward(model: model, batch: bsz, x: poolOut, delta: delta, gradW: &gradFcW, gradB: &gradFcB, dX: &dPool)
             maxPoolBackwardRelu(batch: bsz, convAct: convAct, poolGrad: dPool, poolIdx: poolIdx, convGrad: &dConv)
             convBackward(model: model, batch: bsz, input: batchInputs, convGrad: dConv, gradW: &gradConvW, gradB: &gradConvB)
 
-            // SGD update (no momentum, no weight decay).
-            for i in 0..<model.fcW.count { model.fcW[i] -= config.learningRate * gradFcW[i] }
-            for i in 0..<model.fcB.count { model.fcB[i] -= config.learningRate * gradFcB[i] }
-            for i in 0..<model.convW.count { model.convW[i] -= config.learningRate * gradConvW[i] }
-            for i in 0..<model.convB.count { model.convB[i] -= config.learningRate * gradConvB[i] }
+            for i in 0..<model.fcW.count { model.fcW[i] -= learningRate * gradFcW[i] }
+            for i in 0..<model.fcB.count { model.fcB[i] -= learningRate * gradFcB[i] }
+            for i in 0..<model.convW.count { model.convW[i] -= learningRate * gradConvW[i] }
+            for i in 0..<model.convB.count { model.convB[i] -= learningRate * gradConvB[i] }
 
             start += bsz
         }
 
-        let dt = Float(Date().timeIntervalSince(t0))
         let avgLoss = totalLoss / Float(trainLabels.count)
-        print(String(format: "Epoch %d | loss=%.6f | time=%.3fs", e + 1, avgLoss, dt))
-        if let h = logHandle {
-            let line = "\(e + 1),\(avgLoss),\(dt)\n"
-            h.write(Data(line.utf8))
+        print(String(format: "Epoch %d completed | loss=%.6f", e + 1, avgLoss))
+    }
+
+    // Get predictions from original model
+    print("\nGetting predictions from original trained model...")
+    let originalPredictions = predict(model: model, images: testImages, count: testCount)
+
+    // Save the model
+    print("Saving model to \(modelFile)...")
+    saveModel(model: model, filename: modelFile)
+
+    // Load the model
+    print("Loading model from \(modelFile)...")
+    guard let loadedModel = loadModel(filename: modelFile) else {
+        print("❌ FAILED: Could not load model from file")
+        exit(1)
+    }
+
+    // Get predictions from loaded model
+    print("Getting predictions from loaded model...\n")
+    let loadedPredictions = predict(model: loadedModel, images: testImages, count: testCount)
+
+    // Compare predictions
+    print("=== Verification Results ===")
+    var matches = 0
+    var mismatches = 0
+
+    for i in 0..<testCount {
+        if originalPredictions[i] == loadedPredictions[i] {
+            matches += 1
+        } else {
+            mismatches += 1
+            print("Mismatch at index \(i): original=\(originalPredictions[i]), loaded=\(loadedPredictions[i])")
         }
     }
 
-    print("Testing...")
-    let acc = testAccuracy(model: model, images: testImages, labels: testLabels, batchSize: config.batchSize)
-    print(String(format: "Test Accuracy: %.2f%%", acc))
+    print("\nResults:")
+    print("  Total samples tested: \(testCount)")
+    print("  Matching predictions: \(matches)")
+    print("  Mismatched predictions: \(mismatches)")
 
-    print("Saving model...")
-    saveModel(model: model, filename: "mnist_cnn_model.bin")
+    if mismatches == 0 {
+        print("\n✅ SUCCESS: All predictions match! Save/load round-trip works correctly.")
+
+        // Calculate accuracy on test set
+        var correct = 0
+        for i in 0..<testCount {
+            if loadedPredictions[i] == Int(testLabels[i]) {
+                correct += 1
+            }
+        }
+        let accuracy = 100.0 * Float(correct) / Float(testCount)
+        print(String(format: "  Model accuracy on test samples: %.2f%%", accuracy))
+
+        // Clean up test file
+        try? FileManager.default.removeItem(atPath: modelFile)
+        print("\nTest model file cleaned up.")
+    } else {
+        print("\n❌ FAILED: Predictions do not match! Save/load has issues.")
+        exit(1)
+    }
 }
 
 main()

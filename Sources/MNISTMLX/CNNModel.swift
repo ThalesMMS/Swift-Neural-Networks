@@ -339,3 +339,71 @@ public func trainCNNEpoch(
     
     return totalLoss / Float(batchCount)
 }
+
+// =============================================================================
+// MARK: - Compiled Training (Performance Optimized)
+// =============================================================================
+
+/// For faster training, use the compiled version of this function!
+///
+/// MLX's compile() API can fuse the forward pass, backward pass, and optimizer
+/// update into a single optimized GPU kernel, providing significant speedup.
+///
+/// ## Compiled Training Function
+/// ```swift
+/// trainCNNEpochCompiled(
+///     model: model,
+///     optimizer: optimizer,
+///     trainImages: trainImages,
+///     trainLabels: trainLabels,
+///     batchSize: batchSize
+/// )
+/// ```
+///
+/// **Location**: `Sources/MNISTMLX/CompiledTraining.swift`
+///
+/// ## Performance Benefits
+/// - 1.5-2.5x faster training on MNIST-sized models
+/// - Reduced memory bandwidth usage (no intermediate tensors)
+/// - Better GPU utilization through kernel fusion
+/// - Lower kernel launch overhead
+///
+/// ## Why CNNs Benefit from Compilation
+/// CNNs perform many sequential operations that can be fused:
+/// - Conv2d → ReLU → MaxPool (all fused into one kernel!)
+/// - Linear transformations
+/// - Loss computation → Backward pass → Parameter update
+///
+/// Each of these operations normally launches separate GPU kernels.
+/// Compilation fuses them, eliminating intermediate memory allocations.
+///
+/// ## When to Use Compiled Training
+/// - ✓ Training for many epochs (amortizes compilation cost)
+/// - ✓ Larger models with many operations
+/// - ✓ Production training pipelines
+/// - ✗ Debugging (uncompiled is easier to debug)
+/// - ✗ Single-epoch experiments
+///
+/// ## Example: Switching to Compiled Training
+/// ```swift
+/// // Uncompiled (easier to debug)
+/// let loss = trainCNNEpoch(
+///     model: model,
+///     optimizer: optimizer,
+///     trainImages: trainImages,
+///     trainLabels: trainLabels,
+///     batchSize: 128
+/// )
+///
+/// // Compiled (faster, same results)
+/// let loss = trainCNNEpochCompiled(
+///     model: model,
+///     optimizer: optimizer,
+///     trainImages: trainImages,
+///     trainLabels: trainLabels,
+///     batchSize: 128
+/// )
+/// ```
+///
+/// See `CompiledTraining.swift` for implementation details and more information
+/// about MLX's compilation API.

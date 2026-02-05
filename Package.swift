@@ -73,6 +73,13 @@ let package = Package(
             name: "MNISTClassic",
             targets: ["MNISTClassic"]
         ),
+
+        // Executable: Proof-of-concept for MLX compilation
+        // Run with: swift run POCCompile
+        .executable(
+            name: "POCCompile",
+            targets: ["POCCompile"]
+        ),
     ],
     
     // ---------------------------------------------------------------------------
@@ -176,6 +183,23 @@ let package = Package(
                 // Metal shader files for GPU acceleration
                 .process("Shaders")
             ]
+        ),
+
+        // -----------------------------------------------------------------------
+        // POCCompile: Proof-of-concept for MLX function compilation
+        // -----------------------------------------------------------------------
+        // Demonstrates how to use compile() to optimize training loops.
+        // Run with: swift run POCCompile
+        .executableTarget(
+            name: "POCCompile",
+            dependencies: [
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXNN", package: "mlx-swift"),
+                .product(name: "MLXOptimizers", package: "mlx-swift"),
+                .product(name: "MLXRandom", package: "mlx-swift"),
+            ],
+            path: ".auto-claude/specs/006-use-mlx-compiled-functions-for-training-loops",
+            sources: ["poc_compile.swift"]
         ),
 
         // -----------------------------------------------------------------------
