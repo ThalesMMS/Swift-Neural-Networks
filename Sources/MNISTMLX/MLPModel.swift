@@ -242,7 +242,7 @@ public func trainMLPEpoch(
     let n = trainImages.shape[0]
     var totalLoss: Float = 0
     var batchCount = 0
-    
+
     // -------------------------------------------------------------------------
     // Automatic Differentiation Setup
     // -------------------------------------------------------------------------
@@ -255,7 +255,7 @@ public func trainMLPEpoch(
     //
     // MLX does all of this automatically by tracing the forward pass!
     let lossAndGrad = valueAndGrad(model: model, mlpLoss)
-    
+
     // -------------------------------------------------------------------------
     // Shuffle for Stochastic Gradient Descent
     // -------------------------------------------------------------------------
@@ -263,7 +263,14 @@ public func trainMLPEpoch(
     // This helps the optimizer escape local minima and generalizes better.
     var indices = Array(0..<n)
     indices.shuffle()
-    
+
+    // -------------------------------------------------------------------------
+    // Progress Bar Setup
+    // -------------------------------------------------------------------------
+    let totalBatches = (n + batchSize - 1) / batchSize
+    let progressBar = ProgressBar(totalBatches: totalBatches)
+    progressBar.start()
+
     // -------------------------------------------------------------------------
     // Mini-batch Training Loop
     // -------------------------------------------------------------------------
@@ -272,11 +279,11 @@ public func trainMLPEpoch(
         let end = min(start + batchSize, n)
         let batchIndices = Array(indices[start..<end]).map { Int32($0) }
         let idxArray = MLXArray(batchIndices)
-        
+
         // Get batch data (no reshape needed for MLP - already flat)
         let batchImages = trainImages[idxArray]
         let batchLabels = trainLabels[idxArray]
-        
+
         // =====================================================================
         // The Training Step (Loss + Gradients + Update)
         // =====================================================================
@@ -286,18 +293,26 @@ public func trainMLPEpoch(
         // 2. Loss: compare predictions to labels
         // 3. Backward pass: compute gradients via chain rule
         let (loss, grads) = lossAndGrad(model, batchImages, batchLabels)
-        
+
         // Update weights: w = w - lr * grad
         optimizer.update(model: model, gradients: grads)
-        
+
         // Force evaluation (MLX is lazy)
         eval(model, optimizer)
-        
-        totalLoss += loss.item(Float.self)
+
+        let lossValue = loss.item(Float.self)
+        totalLoss += lossValue
         batchCount += 1
+
+        // Update progress bar
+        progressBar.update(batch: batchCount, loss: lossValue)
+
         start = end
     }
-    
+
+    // Finish progress bar
+    progressBar.finish()
+
     return totalLoss / Float(batchCount)
 }
 

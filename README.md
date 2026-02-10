@@ -129,6 +129,47 @@ swift run MNISTMLX -m mlp --compile -e 10 -s 42
 ./mnist_mlp_swift --mps -b 64 -e 10 -l 0.01 -s 123
 ```
 
+## ANSI Color-Coded Output
+
+All Swift executables support optional ANSI color coding for terminal output, making it easier to quickly scan logs and identify important information.
+
+### Enabling Colors
+
+Set the `ANSI_COLORS` environment variable to `1` to enable colored output:
+
+```bash
+# Enable colors for MNISTMLX
+ANSI_COLORS=1 swift run MNISTMLX --model mlp --epochs 10
+
+# Enable colors for MNISTClassic
+ANSI_COLORS=1 swift run MNISTClassic --epochs 5
+
+# Without the environment variable, output remains plain (backwards compatible)
+swift run MNISTMLX --model mlp --epochs 10
+```
+
+### Color Meanings
+
+Color coding helps visually distinguish different types of messages:
+
+| Color | Message Type | Example |
+| --- | --- | --- |
+| 🔴 Red | Errors | File loading failures, invalid arguments |
+| 🟡 Yellow | Warnings | GPU unavailable, gradient issues |
+| 🟢 Green | Success | Training completed, test accuracy results |
+| 🔵 Cyan | Progress | Epoch updates, training metrics |
+| ⚪ Default | Info | General status messages |
+
+### Implementation Details
+
+- **Opt-in**: Colors are disabled by default for backwards compatibility
+- **Environment variable**: Set `ANSI_COLORS=1` to enable
+- **Preserves emojis**: Existing emoji indicators (✅, ❌, 🧠, etc.) are preserved
+- **Clean output**: When disabled, no ANSI escape codes appear in output
+- **All executables**: Works with both MNISTMLX and MNISTClassic
+
+The colored output is particularly useful when training for many epochs or when monitoring long-running experiments, as it allows you to quickly spot warnings, errors, and key metrics in dense training logs.
+
 ## Swift GPU acceleration
 
 `mnist_mlp.swift` includes GPU paths for faster training and testing:
@@ -383,6 +424,45 @@ All runs used the default settings unless noted. Training time is reported as to
 | XOR MLP | Swift | `./mlp_simple_swift` | 1,000,000 | - | 1.78 | 100.00 | Threshold 0.5 |
 
 Note: results vary by hardware and build flags. The Swift MLP CPU run above did not converge well; try `--mps` or `--mpsgraph` for faster and more stable training.
+
+## Test Coverage
+
+This project includes a comprehensive test suite covering data loading, neural network models, activation functions, and backend implementations. The test suite consists of **87 passing tests** across 4 test modules with coverage for CPU and GPU code paths.
+
+### Quick Start
+
+```bash
+# Run all tests
+swift test
+
+# Run specific test module
+swift test --filter MNISTCommonTests
+swift test --filter MNISTClassicTests
+
+# Run tests in parallel
+swift test --parallel
+```
+
+### Test Modules
+
+| Module | Tests | Status | Coverage |
+| --- | --- | --- | --- |
+| **MNISTCommonTests** | 66 | ✅ All passing | Activation functions, RNG |
+| **MNISTClassicTests** | 21 | ✅ All passing | CPU GEMM operations |
+| **MNISTMLXTests** | ~76 | ⚠️ MLX limitation | MLX models (MLP, CNN, loss functions) |
+| **MNISTDataTests** | ~47 | ⚠️ MLX limitation | MNIST data loading and batching |
+
+**Total Passing:** 87 tests
+
+### What's Covered
+
+- **Activation Functions**: Softmax correctness, numerical stability, pointer version equivalence
+- **Random Number Generation**: Reproducibility, statistical distribution, multiple RNG methods
+- **CPU Backend**: GEMM operations, matrix transposition, alpha/beta scaling, numerical precision
+- **MLX Models**: MLP/CNN forward pass, gradient flow, loss computation (blocked by MLX Metal library limitation)
+- **Data Loading**: IDX format parsing, normalization, batching, shuffling (blocked by MLX Metal library limitation)
+
+For comprehensive testing documentation, test organization, coverage details, known limitations, and guidelines for adding new tests, see **[TESTING.md](TESTING.md)**.
 
 ## Continuous Integration
 

@@ -50,7 +50,18 @@ import Foundation
 public func readMnistImages(path: String, count: Int) -> [Float] {
     let url = URL(fileURLWithPath: path)
     guard let data = try? Data(contentsOf: url) else {
-        print("Could not open file \(path)")
+        ColoredPrint.error("❌ Error: Could not open MNIST image file at '\(path)'")
+        print()
+        print("Expected MNIST files in the data directory:")
+        print("  - train-images.idx3-ubyte  (training images)")
+        print("  - train-labels.idx1-ubyte  (training labels)")
+        print("  - t10k-images.idx3-ubyte   (test images)")
+        print("  - t10k-labels.idx1-ubyte   (test labels)")
+        print()
+        print("Download the MNIST dataset from:")
+        print("  http://yann.lecun.com/exdb/mnist/")
+        print()
+        print("After downloading, extract the .gz files to your data directory.")
         exit(1)
     }
 
@@ -113,7 +124,18 @@ public func readMnistImages(path: String, count: Int) -> [Float] {
 public func readMnistLabels(path: String, count: Int) -> [UInt8] {
     let url = URL(fileURLWithPath: path)
     guard let data = try? Data(contentsOf: url) else {
-        print("Could not open file \(path)")
+        ColoredPrint.error("❌ Error: Could not open MNIST label file at '\(path)'")
+        print()
+        print("Expected MNIST files in the data directory:")
+        print("  - train-images.idx3-ubyte  (training images)")
+        print("  - train-labels.idx1-ubyte  (training labels)")
+        print("  - t10k-images.idx3-ubyte   (test images)")
+        print("  - t10k-labels.idx1-ubyte   (test labels)")
+        print()
+        print("Download the MNIST dataset from:")
+        print("  http://yann.lecun.com/exdb/mnist/")
+        print()
+        print("After downloading, extract the .gz files to your data directory.")
         exit(1)
     }
 

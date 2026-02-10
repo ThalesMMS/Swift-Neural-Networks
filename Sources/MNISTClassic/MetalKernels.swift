@@ -1,4 +1,5 @@
 import Foundation
+import MNISTCommon
 
 #if canImport(Metal)
 import Metal
@@ -14,7 +15,23 @@ final class MpsBuffer {
     init(device: MTLDevice, count: Int, label: String, initial: [Float]? = nil) {
         let length = count * MemoryLayout<Float>.size
         guard let buffer = device.makeBuffer(length: length, options: .storageModeShared) else {
-            print("Failed to allocate MTLBuffer for \(label)")
+            let sizeMB = Double(length) / (1024 * 1024)
+            ColoredPrint.error("❌ Metal Buffer Allocation Failed")
+            ColoredPrint.error("   Buffer: \(label)")
+            ColoredPrint.error("   Size: \(count) elements (\(String(format: "%.2f", sizeMB)) MB)")
+            ColoredPrint.error("")
+            ColoredPrint.error("POSSIBLE CAUSES:")
+            ColoredPrint.error("   • Insufficient GPU memory available")
+            ColoredPrint.error("   • Too many applications using GPU resources")
+            ColoredPrint.error("   • Batch size or model size too large for available memory")
+            ColoredPrint.error("")
+            ColoredPrint.error("SOLUTIONS:")
+            ColoredPrint.error("   1. Reduce batch size with --batch flag (try 16 or 32)")
+            ColoredPrint.error("   2. Close other GPU-intensive applications")
+            ColoredPrint.error("   3. Check Activity Monitor (GPU tab) for memory usage")
+            ColoredPrint.error("   4. Reduce hidden layer size with --hidden flag")
+            ColoredPrint.error("")
+            ColoredPrint.error("Example: swift run MNISTClassic --batch 16 --hidden 256")
             exit(1)
         }
         buffer.label = label
@@ -54,7 +71,22 @@ final class MpsBufferU8 {
     init(device: MTLDevice, count: Int, label: String) {
         let length = count * MemoryLayout<UInt8>.size
         guard let buffer = device.makeBuffer(length: length, options: .storageModeShared) else {
-            print("Failed to allocate MTLBuffer for \(label)")
+            let sizeKB = Double(length) / 1024
+            ColoredPrint.error("❌ Metal Buffer Allocation Failed")
+            ColoredPrint.error("   Buffer: \(label)")
+            ColoredPrint.error("   Size: \(count) elements (\(String(format: "%.2f", sizeKB)) KB)")
+            ColoredPrint.error("")
+            ColoredPrint.error("POSSIBLE CAUSES:")
+            ColoredPrint.error("   • Insufficient GPU memory available")
+            ColoredPrint.error("   • Too many applications using GPU resources")
+            ColoredPrint.error("   • Batch size too large for available memory")
+            ColoredPrint.error("")
+            ColoredPrint.error("SOLUTIONS:")
+            ColoredPrint.error("   1. Reduce batch size with --batch flag (try 16 or 32)")
+            ColoredPrint.error("   2. Close other GPU-intensive applications")
+            ColoredPrint.error("   3. Check Activity Monitor (GPU tab) for memory usage")
+            ColoredPrint.error("")
+            ColoredPrint.error("Example: swift run MNISTClassic --batch 16")
             exit(1)
         }
         buffer.label = label
@@ -88,21 +120,82 @@ final class MpsKernels {
                 do {
                     library = try device.makeLibrary(source: source, options: nil)
                 } catch {
-                    print("Failed to compile Metal library from source: \(error)")
+                    ColoredPrint.error("❌ Metal Library Compilation Failed")
+                    ColoredPrint.error("   Source: MpsKernels.metal")
+                    ColoredPrint.error("   Error: \(error)")
+                    ColoredPrint.error("")
+                    ColoredPrint.error("POSSIBLE CAUSES:")
+                    ColoredPrint.error("   • Syntax error in Metal shader code")
+                    ColoredPrint.error("   • Incompatible Metal version or GPU")
+                    ColoredPrint.error("   • Corrupted Metal shader source file")
+                    ColoredPrint.error("")
+                    ColoredPrint.error("SOLUTIONS:")
+                    ColoredPrint.error("   1. Check the shader source at: \(url.path)")
+                    ColoredPrint.error("   2. Verify your macOS version supports Metal 2.0+")
+                    ColoredPrint.error("   3. Re-clone the repository to get fresh shader files:")
+                    ColoredPrint.error("      git checkout Sources/MNISTClassic/MpsKernels.metal")
+                    ColoredPrint.error("   4. Try rebuilding: swift build --clean && swift build")
                     return nil
                 }
             } else {
-                print("Failed to find or read MpsKernels.metal in bundle")
+                ColoredPrint.error("❌ Metal Shader File Not Found")
+                ColoredPrint.error("   Looking for: MpsKernels.metal")
+                ColoredPrint.error("   Expected location: Sources/MNISTClassic/")
+                ColoredPrint.error("")
+                ColoredPrint.error("POSSIBLE CAUSES:")
+                ColoredPrint.error("   • Missing or corrupted build artifacts")
+                ColoredPrint.error("   • Incomplete project checkout")
+                ColoredPrint.error("   • SwiftPM bundle resources not properly configured")
+                ColoredPrint.error("")
+                ColoredPrint.error("SOLUTIONS:")
+                ColoredPrint.error("   1. Verify the file exists:")
+                ColoredPrint.error("      ls -la Sources/MNISTClassic/MpsKernels.metal")
+                ColoredPrint.error("   2. Clean and rebuild the project:")
+                ColoredPrint.error("      swift build --clean && swift build")
+                ColoredPrint.error("   3. If missing, re-clone the repository:")
+                ColoredPrint.error("      git checkout Sources/MNISTClassic/MpsKernels.metal")
                 return nil
             }
         }
 
         func makePSO(_ name: String) -> MTLComputePipelineState? {
             guard let function = library.makeFunction(name: name) else {
-                print("Missing Metal kernel: \(name)")
+                ColoredPrint.error("❌ Metal Kernel Function Not Found")
+                ColoredPrint.error("   Missing kernel: \(name)")
+                ColoredPrint.error("")
+                ColoredPrint.error("POSSIBLE CAUSES:")
+                ColoredPrint.error("   • Kernel function name mismatch in Metal shader")
+                ColoredPrint.error("   • Metal library compilation partially failed")
+                ColoredPrint.error("   • Corrupted Metal shader source")
+                ColoredPrint.error("")
+                ColoredPrint.error("EXPECTED KERNELS:")
+                ColoredPrint.error("   • add_bias, relu_inplace, relu_grad")
+                ColoredPrint.error("   • softmax_rows, sum_rows")
+                ColoredPrint.error("   • delta_and_loss, sgd_update")
+                ColoredPrint.error("")
+                ColoredPrint.error("SOLUTIONS:")
+                ColoredPrint.error("   1. Verify MpsKernels.metal contains all required kernels")
+                ColoredPrint.error("   2. Rebuild the project: swift build --clean && swift build")
+                ColoredPrint.error("   3. Restore shader file: git checkout Sources/MNISTClassic/MpsKernels.metal")
                 return nil
             }
-            return try? device.makeComputePipelineState(function: function)
+            do {
+                return try device.makeComputePipelineState(function: function)
+            } catch {
+                ColoredPrint.error("❌ Failed to Create Metal Pipeline State")
+                ColoredPrint.error("   Kernel: \(name)")
+                ColoredPrint.error("   Error: \(error)")
+                ColoredPrint.error("")
+                ColoredPrint.error("POSSIBLE CAUSES:")
+                ColoredPrint.error("   • Incompatible GPU or Metal version")
+                ColoredPrint.error("   • Kernel configuration error")
+                ColoredPrint.error("")
+                ColoredPrint.error("SOLUTIONS:")
+                ColoredPrint.error("   1. Verify your Mac supports Metal 2.0+")
+                ColoredPrint.error("   2. Update macOS to the latest version")
+                ColoredPrint.error("   3. Try rebuilding: swift build --clean && swift build")
+                return nil
+            }
         }
 
         guard let addBiasPSO = makePSO("add_bias"),

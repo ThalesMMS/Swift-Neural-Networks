@@ -1,4 +1,5 @@
 import Foundation
+import MNISTCommon
 
 #if canImport(MetalPerformanceShadersGraph)
 import Metal
@@ -17,7 +18,7 @@ func trainMpsGraph(
 ) {
     guard let device = MTLCreateSystemDefaultDevice(),
           let queue = device.makeCommandQueue() else {
-        print("MPSGraph device unavailable, falling back to CPU.")
+        ColoredPrint.warning("MPSGraph device unavailable, falling back to CPU.")
         let cpu = CpuGemmEngine()
         train(nn: &nn, images: images, labels: labels, numSamples: numSamples, engine: cpu, rng: &rng)
         return
@@ -69,7 +70,7 @@ func trainMpsGraph(
           let gradB1 = grads[b1Read],
           let gradW2 = grads[w2Read],
           let gradB2 = grads[b2Read] else {
-        print("Failed to build MPSGraph gradients, falling back to CPU.")
+        ColoredPrint.warning("Failed to build MPSGraph gradients, falling back to CPU.")
         let cpu = CpuGemmEngine()
         train(nn: &nn, images: images, labels: labels, numSamples: numSamples, engine: cpu, rng: &rng)
         return
@@ -107,7 +108,7 @@ func trainMpsGraph(
     let labelBytes = batchSize * numOutputs * MemoryLayout<Float>.size
     guard let inputBuffer = device.makeBuffer(length: inputBytes, options: .storageModeShared),
           let labelBuffer = device.makeBuffer(length: labelBytes, options: .storageModeShared) else {
-        print("Failed to allocate MPSGraph buffers, falling back to CPU.")
+        ColoredPrint.warning("Failed to allocate MPSGraph buffers, falling back to CPU.")
         let cpu = CpuGemmEngine()
         train(nn: &nn, images: images, labels: labels, numSamples: numSamples, engine: cpu, rng: &rng)
         return
@@ -119,7 +120,7 @@ func trainMpsGraph(
     // Keep a fixed batch size (drop the remainder to simplify the graph).
     let effectiveSamples = (numSamples / batchSize) * batchSize
     if effectiveSamples < numSamples {
-        print("MPSGraph: descartando \(numSamples - effectiveSamples) amostras para manter batch fixo.")
+        ColoredPrint.info("MPSGraph: descartando \(numSamples - effectiveSamples) amostras para manter batch fixo.")
     }
 
     var indices = Array(0..<effectiveSamples)
@@ -181,7 +182,7 @@ func trainMpsGraph(
 
                 let duration = Float(Date().timeIntervalSince(startTime))
                 let avgLoss = totalLoss / Float(effectiveSamples)
-                print("Epoch \(epoch + 1), Loss: \(String(format: "%.6f", avgLoss)) Time: \(String(format: "%.6f", duration))")
+                ColoredPrint.progress("Epoch \(epoch + 1), Loss: \(String(format: "%.6f", avgLoss)) Time: \(String(format: "%.6f", duration))")
             }
         }
     }
@@ -217,7 +218,7 @@ func trainMpsGraph(
         nn.output.weights = readTensor(w2Data, count: numHidden * numOutputs)
         nn.output.biases = readTensor(b2Data, count: numOutputs)
     } else {
-        print("Warning: failed to read weights from MPSGraph, keeping previous values.")
+        ColoredPrint.warning("Warning: failed to read weights from MPSGraph, keeping previous values.")
     }
 }
 
@@ -230,7 +231,7 @@ func testMpsGraph(
 ) {
     guard let device = MTLCreateSystemDefaultDevice(),
           let queue = device.makeCommandQueue() else {
-        print("MPSGraph device unavailable, falling back to CPU test.")
+        ColoredPrint.warning("MPSGraph device unavailable, falling back to CPU test.")
         test(nn: nn, images: images, labels: labels, numSamples: numSamples)
         return
     }
@@ -281,7 +282,7 @@ func testMpsGraph(
 
     let inputBytes = batchSize * numInputs * MemoryLayout<Float>.size
     guard let inputBuffer = device.makeBuffer(length: inputBytes, options: .storageModeShared) else {
-        print("Failed to allocate MPSGraph test buffers, falling back to CPU test.")
+        ColoredPrint.warning("Failed to allocate MPSGraph test buffers, falling back to CPU test.")
         test(nn: nn, images: images, labels: labels, numSamples: numSamples)
         return
     }
@@ -343,6 +344,6 @@ func testMpsGraph(
     }
 
     let accuracy = Float(correct) / Float(numSamples) * 100.0
-    print(String(format: "Test Accuracy: %.2f%%", accuracy))
+    ColoredPrint.success(String(format: "Test Accuracy: %.2f%%", accuracy))
 }
 #endif

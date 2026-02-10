@@ -414,7 +414,14 @@ public func trainAttentionEpoch(
     // Shuffle indices
     var indices = Array(0..<n)
     indices.shuffle()
-    
+
+    // -------------------------------------------------------------------------
+    // Progress Bar Setup
+    // -------------------------------------------------------------------------
+    let totalBatches = (n + batchSize - 1) / batchSize
+    let progressBar = ProgressBar(totalBatches: totalBatches)
+    progressBar.start()
+
     // Training loop
     var start = 0
     while start < n {
@@ -433,11 +440,19 @@ public func trainAttentionEpoch(
         
         // Force evaluation
         eval(model, optimizer)
-        
-        totalLoss += loss.item(Float.self)
+
+        let lossValue = loss.item(Float.self)
+        totalLoss += lossValue
         batchCount += 1
+
+        // Update progress bar
+        progressBar.update(batch: batchCount, loss: lossValue)
+
         start = end
     }
+
+    // Finish progress bar
+    progressBar.finish()
     
     return totalLoss / Float(batchCount)
 }

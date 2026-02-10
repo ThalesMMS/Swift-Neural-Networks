@@ -27,6 +27,7 @@
 // ============================================================================
 
 import Foundation
+import MNISTCommon
 
 // =============================================================================
 // MARK: - Main Entry Point
@@ -45,35 +46,35 @@ func main() {
     // -------------------------------------------------------------------------
     // Data Loading
     // -------------------------------------------------------------------------
-    print("Loading training data...")
+    ColoredPrint.progress("Loading training data...")
     let loadStart = Date()
     let trainImages = readMnistImages(path: "./data/train-images.idx3-ubyte", count: trainSamples)
     let trainLabels = readMnistLabels(path: "./data/train-labels.idx1-ubyte", count: trainSamples)
 
-    print("Loading test data...")
+    ColoredPrint.progress("Loading test data...")
     let testImages = readMnistImages(path: "./data/t10k-images.idx3-ubyte", count: testSamples)
     let testLabels = readMnistLabels(path: "./data/t10k-labels.idx1-ubyte", count: testSamples)
     let loadTime = Date().timeIntervalSince(loadStart)
-    print(String(format: "Data loading time: %.2f seconds", loadTime))
+    ColoredPrint.info(String(format: "Data loading time: %.2f seconds", loadTime))
 
     // -------------------------------------------------------------------------
     // Model Initialization
     // -------------------------------------------------------------------------
-    print("Initializing neural network...")
-    print("Config: hidden=\(numHidden) batch=\(batchSize) epochs=\(epochs) lr=\(learningRate) seed=\(rngSeed)")
+    ColoredPrint.progress("Initializing neural network...")
+    ColoredPrint.info("Config: hidden=\(numHidden) batch=\(batchSize) epochs=\(epochs) lr=\(learningRate) seed=\(rngSeed)")
     var rng = SimpleRng(seed: rngSeed)
     var nn = initializeNetwork(rng: &rng)
 
     // -------------------------------------------------------------------------
     // Training
     // -------------------------------------------------------------------------
-    print("Training neural network...")
+    ColoredPrint.progress("Training neural network...")
     let trainStart = Date()
     var usedGraph = false
 
     if useMpsGraph {
         #if canImport(MetalPerformanceShadersGraph)
-        print("Using MPSGraph backend.")
+        ColoredPrint.info("Using MPSGraph backend.")
         trainMpsGraph(
             nn: &nn,
             images: trainImages,
@@ -83,7 +84,7 @@ func main() {
         )
         usedGraph = true
         #else
-        print("MPSGraph not available, falling back to MPS kernels.")
+        ColoredPrint.warning("MPSGraph not available, falling back to MPS kernels.")
         #endif
     }
 
@@ -114,18 +115,18 @@ func main() {
     }
 
     let trainTime = Date().timeIntervalSince(trainStart)
-    print(String(format: "Total training time: %.2f seconds", trainTime))
+    ColoredPrint.info(String(format: "Total training time: %.2f seconds", trainTime))
 
     // -------------------------------------------------------------------------
     // Testing
     // -------------------------------------------------------------------------
-    print("Testing neural network...")
+    ColoredPrint.progress("Testing neural network...")
     let testStart = Date()
     var testedOnGPU = false
 
     #if canImport(MetalPerformanceShadersGraph)
     if useMpsGraph {
-        print("Testing with MPSGraph backend.")
+        ColoredPrint.info("Testing with MPSGraph backend.")
         testMpsGraph(
             nn: nn,
             images: testImages,
@@ -139,7 +140,7 @@ func main() {
     if !testedOnGPU && useMPS {
         #if canImport(MetalPerformanceShaders)
         if let engine = MpsGemmEngine() {
-            print("Testing with MPS GEMM backend.")
+            ColoredPrint.info("Testing with MPS GEMM backend.")
             testMps(
                 nn: nn,
                 images: testImages,
@@ -162,24 +163,24 @@ func main() {
     }
 
     let testTime = Date().timeIntervalSince(testStart)
-    print(String(format: "Testing time: %.2f seconds", testTime))
+    ColoredPrint.info(String(format: "Testing time: %.2f seconds", testTime))
 
     // -------------------------------------------------------------------------
     // Model Persistence
     // -------------------------------------------------------------------------
-    print("Saving model...")
+    ColoredPrint.progress("Saving model...")
     saveModel(nn: nn, filename: "mnist_model.bin")
 
     // -------------------------------------------------------------------------
     // Performance Summary
     // -------------------------------------------------------------------------
     let totalTime = Date().timeIntervalSince(programStart)
-    print("\n=== Performance Summary ===")
-    print(String(format: "Data loading time: %.2f seconds", loadTime))
-    print(String(format: "Total training time: %.2f seconds", trainTime))
-    print(String(format: "Testing time: %.2f seconds", testTime))
-    print(String(format: "Total program time: %.2f seconds", totalTime))
-    print("========================")
+    ColoredPrint.success("\n=== Performance Summary ===")
+    ColoredPrint.info(String(format: "Data loading time: %.2f seconds", loadTime))
+    ColoredPrint.info(String(format: "Total training time: %.2f seconds", trainTime))
+    ColoredPrint.info(String(format: "Testing time: %.2f seconds", testTime))
+    ColoredPrint.info(String(format: "Total program time: %.2f seconds", totalTime))
+    ColoredPrint.success("========================")
 }
 
 // =============================================================================

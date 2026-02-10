@@ -43,7 +43,11 @@ func trainMpsGraph(
 ) {
     guard let device = MTLCreateSystemDefaultDevice(),
           let queue = device.makeCommandQueue() else {
-        print("MPSGraph device unavailable, falling back to CPU.")
+        print("⚠️  Metal GPU Not Available - Training will use CPU")
+        print("   Reason: No Metal-compatible GPU device found or command queue creation failed")
+        print("   → This is expected on non-Apple Silicon Macs or in virtual machines")
+        print("   → Performance will be slower but training will proceed normally")
+        print("   → To enable GPU: Ensure you're running on Apple Silicon (M1/M2/M3) hardware")
         let cpu = CpuGemmEngine()
         train(nn: &nn, images: images, labels: labels, numSamples: numSamples, config: config, engine: cpu, rng: &rng)
         return
@@ -97,7 +101,11 @@ func trainMpsGraph(
           let gradB1 = grads[b1Read],
           let gradW2 = grads[w2Read],
           let gradB2 = grads[b2Read] else {
-        print("Failed to build MPSGraph gradients, falling back to CPU.")
+        print("⚠️  MPSGraph Gradient Computation Failed - Falling back to CPU")
+        print("   Reason: Unable to compute gradients for one or more network parameters")
+        print("   → This may indicate an MPSGraph API compatibility issue")
+        print("   → The gradient computation graph could not be properly constructed")
+        print("   → Training will continue on CPU with identical results")
         let cpu = CpuGemmEngine()
         train(nn: &nn, images: images, labels: labels, numSamples: numSamples, config: config, engine: cpu, rng: &rng)
         return
@@ -135,7 +143,12 @@ func trainMpsGraph(
     let labelBytes = config.batchSize * numOutputs * MemoryLayout<Float>.size
     guard let inputBuffer = device.makeBuffer(length: inputBytes, options: .storageModeShared),
           let labelBuffer = device.makeBuffer(length: labelBytes, options: .storageModeShared) else {
-        print("Failed to allocate MPSGraph buffers, falling back to CPU.")
+        print("⚠️  GPU Memory Allocation Failed - Falling back to CPU")
+        print("   Reason: Could not allocate \((inputBytes + labelBytes) / 1024) KB of GPU memory")
+        print("   → Your GPU may be out of memory or have insufficient resources")
+        print("   → Try reducing batch size: current=\(config.batchSize), try --batch 16 or --batch 8")
+        print("   → Close other GPU-intensive applications to free up memory")
+        print("   → Training will continue on CPU (slower but uses system RAM)")
         let cpu = CpuGemmEngine()
         train(nn: &nn, images: images, labels: labels, numSamples: numSamples, config: config, engine: cpu, rng: &rng)
         return
@@ -266,7 +279,10 @@ func testMpsGraph(
 ) {
     guard let device = MTLCreateSystemDefaultDevice(),
           let queue = device.makeCommandQueue() else {
-        print("MPSGraph device unavailable, falling back to CPU test.")
+        print("⚠️  Metal GPU Not Available - Testing will use CPU")
+        print("   Reason: No Metal-compatible GPU device found or command queue creation failed")
+        print("   → This is expected on non-Apple Silicon Macs or in virtual machines")
+        print("   → Test accuracy will be identical, but evaluation may be slower")
         test(nn: nn, images: images, labels: labels, numSamples: numSamples, config: config)
         return
     }
@@ -319,7 +335,11 @@ func testMpsGraph(
 
     let inputBytes = config.batchSize * numInputs * MemoryLayout<Float>.size
     guard let inputBuffer = device.makeBuffer(length: inputBytes, options: .storageModeShared) else {
-        print("Failed to allocate MPSGraph test buffers, falling back to CPU test.")
+        print("⚠️  GPU Memory Allocation Failed - Testing will use CPU")
+        print("   Reason: Could not allocate \(inputBytes / 1024) KB of GPU memory for test batch")
+        print("   → Your GPU may be out of memory or have insufficient resources")
+        print("   → Try reducing batch size: current=\(config.batchSize)")
+        print("   → Testing will continue on CPU (slower but results identical)")
         test(nn: nn, images: images, labels: labels, numSamples: numSamples, config: config)
         return
     }
@@ -731,7 +751,12 @@ final class MpsBuffer {
     init(device: MTLDevice, count: Int, label: String, initial: [Float]? = nil) {
         let length = count * MemoryLayout<Float>.size
         guard let buffer = device.makeBuffer(length: length, options: .storageModeShared) else {
-            print("Failed to allocate MTLBuffer for \(label)")
+            print("❌ FATAL: GPU Buffer Allocation Failed")
+            print("   Buffer: \(label)")
+            print("   Size: \(length / 1024) KB (\(count) floats)")
+            print("   → GPU is out of memory or resources exhausted")
+            print("   → Close other GPU applications or restart your system")
+            print("   → Consider reducing model size or batch size")
             exit(1)
         }
         buffer.label = label
@@ -771,7 +796,12 @@ final class MpsBufferU8 {
     init(device: MTLDevice, count: Int, label: String) {
         let length = count * MemoryLayout<UInt8>.size
         guard let buffer = device.makeBuffer(length: length, options: .storageModeShared) else {
-            print("Failed to allocate MTLBuffer for \(label)")
+            print("❌ FATAL: GPU Buffer Allocation Failed")
+            print("   Buffer: \(label)")
+            print("   Size: \(length / 1024) KB (\(count) bytes)")
+            print("   → GPU is out of memory or resources exhausted")
+            print("   → Close other GPU applications or restart your system")
+            print("   → Consider reducing model size or batch size")
             exit(1)
         }
         buffer.label = label
@@ -897,13 +927,25 @@ final class MpsKernels {
         do {
             library = try device.makeLibrary(source: source, options: nil)
         } catch {
-            print("Failed to compile Metal kernels: \(error)")
+            print("❌ Metal Shader Compilation Failed")
+            print("   Error: \(error)")
+            print("   → The embedded Metal shader code could not be compiled")
+            print("   → This may indicate:")
+            print("      • Incompatible Metal version on your system")
+            print("      • Corrupted shader source code")
+            print("      • GPU driver issues")
+            print("   → Try updating macOS to the latest version")
+            print("   → GPU acceleration will be unavailable")
             return nil
         }
 
         func makePSO(_ name: String) -> MTLComputePipelineState? {
             guard let function = library.makeFunction(name: name) else {
-                print("Missing Metal kernel: \(name)")
+                print("❌ Metal Kernel Not Found: '\(name)'")
+                print("   → The shader library was compiled but the kernel function is missing")
+                print("   → Expected kernel functions: add_bias, relu_inplace, relu_grad,")
+                print("      softmax_rows, sum_rows, delta_and_loss, sgd_update")
+                print("   → This indicates a mismatch between shader code and kernel names")
                 return nil
             }
             return try? device.makeComputePipelineState(function: function)

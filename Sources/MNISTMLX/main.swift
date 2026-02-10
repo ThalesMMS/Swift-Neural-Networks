@@ -28,6 +28,7 @@ import MLX
 import MLXNN
 import MLXOptimizers
 import MNISTData
+import MNISTCommon
 
 // =============================================================================
 // MARK: - Command-Line Argument Parsing
@@ -43,7 +44,8 @@ struct Config {
     var dataPath: String = "./data"
     var seed: UInt64 = 1
     var useCompile: Bool = false
-    
+    var exportJson: Bool = false
+
     /// Parses command-line arguments into configuration
     ///
     /// This is a simple hand-rolled parser. For production code,
@@ -97,12 +99,15 @@ struct Config {
             case "--compile", "-c":
                 config.useCompile = true
 
+            case "--export-json":
+                config.exportJson = true
+
             case "--help", "-h":
                 printUsage()
                 exit(0)
                 
             default:
-                print("Unknown argument: \(arg)")
+                ColoredPrint.error("Unknown argument: \(arg)")
                 printUsage()
                 exit(1)
             }
@@ -119,10 +124,10 @@ func printUsage() {
     print("""
     MNIST Neural Networks with MLX Swift
     =====================================
-    
+
     USAGE:
       swift run MNISTMLX [OPTIONS]
-    
+
     OPTIONS:
       --model, -m <name>    Model to train: mlp, cnn, or attention (default: mlp)
       --epochs, -e <n>      Number of training epochs (default: 5)
@@ -131,22 +136,27 @@ func printUsage() {
       --data, -d <path>     Path to MNIST data directory (default: ./data)
       --seed, -s <n>        Random seed for reproducibility (default: 1)
       --compile, -c         Enable compiled training for faster execution
+      --export-json         Export training results to JSON file
       --help, -h            Show this help message
-    
+
+    ENVIRONMENT:
+      ANSI_COLORS=1         Enable colored terminal output
+                            (errors=red, warnings=yellow, success=green, progress=cyan)
+
     EXAMPLES:
       swift run MNISTMLX --model cnn --epochs 3
       swift run MNISTMLX -m mlp -e 10 -b 64 -l 0.005
-      swift run MNISTMLX --model attention --epochs 5
-    
+      ANSI_COLORS=1 swift run MNISTMLX --model attention --epochs 5
+
     MODELS:
       mlp        Multi-Layer Perceptron (784→512→10)
                  - Fastest training
                  - Good baseline (~97% accuracy)
-                 
+
       cnn        Convolutional Neural Network
                  - Conv(3×3, 8 filters) → MaxPool → Linear
                  - Best accuracy (~98%)
-                 
+
       attention  Transformer-style self-attention
                  - 4×4 patches → 49 tokens → attention → pooling
                  - Educational (demonstrates attention mechanism)
@@ -158,36 +168,38 @@ func printUsage() {
 // =============================================================================
 
 /// Trains an MLP model and evaluates it
-func trainMLP(config: Config, trainImages: MLXArray, trainLabels: MLXArray, 
+func trainMLP(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
               testImages: MLXArray, testLabels: MLXArray) {
-    print("\n🧠 Training MLP Model")
-    print("   Architecture: 784 → 512 → 10")
-    print("   Parameters:   ~407,000")
+    ColoredPrint.progress("\n🧠 Training MLP Model")
+    ColoredPrint.info("   Architecture: 784 → 512 → 10")
+    ColoredPrint.info("   Parameters:   ~407,000")
     print()
-    
+
     // -------------------------------------------------------------------------
     // Initialize Model and Optimizer
     // -------------------------------------------------------------------------
     let model = MLPModel()
-    
+
     // Evaluate model to initialize parameters
     // MLX uses lazy evaluation, so we need to "touch" the model first
     eval(model)
-    
+
     // SGD (Stochastic Gradient Descent) optimizer
     // - learningRate: how big of a step to take in the gradient direction
     // - Lower = more stable but slower; higher = faster but may overshoot
     let optimizer = SGD(learningRate: config.learningRate)
-    
+
     // -------------------------------------------------------------------------
     // Training Loop
     // -------------------------------------------------------------------------
+    var epochMetrics: [EpochMetrics] = []
+
     if config.useCompile {
-        print("   Compilation: enabled ⚡")
+        ColoredPrint.info("   Compilation: enabled ⚡")
     }
 
-    print("Epoch | Loss     | Time")
-    print("------|----------|--------")
+    ColoredPrint.info("Epoch | Loss     | Time")
+    ColoredPrint.info("------|----------|--------")
 
     for epoch in 1...config.epochs {
         let startTime = Date()
@@ -213,15 +225,77 @@ func trainMLP(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
         }
 
         let elapsed = Date().timeIntervalSince(startTime)
-        print(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
+        ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
+
+        // Collect epoch metrics
+        epochMetrics.append(EpochMetrics(epoch: epoch, loss: loss, duration: elapsed))
     }
-    
+
     // -------------------------------------------------------------------------
     // Evaluation
     // -------------------------------------------------------------------------
-    print("\n📊 Evaluating on test set...")
+    ColoredPrint.progress("\n📊 Evaluating on test set...")
     let accuracy = mlpAccuracy(model: model, images: testImages, labels: testLabels)
-    print(String(format: "   Test Accuracy: %.2f%%", accuracy * 100))
+    ColoredPrint.info(String(format: "   Test Accuracy: %.2f%%", accuracy * 100))
+
+    // -------------------------------------------------------------------------
+    // Training Summary
+    // -------------------------------------------------------------------------
+    let hyperparameters = TrainingHyperparameters(
+        epochs: config.epochs,
+        batchSize: config.batchSize,
+        learningRate: config.learningRate,
+        seed: config.seed
+    )
+
+    let benchmarkComparison = BenchmarkComparison(
+        expectedAccuracy: 0.97,
+        actualAccuracy: accuracy
+    )
+
+    let summary = TrainingSummary(
+        modelType: "mlp",
+        hyperparameters: hyperparameters,
+        epochMetrics: epochMetrics,
+        finalAccuracy: accuracy,
+        benchmarkComparison: benchmarkComparison
+    )
+
+    summary.printSummary()
+    summary.printBenchmarkComparison()
+
+    // -------------------------------------------------------------------------
+    // JSON Export (if requested)
+    // -------------------------------------------------------------------------
+    if config.exportJson {
+        let fileManager = FileManager.default
+        let logsDir = "./logs"
+
+        // Create logs directory if it doesn't exist
+        if !fileManager.fileExists(atPath: logsDir) {
+            do {
+                try fileManager.createDirectory(atPath: logsDir, withIntermediateDirectories: true)
+            } catch {
+                ColoredPrint.error("Failed to create logs directory: \(error)")
+                return
+            }
+        }
+
+        // Generate timestamped filename
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
+        let timestamp = dateFormatter.string(from: Date())
+        let filename = "training_summary_\(config.modelType)_\(timestamp).json"
+        let filePath = "\(logsDir)/\(filename)"
+
+        // Export to JSON
+        do {
+            try summary.exportToJSON(filePath: filePath)
+            ColoredPrint.success("📄 Training summary exported to: \(filePath)")
+        } catch {
+            ColoredPrint.error("Failed to export JSON: \(error)")
+        }
+    }
 }
 
 /// Trains a CNN model and evaluates it
@@ -237,18 +311,20 @@ func trainCNN(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
     // -------------------------------------------------------------------------
     let model = CNNModel()
     eval(model)
-    
+
     let optimizer = SGD(learningRate: config.learningRate)
-    
+
     // -------------------------------------------------------------------------
     // Training Loop
     // -------------------------------------------------------------------------
+    var epochMetrics: [EpochMetrics] = []
+
     if config.useCompile {
-        print("   Compilation: enabled ⚡")
+        ColoredPrint.info("   Compilation: enabled ⚡")
     }
 
-    print("Epoch | Loss     | Time")
-    print("------|----------|--------")
+    ColoredPrint.info("Epoch | Loss     | Time")
+    ColoredPrint.info("------|----------|--------")
 
     for epoch in 1...config.epochs {
         let startTime = Date()
@@ -274,18 +350,80 @@ func trainCNN(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
         }
 
         let elapsed = Date().timeIntervalSince(startTime)
-        print(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
+        ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
+
+        // Collect epoch metrics
+        epochMetrics.append(EpochMetrics(epoch: epoch, loss: loss, duration: elapsed))
     }
-    
+
     // -------------------------------------------------------------------------
     // Evaluation
     // -------------------------------------------------------------------------
-    print("\n📊 Evaluating on test set...")
-    
+    ColoredPrint.progress("\n📊 Evaluating on test set...")
+
     // Reshape for CNN (add channel dimension)
     let testImagesReshaped = testImages.reshaped([-1, 1, 28, 28])
     let accuracy = cnnAccuracy(model: model, images: testImagesReshaped, labels: testLabels)
-    print(String(format: "   Test Accuracy: %.2f%%", accuracy * 100))
+    ColoredPrint.info(String(format: "   Test Accuracy: %.2f%%", accuracy * 100))
+
+    // -------------------------------------------------------------------------
+    // Training Summary
+    // -------------------------------------------------------------------------
+    let hyperparameters = TrainingHyperparameters(
+        epochs: config.epochs,
+        batchSize: config.batchSize,
+        learningRate: config.learningRate,
+        seed: config.seed
+    )
+
+    let benchmarkComparison = BenchmarkComparison(
+        expectedAccuracy: 0.98,
+        actualAccuracy: accuracy
+    )
+
+    let summary = TrainingSummary(
+        modelType: "cnn",
+        hyperparameters: hyperparameters,
+        epochMetrics: epochMetrics,
+        finalAccuracy: accuracy,
+        benchmarkComparison: benchmarkComparison
+    )
+
+    summary.printSummary()
+    summary.printBenchmarkComparison()
+
+    // -------------------------------------------------------------------------
+    // JSON Export (if requested)
+    // -------------------------------------------------------------------------
+    if config.exportJson {
+        let fileManager = FileManager.default
+        let logsDir = "./logs"
+
+        // Create logs directory if it doesn't exist
+        if !fileManager.fileExists(atPath: logsDir) {
+            do {
+                try fileManager.createDirectory(atPath: logsDir, withIntermediateDirectories: true)
+            } catch {
+                ColoredPrint.error("Failed to create logs directory: \(error)")
+                return
+            }
+        }
+
+        // Generate timestamped filename
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
+        let timestamp = dateFormatter.string(from: Date())
+        let filename = "training_summary_\(config.modelType)_\(timestamp).json"
+        let filePath = "\(logsDir)/\(filename)"
+
+        // Export to JSON
+        do {
+            try summary.exportToJSON(filePath: filePath)
+            ColoredPrint.success("📄 Training summary exported to: \(filePath)")
+        } catch {
+            ColoredPrint.error("Failed to export JSON: \(error)")
+        }
+    }
 }
 
 /// Trains an Attention model and evaluates it
@@ -295,24 +433,26 @@ func trainAttention(config: Config, trainImages: MLXArray, trainLabels: MLXArray
     print("   Architecture: Patches(4×4) → Attention → FFN → Pool → Linear")
     print("   Parameters:   ~8,000")
     print()
-    
+
     // -------------------------------------------------------------------------
     // Initialize Model and Optimizer
     // -------------------------------------------------------------------------
     let model = AttentionModel()
     eval(model)
-    
+
     let optimizer = SGD(learningRate: config.learningRate)
-    
+
     // -------------------------------------------------------------------------
     // Training Loop
     // -------------------------------------------------------------------------
+    var epochMetrics: [EpochMetrics] = []
+
     if config.useCompile {
-        print("   Compilation: enabled ⚡")
+        ColoredPrint.info("   Compilation: enabled ⚡")
     }
 
-    print("Epoch | Loss     | Time")
-    print("------|----------|--------")
+    ColoredPrint.info("Epoch | Loss     | Time")
+    ColoredPrint.info("------|----------|--------")
 
     for epoch in 1...config.epochs {
         let startTime = Date()
@@ -338,15 +478,77 @@ func trainAttention(config: Config, trainImages: MLXArray, trainLabels: MLXArray
         }
 
         let elapsed = Date().timeIntervalSince(startTime)
-        print(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
+        ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
+
+        // Collect epoch metrics
+        epochMetrics.append(EpochMetrics(epoch: epoch, loss: loss, duration: elapsed))
     }
-    
+
     // -------------------------------------------------------------------------
     // Evaluation
     // -------------------------------------------------------------------------
-    print("\n📊 Evaluating on test set...")
+    ColoredPrint.progress("\n📊 Evaluating on test set...")
     let accuracy = attentionAccuracy(model: model, images: testImages, labels: testLabels)
-    print(String(format: "   Test Accuracy: %.2f%%", accuracy * 100))
+    ColoredPrint.info(String(format: "   Test Accuracy: %.2f%%", accuracy * 100))
+
+    // -------------------------------------------------------------------------
+    // Training Summary
+    // -------------------------------------------------------------------------
+    let hyperparameters = TrainingHyperparameters(
+        epochs: config.epochs,
+        batchSize: config.batchSize,
+        learningRate: config.learningRate,
+        seed: config.seed
+    )
+
+    let benchmarkComparison = BenchmarkComparison(
+        expectedAccuracy: 0.90,
+        actualAccuracy: accuracy
+    )
+
+    let summary = TrainingSummary(
+        modelType: "attention",
+        hyperparameters: hyperparameters,
+        epochMetrics: epochMetrics,
+        finalAccuracy: accuracy,
+        benchmarkComparison: benchmarkComparison
+    )
+
+    summary.printSummary()
+    summary.printBenchmarkComparison()
+
+    // -------------------------------------------------------------------------
+    // JSON Export (if requested)
+    // -------------------------------------------------------------------------
+    if config.exportJson {
+        let fileManager = FileManager.default
+        let logsDir = "./logs"
+
+        // Create logs directory if it doesn't exist
+        if !fileManager.fileExists(atPath: logsDir) {
+            do {
+                try fileManager.createDirectory(atPath: logsDir, withIntermediateDirectories: true)
+            } catch {
+                ColoredPrint.error("Failed to create logs directory: \(error)")
+                return
+            }
+        }
+
+        // Generate timestamped filename
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
+        let timestamp = dateFormatter.string(from: Date())
+        let filename = "training_summary_\(config.modelType)_\(timestamp).json"
+        let filePath = "\(logsDir)/\(filename)"
+
+        // Export to JSON
+        do {
+            try summary.exportToJSON(filePath: filePath)
+            ColoredPrint.success("📄 Training summary exported to: \(filePath)")
+        } catch {
+            ColoredPrint.error("Failed to export JSON: \(error)")
+        }
+    }
 }
 
 // =============================================================================
@@ -436,12 +638,12 @@ func main() {
                        testImages: testImages, testLabels: testLabels)
         
     default:
-        print("❌ Unknown model type: \(config.modelType)")
+        ColoredPrint.error("❌ Unknown model type: \(config.modelType)")
         print("   Available models: mlp, cnn, attention")
         exit(1)
     }
-    
-    print("\n✅ Done!")
+
+    ColoredPrint.success("\n✅ Done!")
 }
 
 // Run main

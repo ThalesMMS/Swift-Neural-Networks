@@ -46,8 +46,8 @@ let package = Package(
     // Products define what this package exports to other packages or executables.
     products: [
         // Library: Shared utilities for MNIST projects
-        // Contains SimpleRng, data loaders, and activation functions extracted from
-        // duplicated code across mnist_mlp.swift, mnist_cnn.swift, etc.
+        // Contains SimpleRng, data loaders, activation functions, and ANSIColors
+        // for optional colored terminal output (ANSI_COLORS=1).
         .library(
             name: "MNISTCommon",
             targets: ["MNISTCommon"]
@@ -76,10 +76,11 @@ let package = Package(
 
         // Executable: Proof-of-concept for MLX compilation
         // Run with: swift run POCCompile
-        .executable(
-            name: "POCCompile",
-            targets: ["POCCompile"]
-        ),
+        // TEMPORARILY DISABLED: Missing file in this worktree
+        // .executable(
+        //     name: "POCCompile",
+        //     targets: ["POCCompile"]
+        // ),
     ],
     
     // ---------------------------------------------------------------------------
@@ -113,6 +114,7 @@ let package = Package(
         //   - SimpleRng: Reproducible random number generator
         //   - Data loaders: readMnistImages, readMnistLabels
         //   - Activations: softmaxRows, softmaxRowsPointer
+        //   - ANSIColors: Optional colored terminal output (ANSI_COLORS=1)
         // Pure Swift with no external dependencies.
         .target(
             name: "MNISTCommon",
@@ -145,6 +147,9 @@ let package = Package(
         .executableTarget(
             name: "MNISTMLX",
             dependencies: [
+                // Shared utilities (ANSIColors for colored terminal output)
+                "MNISTCommon",
+
                 // Our data loading library
                 "MNISTData",
 
@@ -190,17 +195,18 @@ let package = Package(
         // -----------------------------------------------------------------------
         // Demonstrates how to use compile() to optimize training loops.
         // Run with: swift run POCCompile
-        .executableTarget(
-            name: "POCCompile",
-            dependencies: [
-                .product(name: "MLX", package: "mlx-swift"),
-                .product(name: "MLXNN", package: "mlx-swift"),
-                .product(name: "MLXOptimizers", package: "mlx-swift"),
-                .product(name: "MLXRandom", package: "mlx-swift"),
-            ],
-            path: ".auto-claude/specs/006-use-mlx-compiled-functions-for-training-loops",
-            sources: ["poc_compile.swift"]
-        ),
+        // TEMPORARILY DISABLED: Missing file in this worktree
+        // .executableTarget(
+        //     name: "POCCompile",
+        //     dependencies: [
+        //         .product(name: "MLX", package: "mlx-swift"),
+        //         .product(name: "MLXNN", package: "mlx-swift"),
+        //         .product(name: "MLXOptimizers", package: "mlx-swift"),
+        //         .product(name: "MLXRandom", package: "mlx-swift"),
+        //     ],
+        //     path: ".auto-claude/specs/006-use-mlx-compiled-functions-for-training-loops",
+        //     sources: ["poc_compile.swift"]
+        // ),
 
         // -----------------------------------------------------------------------
         // MARK: - Test Targets

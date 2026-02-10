@@ -1,4 +1,5 @@
 import Foundation
+import MNISTCommon
 #if canImport(MetalPerformanceShaders)
 import Metal
 import MetalPerformanceShaders
@@ -361,7 +362,7 @@ func train(
 
         let duration = Float(Date().timeIntervalSince(startTime))
         let avgLoss = totalLoss / Float(numSamples)
-        print("Epoch \(epoch + 1), Loss: \(String(format: "%.6f", avgLoss)) Time: \(String(format: "%.6f", duration))")
+        ColoredPrint.progress("Epoch \(epoch + 1), Loss: \(String(format: "%.6f", avgLoss)) Time: \(String(format: "%.6f", duration))")
         if let handle = logHandle {
             let line = "\(epoch + 1),\(avgLoss),\(duration)\n"
             handle.write(Data(line.utf8))
@@ -599,7 +600,7 @@ func trainMps(
 
         let duration = Float(Date().timeIntervalSince(startTime))
         let avgLoss = totalLoss / Float(numSamples)
-        print("Epoch \(epoch + 1), Loss: \(String(format: "%.6f", avgLoss)) Time: \(String(format: "%.6f", duration))")
+        ColoredPrint.progress("Epoch \(epoch + 1), Loss: \(String(format: "%.6f", avgLoss)) Time: \(String(format: "%.6f", duration))")
         if let handle = logHandle {
             let line = "\(epoch + 1),\(avgLoss),\(duration)\n"
             handle.write(Data(line.utf8))

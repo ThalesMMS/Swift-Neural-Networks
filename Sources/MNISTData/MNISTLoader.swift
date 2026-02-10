@@ -56,15 +56,35 @@ public enum MNISTError: Error, CustomStringConvertible {
     case fileNotFound(String)
     case invalidFormat(String)
     case unexpectedSize(expected: Int, actual: Int)
-    
+
     public var description: String {
         switch self {
         case .fileNotFound(let path):
-            return "File not found: \(path)"
+            return """
+            File not found: \(path)
+
+            → ACTION: Download the MNIST dataset to this location.
+                      You can download it from: http://yann.lecun.com/exdb/mnist/
+                      Or ensure the --data path points to the correct directory.
+            """
         case .invalidFormat(let message):
-            return "Invalid MNIST format: \(message)"
+            return """
+            Invalid MNIST format: \(message)
+
+            → ACTION: The file may be corrupted or not a valid MNIST IDX file.
+                      Try re-downloading the dataset from: http://yann.lecun.com/exdb/mnist/
+                      Ensure you're using the original .gz files or properly extracted .idx3-ubyte files.
+            """
         case .unexpectedSize(let expected, let actual):
-            return "Unexpected size: expected \(expected), got \(actual)"
+            return """
+            Unexpected size: expected \(expected), got \(actual)
+
+            → ACTION: The file may be incomplete or corrupted.
+                      Verify the file downloaded completely (check file size).
+                      Expected sizes: train-images ~47MB, train-labels ~60KB,
+                                     test-images ~7.8MB, test-labels ~10KB.
+                      Re-download if necessary from: http://yann.lecun.com/exdb/mnist/
+            """
         }
     }
 }

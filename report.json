@@ -1,0 +1,75 @@
+{
+  "summary": {
+    "total_benchmarks": 6,
+    "models": [
+      "mlp"
+    ],
+    "backends": [
+      "cpu",
+      "mps",
+      "mpsgraph"
+    ],
+    "config": {
+      "epochs": 1,
+      "batch_size": 32,
+      "hidden_size": 256,
+      "seed": 42
+    }
+  },
+  "results": [
+    {
+      "model": "mlp",
+      "backend": "cpu",
+      "compiled": false,
+      "timestamp": "20260210_161706",
+      "training_time_seconds": 5.01,
+      "peak_memory_mb": 242.67,
+      "test_accuracy_percent": 17.88
+    },
+    {
+      "model": "mlp",
+      "backend": "cpu",
+      "compiled": false,
+      "timestamp": "20260210_161706",
+      "training_time_seconds": 8.49,
+      "peak_memory_mb": 245.87,
+      "test_accuracy_percent": 5.69
+    },
+    {
+      "model": "mlp",
+      "backend": "mps",
+      "compiled": false,
+      "timestamp": "20260210_161706",
+      "training_time_seconds": 2.76,
+      "peak_memory_mb": 384.67,
+      "test_accuracy_percent": 90.41
+    },
+    {
+      "model": "mlp",
+      "backend": "mps",
+      "compiled": false,
+      "timestamp": "20260210_161706",
+      "training_time_seconds": 3.12,
+      "peak_memory_mb": 388.42,
+      "test_accuracy_percent": 90.86
+    },
+    {
+      "model": "mlp",
+      "backend": "mpsgraph",
+      "compiled": false,
+      "timestamp": "20260210_161706",
+      "training_time_seconds": 2.52,
+      "peak_memory_mb": 264.21,
+      "test_accuracy_percent": 90.7
+    },
+    {
+      "model": "mlp",
+      "backend": "mpsgraph",
+      "compiled": false,
+      "timestamp": "20260210_161706",
+      "training_time_seconds": 3.07,
+      "peak_memory_mb": 269.73,
+      "test_accuracy_percent": 90.88
+    }
+  ]
+}

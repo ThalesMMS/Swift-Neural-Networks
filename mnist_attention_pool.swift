@@ -15,7 +15,7 @@
 // - For faster runs, reduce trainSamples/epochs.
 
 import Foundation
-import MNISTCommon
+import Accelerate
 
 #if canImport(Darwin)
 import Darwin
@@ -376,6 +376,64 @@ func makeTokens(model: AttnModel, batchCount: Int, patches: [Float], tokens: ino
     }
 }
 
+// Compute Q * K^T for a batch using vDSP (Accelerate).
+// Q: [batchCount, seqLen, dModel]
+// K: [batchCount, seqLen, dModel]
+// scores: [batchCount, seqLen, seqLen] (output)
+func computeAttentionScoresVDSP(
+    q: [Float],
+    k: [Float],
+    scores: inout [Float],
+    batchCount: Int,
+    seqLen: Int,
+    dModel: Int
+) {
+    // For each sample in batch, compute Q_b * K_b^T
+    for b in 0..<batchCount {
+        let qOffset = b * seqLen * dModel
+        let kOffset = b * seqLen * dModel
+        let scoresOffset = b * seqLen * seqLen
+
+        // Transpose K from [seqLen, dModel] to [dModel, seqLen]
+        var kTransposed = [Float](repeating: 0.0, count: seqLen * dModel)
+        q.withUnsafeBufferPointer { qBuf in
+            k.withUnsafeBufferPointer { kBuf in
+                kTransposed.withUnsafeMutableBufferPointer { ktBuf in
+                    guard let qPtr = qBuf.baseAddress,
+                          let kPtr = kBuf.baseAddress,
+                          let ktPtr = ktBuf.baseAddress else { return }
+
+                    // Transpose: K is [seqLen, dModel] row-major -> K^T is [dModel, seqLen] row-major
+                    vDSP_mtrans(
+                        kPtr.advanced(by: kOffset),
+                        1,
+                        ktPtr,
+                        1,
+                        vDSP_Length(dModel),
+                        vDSP_Length(seqLen)
+                    )
+
+                    // Matrix multiply: Q [seqLen, dModel] * K^T [dModel, seqLen] = scores [seqLen, seqLen]
+                    scores.withUnsafeMutableBufferPointer { scoresBuf in
+                        guard let scoresPtr = scoresBuf.baseAddress else { return }
+                        vDSP_mmul(
+                            qPtr.advanced(by: qOffset),
+                            1,
+                            ktPtr,
+                            1,
+                            scoresPtr.advanced(by: scoresOffset),
+                            1,
+                            vDSP_Length(seqLen),
+                            vDSP_Length(seqLen),
+                            vDSP_Length(dModel)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Self-attention: Q/K/V -> softmax scores -> weighted sum.
 func selfAttention(
     model: AttnModel,
@@ -409,19 +467,25 @@ func selfAttention(
         }
     }
 
+    // Compute Q * K^T using vDSP for all batches
+    computeAttentionScoresVDSP(
+        q: q,
+        k: k,
+        scores: &attn,
+        batchCount: batchCount,
+        seqLen: seqLen,
+        dModel: dModel
+    )
+
+    // Scale scores by 1/sqrt(dModel)
+    var invSqrtDVar = invSqrtD
+    let totalScores = batchCount * seqLen * seqLen
+    vDSP_vsmul(attn, 1, &invSqrtDVar, &attn, 1, vDSP_Length(totalScores))
+
+    // Apply softmax to each attention row
     for b in 0..<batchCount {
         for i in 0..<seqLen {
             let rowBase = (b * seqLen + i) * seqLen
-            let qBase = (b * seqLen + i) * dModel
-
-            for j in 0..<seqLen {
-                let kBase = (b * seqLen + j) * dModel
-                var score: Float = 0
-                for d in 0..<dModel {
-                    score += q[qBase + d] * k[kBase + d]
-                }
-                attn[rowBase + j] = score * invSqrtD
-            }
             softmaxInPlace1D(&attn, base: rowBase, length: seqLen)
 
             let outBase = (b * seqLen + i) * dModel
@@ -917,7 +981,27 @@ func testAccuracy(model: AttnModel, images: [Float], labels: [UInt8], config: Co
 func saveModel(model: AttnModel, filename: String) {
     FileManager.default.createFile(atPath: filename, contents: nil)
     guard let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: filename)) else {
-        print("Could not open file \(filename) for writing model")
+        print("""
+
+        ERROR: Failed to save attention model
+        ======================================
+        Could not open file for writing: \(filename)
+
+        Possible causes:
+          - Insufficient permissions to write to this directory
+          - Disk is full or write-protected
+          - Path contains invalid characters
+
+        Solutions:
+          1. Check directory permissions:
+             ls -ld \(NSString(string: filename).deletingLastPathComponent)
+
+          2. Verify disk space:
+             df -h .
+
+          3. Try saving to a different location:
+             swift mnist_attention_pool.swift  # saves to ./attention_model.bin by default
+        """)
         exit(1)
     }
     defer { try? handle.close() }
@@ -967,7 +1051,24 @@ func saveModel(model: AttnModel, filename: String) {
 /// The dimensions expected are: patchDim, dModel, seqLen, ffDim, and numClasses.
 func loadModel(filename: String) -> AttnModel? {
     guard let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: filename)) else {
-        print("Could not open file \(filename) for reading model")
+        print("""
+
+        ERROR: Failed to load attention model
+        ======================================
+        Model file not found: \(filename)
+
+        This error occurs when trying to load a saved model that doesn't exist.
+
+        Solutions:
+          1. Train a new model to generate the file:
+             swift mnist_attention_pool.swift --epochs 5
+
+          2. Check if the file exists:
+             ls -l \(filename)
+
+          3. Verify you're in the correct directory:
+             pwd
+        """)
         return nil
     }
     defer { try? handle.close() }
@@ -994,15 +1095,72 @@ func loadModel(filename: String) -> AttnModel? {
           let seqLenRead = readInt32(),
           let ffDimRead = readInt32(),
           let numClassesRead = readInt32() else {
-        print("Failed to read model header from \(filename)")
+        print("""
+
+        ERROR: Corrupted model file - header unreadable
+        ================================================
+        Failed to read model header from: \(filename)
+
+        This error indicates the model file is corrupted or incomplete.
+        The model header contains critical architecture information:
+          - patchDim (patch dimension)
+          - dModel (model embedding dimension)
+          - seqLen (sequence length)
+          - ffDim (feed-forward dimension)
+          - numClasses (output classes)
+
+        Possible causes:
+          - File was truncated during save
+          - Disk write error occurred
+          - File was corrupted during transfer
+          - Attempting to load a non-model file
+
+        Solutions:
+          1. Retrain the model to regenerate:
+             swift mnist_attention_pool.swift --epochs 5
+
+          2. Verify file size (should be >100KB):
+             ls -lh \(filename)
+
+          3. Check for disk errors in system logs
+        """)
         return nil
     }
 
     if patchDimRead != Int32(patchDim) || dModelRead != Int32(dModel) ||
        seqLenRead != Int32(seqLen) || ffDimRead != Int32(ffDim) ||
        numClassesRead != Int32(numClasses) {
-        print("Model dimensions mismatch: expected patchDim=\(patchDim), dModel=\(dModel), seqLen=\(seqLen), ffDim=\(ffDim), numClasses=\(numClasses)")
-        print("  but file has patchDim=\(patchDimRead), dModel=\(dModelRead), seqLen=\(seqLenRead), ffDim=\(ffDimRead), numClasses=\(numClassesRead)")
+        print("""
+
+        ERROR: Model architecture mismatch
+        ==================================
+        The saved model has different dimensions than expected.
+
+        Expected architecture (current code):
+          - patchDim   = \(patchDim)
+          - dModel     = \(dModel)
+          - seqLen     = \(seqLen)
+          - ffDim      = \(ffDim)
+          - numClasses = \(numClasses)
+
+        Model file architecture:
+          - patchDim   = \(patchDimRead)
+          - dModel     = \(dModelRead)
+          - seqLen     = \(seqLenRead)
+          - ffDim      = \(ffDimRead)
+          - numClasses = \(numClassesRead)
+
+        This occurs when the model file was created with different hyperparameters.
+
+        Solutions:
+          1. Retrain with current architecture:
+             swift mnist_attention_pool.swift --epochs 5
+
+          2. Or update code constants to match saved model
+             (edit lines 24-27 in this file)
+
+          3. Verify you're loading the correct model file
+        """)
         return nil
     }
 
@@ -1010,7 +1168,27 @@ func loadModel(filename: String) -> AttnModel? {
     var wPatch = [Float](repeating: 0, count: patchDim * dModel)
     for i in 0..<wPatch.count {
         guard let val = readDouble() else {
-            print("Failed to read wPatch[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - patch projection weights corrupted
+            ==================================================================
+            Failed to read patch projection weight parameter [\(i)/\(wPatch.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            patch embedding weight section (wPatch).
+
+            Progress: \(i) of \(wPatch.count) weights read before failure
+            Location: After header, in patch projection weights
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Check file integrity:
+                 ls -lh \(filename)  # should be >100KB
+
+              3. Verify disk space during training
+            """)
             return nil
         }
         wPatch[i] = Float(val)
@@ -1019,7 +1197,26 @@ func loadModel(filename: String) -> AttnModel? {
     var bPatch = [Float](repeating: 0, count: dModel)
     for i in 0..<bPatch.count {
         guard let val = readDouble() else {
-            print("Failed to read bPatch[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - patch projection biases corrupted
+            =================================================================
+            Failed to read patch projection bias parameter [\(i)/\(bPatch.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            patch embedding bias section (bPatch).
+
+            Progress: \(i) of \(bPatch.count) biases read before failure
+            Location: After wPatch, in patch projection biases
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Check for disk errors during model save
+
+              3. Verify file wasn't interrupted during write
+            """)
             return nil
         }
         bPatch[i] = Float(val)
@@ -1028,7 +1225,27 @@ func loadModel(filename: String) -> AttnModel? {
     var pos = [Float](repeating: 0, count: seqLen * dModel)
     for i in 0..<pos.count {
         guard let val = readDouble() else {
-            print("Failed to read pos[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - positional encodings corrupted
+            ==============================================================
+            Failed to read positional encoding parameter [\(i)/\(pos.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            positional encoding section (pos).
+
+            Progress: \(i) of \(pos.count) positional encodings read before failure
+            Location: After bPatch, in positional encodings
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Verify complete model was saved:
+                 Expected size: >100KB for full attention model
+
+              3. Check system logs for I/O errors
+            """)
             return nil
         }
         pos[i] = Float(val)
@@ -1037,7 +1254,26 @@ func loadModel(filename: String) -> AttnModel? {
     var wQ = [Float](repeating: 0, count: dModel * dModel)
     for i in 0..<wQ.count {
         guard let val = readDouble() else {
-            print("Failed to read wQ[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Query projection weights corrupted
+            ==================================================================
+            Failed to read Query (Q) projection weight [\(i)/\(wQ.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            self-attention Query weight section (wQ).
+
+            Progress: \(i) of \(wQ.count) Q weights read before failure
+            Location: After positional encodings, in attention Q projection
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Model may have been interrupted during save
+
+              3. Verify disk wasn't full during training
+            """)
             return nil
         }
         wQ[i] = Float(val)
@@ -1046,7 +1282,26 @@ func loadModel(filename: String) -> AttnModel? {
     var bQ = [Float](repeating: 0, count: dModel)
     for i in 0..<bQ.count {
         guard let val = readDouble() else {
-            print("Failed to read bQ[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Query projection biases corrupted
+            =================================================================
+            Failed to read Query (Q) projection bias [\(i)/\(bQ.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            self-attention Query bias section (bQ).
+
+            Progress: \(i) of \(bQ.count) Q biases read before failure
+            Location: After wQ, in attention Q bias
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Check file size matches expected for complete model
+
+              3. Verify no interruptions occurred during save
+            """)
             return nil
         }
         bQ[i] = Float(val)
@@ -1055,7 +1310,26 @@ func loadModel(filename: String) -> AttnModel? {
     var wK = [Float](repeating: 0, count: dModel * dModel)
     for i in 0..<wK.count {
         guard let val = readDouble() else {
-            print("Failed to read wK[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Key projection weights corrupted
+            ================================================================
+            Failed to read Key (K) projection weight [\(i)/\(wK.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            self-attention Key weight section (wK).
+
+            Progress: \(i) of \(wK.count) K weights read before failure
+            Location: After bQ, in attention K projection
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Verify model file wasn't corrupted during transfer
+
+              3. Check for filesystem errors
+            """)
             return nil
         }
         wK[i] = Float(val)
@@ -1064,7 +1338,26 @@ func loadModel(filename: String) -> AttnModel? {
     var bK = [Float](repeating: 0, count: dModel)
     for i in 0..<bK.count {
         guard let val = readDouble() else {
-            print("Failed to read bK[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Key projection biases corrupted
+            ===============================================================
+            Failed to read Key (K) projection bias [\(i)/\(bK.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            self-attention Key bias section (bK).
+
+            Progress: \(i) of \(bK.count) K biases read before failure
+            Location: After wK, in attention K bias
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Check available disk space during training
+
+              3. Verify complete save before loading
+            """)
             return nil
         }
         bK[i] = Float(val)
@@ -1073,7 +1366,26 @@ func loadModel(filename: String) -> AttnModel? {
     var wV = [Float](repeating: 0, count: dModel * dModel)
     for i in 0..<wV.count {
         guard let val = readDouble() else {
-            print("Failed to read wV[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Value projection weights corrupted
+            ==================================================================
+            Failed to read Value (V) projection weight [\(i)/\(wV.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            self-attention Value weight section (wV).
+
+            Progress: \(i) of \(wV.count) V weights read before failure
+            Location: After bK, in attention V projection
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Model file may be incomplete - check save logs
+
+              3. Verify filesystem integrity
+            """)
             return nil
         }
         wV[i] = Float(val)
@@ -1082,7 +1394,26 @@ func loadModel(filename: String) -> AttnModel? {
     var bV = [Float](repeating: 0, count: dModel)
     for i in 0..<bV.count {
         guard let val = readDouble() else {
-            print("Failed to read bV[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Value projection biases corrupted
+            =================================================================
+            Failed to read Value (V) projection bias [\(i)/\(bV.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            self-attention Value bias section (bV).
+
+            Progress: \(i) of \(bV.count) V biases read before failure
+            Location: After wV, in attention V bias
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Check for interruptions during model save
+
+              3. Ensure sufficient disk space
+            """)
             return nil
         }
         bV[i] = Float(val)
@@ -1091,7 +1422,26 @@ func loadModel(filename: String) -> AttnModel? {
     var wFf1 = [Float](repeating: 0, count: dModel * ffDim)
     for i in 0..<wFf1.count {
         guard let val = readDouble() else {
-            print("Failed to read wFf1[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Feed-forward layer 1 weights corrupted
+            ======================================================================
+            Failed to read feed-forward layer 1 weight [\(i)/\(wFf1.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            first feed-forward layer weight section (wFf1).
+
+            Progress: \(i) of \(wFf1.count) FF1 weights read before failure
+            Location: After bV, in feed-forward layer 1 weights
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Verify model file size is complete
+
+              3. Check for disk write errors in system logs
+            """)
             return nil
         }
         wFf1[i] = Float(val)
@@ -1100,7 +1450,26 @@ func loadModel(filename: String) -> AttnModel? {
     var bFf1 = [Float](repeating: 0, count: ffDim)
     for i in 0..<bFf1.count {
         guard let val = readDouble() else {
-            print("Failed to read bFf1[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Feed-forward layer 1 biases corrupted
+            =====================================================================
+            Failed to read feed-forward layer 1 bias [\(i)/\(bFf1.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            first feed-forward layer bias section (bFf1).
+
+            Progress: \(i) of \(bFf1.count) FF1 biases read before failure
+            Location: After wFf1, in feed-forward layer 1 biases
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Model save may have been interrupted
+
+              3. Verify disk space was available during training
+            """)
             return nil
         }
         bFf1[i] = Float(val)
@@ -1109,7 +1478,26 @@ func loadModel(filename: String) -> AttnModel? {
     var wFf2 = [Float](repeating: 0, count: ffDim * dModel)
     for i in 0..<wFf2.count {
         guard let val = readDouble() else {
-            print("Failed to read wFf2[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Feed-forward layer 2 weights corrupted
+            ======================================================================
+            Failed to read feed-forward layer 2 weight [\(i)/\(wFf2.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            second feed-forward layer weight section (wFf2).
+
+            Progress: \(i) of \(wFf2.count) FF2 weights read before failure
+            Location: After bFf1, in feed-forward layer 2 weights
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Check for file corruption during transfer
+
+              3. Verify filesystem errors didn't occur
+            """)
             return nil
         }
         wFf2[i] = Float(val)
@@ -1118,7 +1506,26 @@ func loadModel(filename: String) -> AttnModel? {
     var bFf2 = [Float](repeating: 0, count: dModel)
     for i in 0..<bFf2.count {
         guard let val = readDouble() else {
-            print("Failed to read bFf2[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Feed-forward layer 2 biases corrupted
+            =====================================================================
+            Failed to read feed-forward layer 2 bias [\(i)/\(bFf2.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            second feed-forward layer bias section (bFf2).
+
+            Progress: \(i) of \(bFf2.count) FF2 biases read before failure
+            Location: After wFf2, in feed-forward layer 2 biases
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Verify complete model save before loading
+
+              3. Check for interruptions during write
+            """)
             return nil
         }
         bFf2[i] = Float(val)
@@ -1127,7 +1534,26 @@ func loadModel(filename: String) -> AttnModel? {
     var wCls = [Float](repeating: 0, count: dModel * numClasses)
     for i in 0..<wCls.count {
         guard let val = readDouble() else {
-            print("Failed to read wCls[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Classification layer weights corrupted
+            ======================================================================
+            Failed to read classification weight [\(i)/\(wCls.count)] from: \(filename)
+
+            The model file appears to be truncated or corrupted during the
+            final classification layer weight section (wCls).
+
+            Progress: \(i) of \(wCls.count) classifier weights read before failure
+            Location: After bFf2, in classification layer weights
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Model file is almost complete - likely write interruption
+
+              3. Check disk space and I/O logs
+            """)
             return nil
         }
         wCls[i] = Float(val)
@@ -1136,7 +1562,26 @@ func loadModel(filename: String) -> AttnModel? {
     var bCls = [Float](repeating: 0, count: numClasses)
     for i in 0..<bCls.count {
         guard let val = readDouble() else {
-            print("Failed to read bCls[\(i)] from \(filename)")
+            print("""
+
+            ERROR: Incomplete model file - Classification layer biases corrupted
+            =====================================================================
+            Failed to read classification bias [\(i)/\(bCls.count)] from: \(filename)
+
+            The model file appears to be truncated at the very end.
+            All other parameters loaded successfully.
+
+            Progress: \(i) of \(bCls.count) classifier biases read before failure
+            Location: Final section of model file (classification biases)
+
+            Solutions:
+              1. Retrain the model:
+                 swift mnist_attention_pool.swift --epochs 5
+
+              2. Model save was interrupted at the last step
+
+              3. Verify no disk space issues during training
+            """)
             return nil
         }
         bCls[i] = Float(val)
@@ -1165,9 +1610,55 @@ func loadModel(filename: String) -> AttnModel? {
 // =============================================================================
 // MARK: - Random Number Generator
 // =============================================================================
-// Uses MNISTCommon.SimpleRng; add a local shuffle helper for in-place index shuffling.
 
-extension SimpleRng {
+struct SimpleRng {
+    private var state: UInt64
+
+    // Explicit seed (if zero, use a fixed value).
+    init(seed: UInt64) {
+        self.state = seed == 0 ? 0x9e3779b97f4a7c15 : seed
+    }
+
+    /// Reseeds the RNG state using the current wall-clock time in nanoseconds.
+    /// If the computed timestamp is zero, sets the state to the fallback constant 0x9e3779b97f4a7c15.
+    mutating func reseedFromTime() {
+        let nanos = UInt64(Date().timeIntervalSince1970 * 1_000_000_000)
+        state = nanos == 0 ? 0x9e3779b97f4a7c15 : nanos
+    }
+
+    /// Advances the RNG state and produces a 32-bit pseudorandom unsigned integer.
+    /// - Returns: A pseudorandom `UInt32` generated from the updated internal state.
+    mutating func nextUInt32() -> UInt32 {
+        var x = state
+        x ^= x << 13
+        x ^= x >> 7
+        x ^= x << 17
+        state = x
+        return UInt32(truncatingIfNeeded: x >> 32)
+    }
+
+    /// Produces a pseudo-random value uniformly sampled between 0.0 and 1.0.
+    /// - Returns: A pseudo-random Float in the range 0.0 through 1.0 (inclusive).
+    mutating func nextFloat() -> Float {
+        return Float(nextUInt32()) / Float(UInt32.max)
+    }
+
+    /// Returns a random Float sampled uniformly from the range [low, high).
+    /// - Parameters:
+    ///   - low: Lower bound of the range (inclusive).
+    ///   - high: Upper bound of the range (exclusive).
+    /// - Returns: A `Float` uniformly distributed between `low` (inclusive) and `high` (exclusive).
+    mutating func uniform(_ low: Float, _ high: Float) -> Float {
+        return low + (high - low) * nextFloat()
+    }
+
+    /// Returns a uniformly distributed integer in the range 0..<upper (exclusive).
+    /// - Parameter upper: Exclusive upper bound; if `upper` is 0 the function returns 0.
+    /// - Returns: An `Int` in `0..<upper`, or `0` when `upper` is `0`.
+    mutating func nextInt(upper: Int) -> Int {
+        return upper == 0 ? 0 : Int(nextUInt32()) % upper
+    }
+
     /// Randomly permutes the elements of `array` in place using this RNG.
     /// - Parameter array: The integer array to be shuffled in place.
     mutating func shuffle(_ array: inout [Int]) {
@@ -1182,7 +1673,102 @@ extension SimpleRng {
 // =============================================================================
 // MARK: - MNIST Data Loading
 // =============================================================================
-// Uses shared readMnistImages/readMnistLabels from MNISTCommon.
+
+/// Reads an MNIST IDX image file and returns a flat array of normalized pixel values.
+///
+/// The file is parsed as big-endian IDX (magic, count, rows, cols). Pixel values are converted to
+/// Float in the range 0.0–1.0. If the file cannot be opened the process exits with code 1.
+/// - Parameters:
+///   - path: Filesystem path to the MNIST images IDX file.
+///   - count: Maximum number of images to read.
+/// - Returns: A flat array of Float values representing `min(count, totalImagesInFile)` grayscale images, each with `rows * cols` pixels normalized to [0.0, 1.0].
+func readMnistImages(path: String, count: Int) -> [Float] {
+    let url = URL(fileURLWithPath: path)
+    guard let data = try? Data(contentsOf: url) else {
+        print("Could not open file \(path)")
+        exit(1)
+    }
+
+    return data.withUnsafeBytes { rawBuf in
+        guard let base = rawBuf.bindMemory(to: UInt8.self).baseAddress else {
+            return []
+        }
+        var offset = 0
+
+        /// Read four bytes from `base` at the current `offset`, interpret them as a big-endian integer, and advance `offset` by four.
+        /// - Returns: The 32-bit unsigned integer constructed from the four big-endian bytes.
+        func readU32BE() -> UInt32 {
+            let b0 = UInt32(base[offset]) << 24
+            let b1 = UInt32(base[offset + 1]) << 16
+            let b2 = UInt32(base[offset + 2]) << 8
+            let b3 = UInt32(base[offset + 3])
+            offset += 4
+            return b0 | b1 | b2 | b3
+        }
+
+        _ = readU32BE()
+        let total = Int(readU32BE())
+        let rows = Int(readU32BE())
+        let cols = Int(readU32BE())
+        let imageSize = rows * cols
+        let actualCount = min(count, total)
+
+        var images = [Float](repeating: 0.0, count: actualCount * imageSize)
+        for i in 0..<actualCount {
+            let baseIndex = i * imageSize
+            for j in 0..<imageSize {
+                images[baseIndex + j] = Float(base[offset]) / 255.0
+                offset += 1
+            }
+        }
+        return images
+    }
+}
+
+/// Reads MNIST label data from an IDX file and returns up to `count` label bytes.
+///
+/// The function opens the file at `path`, parses the IDX header (big-endian 32-bit fields),
+/// and extracts up to `count` label values. If the file cannot be opened the process exits with code 1.
+/// - Parameters:
+///   - path: Filesystem path to the IDX label file.
+///   - count: Maximum number of labels to read.
+/// - Returns: An array of `UInt8` label values, length is `min(count, numberOfLabelsInFile)`.
+func readMnistLabels(path: String, count: Int) -> [UInt8] {
+    let url = URL(fileURLWithPath: path)
+    guard let data = try? Data(contentsOf: url) else {
+        print("Could not open file \(path)")
+        exit(1)
+    }
+
+    return data.withUnsafeBytes { rawBuf in
+        guard let base = rawBuf.bindMemory(to: UInt8.self).baseAddress else {
+            return []
+        }
+        var offset = 0
+
+        /// Read four bytes from `base` at the current `offset`, interpret them as a big-endian integer, and advance `offset` by four.
+        /// - Returns: The 32-bit unsigned integer constructed from the four big-endian bytes.
+        func readU32BE() -> UInt32 {
+            let b0 = UInt32(base[offset]) << 24
+            let b1 = UInt32(base[offset + 1]) << 16
+            let b2 = UInt32(base[offset + 2]) << 8
+            let b3 = UInt32(base[offset + 3])
+            offset += 4
+            return b0 | b1 | b2 | b3
+        }
+
+        _ = readU32BE()
+        let total = Int(readU32BE())
+        let actualCount = min(count, total)
+
+        var labels = [UInt8](repeating: 0, count: actualCount)
+        for i in 0..<actualCount {
+            labels[i] = base[offset]
+            offset += 1
+        }
+        return labels
+    }
+}
 
 /// Entry point that runs the full training and evaluation pipeline for the compact Transformer-style MNIST model.
 ///

@@ -8,6 +8,45 @@ import Foundation
 import Darwin
 
 // =============================================================================
+// MARK: - Colored Print Utility
+// =============================================================================
+
+/// Simple colored console output utility
+struct ColoredPrint {
+    static func error(_ message: String) {
+        if ProcessInfo.processInfo.environment["ANSI_COLORS"] == "1" {
+            print("\u{001B}[31m\(message)\u{001B}[0m")  // Red
+        } else {
+            print("❌ ERROR: \(message)")
+        }
+    }
+
+    static func warning(_ message: String) {
+        if ProcessInfo.processInfo.environment["ANSI_COLORS"] == "1" {
+            print("\u{001B}[33m\(message)\u{001B}[0m")  // Yellow
+        } else {
+            print("⚠️  WARNING: \(message)")
+        }
+    }
+
+    static func success(_ message: String) {
+        if ProcessInfo.processInfo.environment["ANSI_COLORS"] == "1" {
+            print("\u{001B}[32m\(message)\u{001B}[0m")  // Green
+        } else {
+            print("✅ \(message)")
+        }
+    }
+
+    static func info(_ message: String) {
+        if ProcessInfo.processInfo.environment["ANSI_COLORS"] == "1" {
+            print("\u{001B}[36m\(message)\u{001B}[0m")  // Cyan
+        } else {
+            print("ℹ️  \(message)")
+        }
+    }
+}
+
+// =============================================================================
 // MARK: - Simple Random Number Generator
 // =============================================================================
 
@@ -341,7 +380,9 @@ func convBackward(model: Cnn, batch: Int, input: [Float], convGrad: [Float], gra
 func saveModel(model: Cnn, filename: String) {
     FileManager.default.createFile(atPath: filename, contents: nil)
     guard let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: filename)) else {
-        print("Could not open file \(filename) for writing model")
+        ColoredPrint.error("Failed to open '\(filename)' for writing")
+        ColoredPrint.info("→ Check if you have write permissions in the current directory")
+        ColoredPrint.info("→ Ensure the path is valid and the disk is not full")
         exit(1)
     }
     defer { try? handle.close() }
@@ -369,7 +410,9 @@ func saveModel(model: Cnn, filename: String) {
 
 func loadModel(filename: String) -> Cnn? {
     guard let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: filename)) else {
-        print("Could not open file \(filename) for reading model")
+        ColoredPrint.error("Failed to open '\(filename)' for reading")
+        ColoredPrint.info("→ Check if the file exists in the current directory")
+        ColoredPrint.info("→ Ensure you have read permissions for this file")
         return nil
     }
     defer { try? handle.close() }
@@ -394,13 +437,19 @@ func loadModel(filename: String) -> Cnn? {
           let kernelRead = readInt32(),
           let fcInRead = readInt32(),
           let numClassesRead = readInt32() else {
-        print("Failed to read model header from \(filename)")
+        ColoredPrint.error("Failed to read model header from '\(filename)'")
+        ColoredPrint.info("→ The file may be corrupted or truncated")
+        ColoredPrint.info("→ Ensure the file was saved completely")
+        ColoredPrint.info("→ Try re-saving the model")
         return nil
     }
 
     if convOutRead != Int32(convOut) || kernelRead != Int32(kernel) ||
        fcInRead != Int32(fcIn) || numClassesRead != Int32(numClasses) {
-        print("Model dimensions mismatch")
+        ColoredPrint.error("Model architecture mismatch")
+        ColoredPrint.info("→ Expected: convOut=\(convOut), kernel=\(kernel), fcIn=\(fcIn), classes=\(numClasses)")
+        ColoredPrint.info("→ Found in file: convOut=\(convOutRead), kernel=\(kernelRead), fcIn=\(fcInRead), classes=\(numClassesRead)")
+        ColoredPrint.info("→ Ensure you're loading a CNN model file, not a different architecture")
         return nil
     }
 
@@ -438,7 +487,10 @@ func loadModel(filename: String) -> Cnn? {
 func readMnistImages(path: String, count: Int) -> [Float] {
     let url = URL(fileURLWithPath: path)
     guard let data = try? Data(contentsOf: url) else {
-        print("Could not open file \(path)")
+        ColoredPrint.error("Failed to load MNIST images from '\(path)'")
+        ColoredPrint.info("→ Download MNIST data: run './download_mnist.sh' from project root")
+        ColoredPrint.info("→ Or ensure MNIST data exists in ./data/")
+        ColoredPrint.info("→ Expected file format: IDX3-ubyte (MNIST image format)")
         exit(1)
     }
 
@@ -479,7 +531,10 @@ func readMnistImages(path: String, count: Int) -> [Float] {
 func readMnistLabels(path: String, count: Int) -> [UInt8] {
     let url = URL(fileURLWithPath: path)
     guard let data = try? Data(contentsOf: url) else {
-        print("Could not open file \(path)")
+        ColoredPrint.error("Failed to load MNIST labels from '\(path)'")
+        ColoredPrint.info("→ Download MNIST data: run './download_mnist.sh' from project root")
+        ColoredPrint.info("→ Or ensure MNIST data exists in ./data/")
+        ColoredPrint.info("→ Expected file format: IDX1-ubyte (MNIST label format)")
         exit(1)
     }
 
@@ -643,7 +698,9 @@ func main() {
     // Load the model
     print("Loading model from \(modelFile)...")
     guard let loadedModel = loadModel(filename: modelFile) else {
-        print("❌ FAILED: Could not load model from file")
+        ColoredPrint.error("Verification FAILED: Unable to load saved model")
+        ColoredPrint.info("→ The save operation may have failed silently")
+        ColoredPrint.info("→ Check disk space and file permissions")
         exit(1)
     }
 
@@ -671,7 +728,7 @@ func main() {
     print("  Mismatched predictions: \(mismatches)")
 
     if mismatches == 0 {
-        print("\n✅ SUCCESS: All predictions match! Save/load round-trip works correctly.")
+        ColoredPrint.success("\nSUCCESS: All predictions match! Save/load round-trip works correctly.")
 
         // Calculate accuracy on test set
         var correct = 0
@@ -687,7 +744,10 @@ func main() {
         try? FileManager.default.removeItem(atPath: modelFile)
         print("\nTest model file cleaned up.")
     } else {
-        print("\n❌ FAILED: Predictions do not match! Save/load has issues.")
+        ColoredPrint.error("\nVerification FAILED: Predictions do not match after save/load")
+        ColoredPrint.info("→ This indicates the save/load functions have a bug")
+        ColoredPrint.info("→ Model weights may not be preserved correctly")
+        ColoredPrint.info("→ Check saveModel() and loadModel() implementations")
         exit(1)
     }
 }
