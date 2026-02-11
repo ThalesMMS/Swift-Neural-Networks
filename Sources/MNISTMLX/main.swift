@@ -9,12 +9,14 @@
 //   swift run MNISTMLX --model cnn --epochs 3 --batch 32 --lr 0.01
 //
 // AVAILABLE MODELS:
-//   - mlp:       Multi-Layer Perceptron (fastest, ~97% accuracy)
-//   - cnn:       Convolutional Neural Network (best accuracy, ~98%)
-//   - attention: Transformer-style attention (educational, ~95%)
+//   - mlp:         Multi-Layer Perceptron (fastest, ~97% accuracy)
+//   - cnn:         Convolutional Neural Network (best accuracy, ~98%)
+//   - resnet:      Residual Network with skip connections (~98% accuracy)
+//   - attention:   Transformer-style attention (educational, ~95%)
+//   - transformer: Full Transformer block with multi-head attention and FFN
 //
 // COMMAND-LINE OPTIONS:
-//   --model <name>   Model to train: mlp, cnn, or attention (default: mlp)
+//   --model <name>   Model to train: mlp, cnn, resnet, attention, or transformer (default: mlp)
 //   --epochs <n>     Number of training epochs (default: 5)
 //   --batch <n>      Batch size (default: 32)
 //   --lr <f>         Learning rate (default: 0.01)
@@ -45,6 +47,8 @@ struct Config {
     var seed: UInt64 = 1
     var useCompile: Bool = false
     var exportJson: Bool = false
+    var checkpointInterval: Int? = nil
+    var resumeFrom: String? = nil
 
     /// Parses command-line arguments into configuration
     ///
@@ -102,6 +106,18 @@ struct Config {
             case "--export-json":
                 config.exportJson = true
 
+            case "--checkpoint-interval":
+                i += 1
+                if i < args.count, let val = Int(args[i]) {
+                    config.checkpointInterval = val
+                }
+
+            case "--resume":
+                i += 1
+                if i < args.count {
+                    config.resumeFrom = args[i]
+                }
+
             case "--help", "-h":
                 printUsage()
                 exit(0)
@@ -129,7 +145,7 @@ func printUsage() {
       swift run MNISTMLX [OPTIONS]
 
     OPTIONS:
-      --model, -m <name>    Model to train: mlp, cnn, or attention (default: mlp)
+      --model, -m <name>    Model to train: mlp, cnn, resnet, attention, or transformer (default: mlp)
       --epochs, -e <n>      Number of training epochs (default: 5)
       --batch, -b <n>       Batch size (default: 32)
       --lr, -l <f>          Learning rate (default: 0.01)
@@ -137,6 +153,8 @@ func printUsage() {
       --seed, -s <n>        Random seed for reproducibility (default: 1)
       --compile, -c         Enable compiled training for faster execution
       --export-json         Export training results to JSON file
+      --checkpoint-interval <n>  Save checkpoint every N epochs (default: disabled)
+      --resume <path>       Resume training from checkpoint file
       --help, -h            Show this help message
 
     ENVIRONMENT:
@@ -157,9 +175,17 @@ func printUsage() {
                  - Conv(3×3, 8 filters) → MaxPool → Linear
                  - Best accuracy (~98%)
 
+      resnet     Residual Network with skip connections
+                 - ResidualBlock × 3 with skip connections
+                 - Demonstrates how ResNet enables deeper networks (~98% accuracy)
+
       attention  Transformer-style self-attention
                  - 4×4 patches → 49 tokens → attention → pooling
                  - Educational (demonstrates attention mechanism)
+
+      transformer Full Transformer block with multi-head attention
+                 - Patches → Multi-head Self-Attention → LayerNorm → FFN → LayerNorm
+                 - Demonstrates complete transformer architecture
     """)
 }
 
@@ -190,18 +216,55 @@ func trainMLP(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
     let optimizer = SGD(learningRate: config.learningRate)
 
     // -------------------------------------------------------------------------
+    // Resume from Checkpoint (if specified)
+    // -------------------------------------------------------------------------
+    var startEpoch = 1
+
+    if let resumePath = config.resumeFrom {
+        ColoredPrint.progress("\n📂 Loading checkpoint from: \(resumePath)")
+
+        do {
+            // Load checkpoint from file
+            let checkpoint = try Checkpoint.load(from: resumePath)
+
+            // Validate model type matches
+            guard checkpoint.validateModelType("mlp") else {
+                ColoredPrint.error("❌ Model type mismatch: checkpoint is '\(checkpoint.modelType)', expected 'mlp'")
+                exit(1)
+            }
+
+            // Restore model weights
+            try loadCheckpoint(checkpoint: checkpoint, into: model)
+
+            // Resume from next epoch
+            startEpoch = checkpoint.epoch + 1
+
+            ColoredPrint.success("✅ Checkpoint loaded successfully")
+            ColoredPrint.info("   Resuming from epoch: \(startEpoch)")
+            ColoredPrint.info("   Previous loss: \(String(format: "%.6f", checkpoint.metrics.trainLoss))")
+            ColoredPrint.info("   Learning rate: \(checkpoint.optimizerState.learningRate)")
+            print()
+        } catch {
+            ColoredPrint.error("❌ Failed to load checkpoint: \(error)")
+            exit(1)
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Training Loop
     // -------------------------------------------------------------------------
     var epochMetrics: [EpochMetrics] = []
+    var bestValidationAccuracy: Float = 0.0
+    var bestEpoch: Int = 0
 
     if config.useCompile {
         ColoredPrint.info("   Compilation: enabled ⚡")
     }
 
-    ColoredPrint.info("Epoch | Loss     | Time")
-    ColoredPrint.info("------|----------|--------")
+    ColoredPrint.info("Epoch | Loss     | Time    | Validation Accuracy")
+    ColoredPrint.info("------|----------|---------|--------------------")
 
-    for epoch in 1...config.epochs {
+    for epoch in startEpoch...config.epochs {
         let startTime = Date()
 
         // Train for one epoch (compiled or uncompiled based on config)
@@ -225,10 +288,95 @@ func trainMLP(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
         }
 
         let elapsed = Date().timeIntervalSince(startTime)
-        ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
+
+        // Evaluate validation accuracy after epoch
+        let validationAccuracy = mlpAccuracy(model: model, images: testImages, labels: testLabels)
+
+        ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs | Validation: %.2f%%",
+                                     epoch, loss, elapsed, validationAccuracy * 100))
 
         // Collect epoch metrics
         epochMetrics.append(EpochMetrics(epoch: epoch, loss: loss, duration: elapsed))
+
+        // -------------------------------------------------------------------------
+        // Track and Save Best Model
+        // -------------------------------------------------------------------------
+        if validationAccuracy > bestValidationAccuracy {
+            bestValidationAccuracy = validationAccuracy
+            bestEpoch = epoch
+
+            // Create optimizer state
+            let optimState = OptimizerState(learningRate: config.learningRate)
+
+            // Create checkpoint metrics with validation accuracy
+            let bestModelMetrics = CheckpointMetrics(
+                trainLoss: loss,
+                validationAccuracy: validationAccuracy
+            )
+
+            // Create hyperparameters
+            let hyperparams = TrainingHyperparameters(
+                epochs: config.epochs,
+                batchSize: config.batchSize,
+                learningRate: config.learningRate,
+                seed: config.seed
+            )
+
+            // Save best model
+            do {
+                let savedPath = try saveBestModel(
+                    model: model,
+                    modelType: "mlp",
+                    epoch: epoch,
+                    validationAccuracy: validationAccuracy,
+                    optimizerState: optimState,
+                    hyperparameters: hyperparams,
+                    metrics: bestModelMetrics
+                )
+                ColoredPrint.success("🌟 New best model saved: \(savedPath) (Validation: \(String(format: "%.2f%%", validationAccuracy * 100)))")
+            } catch {
+                ColoredPrint.error("Failed to save best model: \(error)")
+            }
+        }
+
+        // -------------------------------------------------------------------------
+        // Save Checkpoint (if checkpoint interval is set)
+        // -------------------------------------------------------------------------
+        if let checkpointInterval = config.checkpointInterval, epoch % checkpointInterval == 0 {
+            let checkpointsDir = "./checkpoints"
+            let filename = "checkpoint_mlp_epoch_\(epoch).json"
+            let filePath = "\(checkpointsDir)/\(filename)"
+
+            // Create optimizer state
+            let optimState = OptimizerState(learningRate: config.learningRate)
+
+            // Create checkpoint metrics
+            let checkpointMetrics = CheckpointMetrics(trainLoss: loss)
+
+            // Create hyperparameters
+            let hyperparams = TrainingHyperparameters(
+                epochs: config.epochs,
+                batchSize: config.batchSize,
+                learningRate: config.learningRate,
+                seed: config.seed
+            )
+
+            // Save checkpoint
+            do {
+                try saveCheckpoint(
+                    model: model,
+                    modelType: "mlp",
+                    epoch: epoch,
+                    optimizerState: optimState,
+                    hyperparameters: hyperparams,
+                    metrics: checkpointMetrics,
+                    filePath: filePath
+                )
+                ColoredPrint.success("💾 Checkpoint saved: \(filePath)")
+            } catch {
+                ColoredPrint.error("Failed to save checkpoint: \(error)")
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -258,7 +406,9 @@ func trainMLP(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
         hyperparameters: hyperparameters,
         epochMetrics: epochMetrics,
         finalAccuracy: accuracy,
-        benchmarkComparison: benchmarkComparison
+        benchmarkComparison: benchmarkComparison,
+        bestValidationAccuracy: bestEpoch > 0 ? bestValidationAccuracy : nil,
+        bestEpoch: bestEpoch > 0 ? bestEpoch : nil
     )
 
     summary.printSummary()
@@ -305,7 +455,7 @@ func trainCNN(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
     print("   Architecture: Conv(3×3, 8) → ReLU → MaxPool(2×2) → Linear(10)")
     print("   Parameters:   ~16,000")
     print()
-    
+
     // -------------------------------------------------------------------------
     // Initialize Model and Optimizer
     // -------------------------------------------------------------------------
@@ -315,18 +465,55 @@ func trainCNN(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
     let optimizer = SGD(learningRate: config.learningRate)
 
     // -------------------------------------------------------------------------
+    // Resume from Checkpoint (if specified)
+    // -------------------------------------------------------------------------
+    var startEpoch = 1
+
+    if let resumePath = config.resumeFrom {
+        ColoredPrint.progress("\n📂 Loading checkpoint from: \(resumePath)")
+
+        do {
+            // Load checkpoint from file
+            let checkpoint = try Checkpoint.load(from: resumePath)
+
+            // Validate model type matches
+            guard checkpoint.validateModelType("cnn") else {
+                ColoredPrint.error("❌ Model type mismatch: checkpoint is '\(checkpoint.modelType)', expected 'cnn'")
+                exit(1)
+            }
+
+            // Restore model weights
+            try loadCheckpoint(checkpoint: checkpoint, into: model)
+
+            // Resume from next epoch
+            startEpoch = checkpoint.epoch + 1
+
+            ColoredPrint.success("✅ Checkpoint loaded successfully")
+            ColoredPrint.info("   Resuming from epoch: \(startEpoch)")
+            ColoredPrint.info("   Previous loss: \(String(format: "%.6f", checkpoint.metrics.trainLoss))")
+            ColoredPrint.info("   Learning rate: \(checkpoint.optimizerState.learningRate)")
+            print()
+        } catch {
+            ColoredPrint.error("❌ Failed to load checkpoint: \(error)")
+            exit(1)
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Training Loop
     // -------------------------------------------------------------------------
     var epochMetrics: [EpochMetrics] = []
+    var bestValidationAccuracy: Float = 0.0
+    var bestEpoch: Int = 0
 
     if config.useCompile {
         ColoredPrint.info("   Compilation: enabled ⚡")
     }
 
-    ColoredPrint.info("Epoch | Loss     | Time")
-    ColoredPrint.info("------|----------|--------")
+    ColoredPrint.info("Epoch | Loss     | Time    | Validation Accuracy")
+    ColoredPrint.info("------|----------|---------|--------------------")
 
-    for epoch in 1...config.epochs {
+    for epoch in startEpoch...config.epochs {
         let startTime = Date()
 
         // Train for one epoch (compiled or uncompiled based on config)
@@ -350,10 +537,96 @@ func trainCNN(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
         }
 
         let elapsed = Date().timeIntervalSince(startTime)
-        ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
+
+        // Evaluate validation accuracy after epoch
+        let testImagesReshaped = testImages.reshaped([-1, 1, 28, 28])
+        let validationAccuracy = cnnAccuracy(model: model, images: testImagesReshaped, labels: testLabels)
+
+        ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs | Validation: %.2f%%",
+                                     epoch, loss, elapsed, validationAccuracy * 100))
 
         // Collect epoch metrics
         epochMetrics.append(EpochMetrics(epoch: epoch, loss: loss, duration: elapsed))
+
+        // -------------------------------------------------------------------------
+        // Track and Save Best Model
+        // -------------------------------------------------------------------------
+        if validationAccuracy > bestValidationAccuracy {
+            bestValidationAccuracy = validationAccuracy
+            bestEpoch = epoch
+
+            // Create optimizer state
+            let optimState = OptimizerState(learningRate: config.learningRate)
+
+            // Create checkpoint metrics with validation accuracy
+            let bestModelMetrics = CheckpointMetrics(
+                trainLoss: loss,
+                validationAccuracy: validationAccuracy
+            )
+
+            // Create hyperparameters
+            let hyperparams = TrainingHyperparameters(
+                epochs: config.epochs,
+                batchSize: config.batchSize,
+                learningRate: config.learningRate,
+                seed: config.seed
+            )
+
+            // Save best model
+            do {
+                let savedPath = try saveBestModel(
+                    model: model,
+                    modelType: "cnn",
+                    epoch: epoch,
+                    validationAccuracy: validationAccuracy,
+                    optimizerState: optimState,
+                    hyperparameters: hyperparams,
+                    metrics: bestModelMetrics
+                )
+                ColoredPrint.success("🌟 New best model saved: \(savedPath) (Validation: \(String(format: "%.2f%%", validationAccuracy * 100)))")
+            } catch {
+                ColoredPrint.error("Failed to save best model: \(error)")
+            }
+        }
+
+        // -------------------------------------------------------------------------
+        // Save Checkpoint (if checkpoint interval is set)
+        // -------------------------------------------------------------------------
+        if let checkpointInterval = config.checkpointInterval, epoch % checkpointInterval == 0 {
+            let checkpointsDir = "./checkpoints"
+            let filename = "checkpoint_cnn_epoch_\(epoch).json"
+            let filePath = "\(checkpointsDir)/\(filename)"
+
+            // Create optimizer state
+            let optimState = OptimizerState(learningRate: config.learningRate)
+
+            // Create checkpoint metrics
+            let checkpointMetrics = CheckpointMetrics(trainLoss: loss)
+
+            // Create hyperparameters
+            let hyperparams = TrainingHyperparameters(
+                epochs: config.epochs,
+                batchSize: config.batchSize,
+                learningRate: config.learningRate,
+                seed: config.seed
+            )
+
+            // Save checkpoint
+            do {
+                try saveCheckpoint(
+                    model: model,
+                    modelType: "cnn",
+                    epoch: epoch,
+                    optimizerState: optimState,
+                    hyperparameters: hyperparams,
+                    metrics: checkpointMetrics,
+                    filePath: filePath
+                )
+                ColoredPrint.success("💾 Checkpoint saved: \(filePath)")
+            } catch {
+                ColoredPrint.error("Failed to save checkpoint: \(error)")
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -386,7 +659,9 @@ func trainCNN(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
         hyperparameters: hyperparameters,
         epochMetrics: epochMetrics,
         finalAccuracy: accuracy,
-        benchmarkComparison: benchmarkComparison
+        benchmarkComparison: benchmarkComparison,
+        bestValidationAccuracy: bestEpoch > 0 ? bestValidationAccuracy : nil,
+        bestEpoch: bestEpoch > 0 ? bestEpoch : nil
     )
 
     summary.printSummary()
@@ -443,18 +718,55 @@ func trainAttention(config: Config, trainImages: MLXArray, trainLabels: MLXArray
     let optimizer = SGD(learningRate: config.learningRate)
 
     // -------------------------------------------------------------------------
+    // Resume from Checkpoint (if specified)
+    // -------------------------------------------------------------------------
+    var startEpoch = 1
+
+    if let resumePath = config.resumeFrom {
+        ColoredPrint.progress("\n📂 Loading checkpoint from: \(resumePath)")
+
+        do {
+            // Load checkpoint from file
+            let checkpoint = try Checkpoint.load(from: resumePath)
+
+            // Validate model type matches
+            guard checkpoint.validateModelType("attention") else {
+                ColoredPrint.error("❌ Model type mismatch: checkpoint is '\(checkpoint.modelType)', expected 'attention'")
+                exit(1)
+            }
+
+            // Restore model weights
+            try loadCheckpoint(checkpoint: checkpoint, into: model)
+
+            // Resume from next epoch
+            startEpoch = checkpoint.epoch + 1
+
+            ColoredPrint.success("✅ Checkpoint loaded successfully")
+            ColoredPrint.info("   Resuming from epoch: \(startEpoch)")
+            ColoredPrint.info("   Previous loss: \(String(format: "%.6f", checkpoint.metrics.trainLoss))")
+            ColoredPrint.info("   Learning rate: \(checkpoint.optimizerState.learningRate)")
+            print()
+        } catch {
+            ColoredPrint.error("❌ Failed to load checkpoint: \(error)")
+            exit(1)
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Training Loop
     // -------------------------------------------------------------------------
     var epochMetrics: [EpochMetrics] = []
+    var bestValidationAccuracy: Float = 0.0
+    var bestEpoch: Int = 0
 
     if config.useCompile {
         ColoredPrint.info("   Compilation: enabled ⚡")
     }
 
-    ColoredPrint.info("Epoch | Loss     | Time")
-    ColoredPrint.info("------|----------|--------")
+    ColoredPrint.info("Epoch | Loss     | Time    | Validation Accuracy")
+    ColoredPrint.info("------|----------|---------|--------------------")
 
-    for epoch in 1...config.epochs {
+    for epoch in startEpoch...config.epochs {
         let startTime = Date()
 
         // Train for one epoch (compiled or uncompiled based on config)
@@ -478,10 +790,95 @@ func trainAttention(config: Config, trainImages: MLXArray, trainLabels: MLXArray
         }
 
         let elapsed = Date().timeIntervalSince(startTime)
-        ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs", epoch, loss, elapsed))
+
+        // Evaluate validation accuracy after epoch
+        let validationAccuracy = attentionAccuracy(model: model, images: testImages, labels: testLabels)
+
+        ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs | Validation: %.2f%%",
+                                     epoch, loss, elapsed, validationAccuracy * 100))
 
         // Collect epoch metrics
         epochMetrics.append(EpochMetrics(epoch: epoch, loss: loss, duration: elapsed))
+
+        // -------------------------------------------------------------------------
+        // Track and Save Best Model
+        // -------------------------------------------------------------------------
+        if validationAccuracy > bestValidationAccuracy {
+            bestValidationAccuracy = validationAccuracy
+            bestEpoch = epoch
+
+            // Create optimizer state
+            let optimState = OptimizerState(learningRate: config.learningRate)
+
+            // Create checkpoint metrics with validation accuracy
+            let bestModelMetrics = CheckpointMetrics(
+                trainLoss: loss,
+                validationAccuracy: validationAccuracy
+            )
+
+            // Create hyperparameters
+            let hyperparams = TrainingHyperparameters(
+                epochs: config.epochs,
+                batchSize: config.batchSize,
+                learningRate: config.learningRate,
+                seed: config.seed
+            )
+
+            // Save best model
+            do {
+                let savedPath = try saveBestModel(
+                    model: model,
+                    modelType: "attention",
+                    epoch: epoch,
+                    validationAccuracy: validationAccuracy,
+                    optimizerState: optimState,
+                    hyperparameters: hyperparams,
+                    metrics: bestModelMetrics
+                )
+                ColoredPrint.success("🌟 New best model saved: \(savedPath) (Validation: \(String(format: "%.2f%%", validationAccuracy * 100)))")
+            } catch {
+                ColoredPrint.error("Failed to save best model: \(error)")
+            }
+        }
+
+        // -------------------------------------------------------------------------
+        // Save Checkpoint (if checkpoint interval is set)
+        // -------------------------------------------------------------------------
+        if let checkpointInterval = config.checkpointInterval, epoch % checkpointInterval == 0 {
+            let checkpointsDir = "./checkpoints"
+            let filename = "checkpoint_attention_epoch_\(epoch).json"
+            let filePath = "\(checkpointsDir)/\(filename)"
+
+            // Create optimizer state
+            let optimState = OptimizerState(learningRate: config.learningRate)
+
+            // Create checkpoint metrics
+            let checkpointMetrics = CheckpointMetrics(trainLoss: loss)
+
+            // Create hyperparameters
+            let hyperparams = TrainingHyperparameters(
+                epochs: config.epochs,
+                batchSize: config.batchSize,
+                learningRate: config.learningRate,
+                seed: config.seed
+            )
+
+            // Save checkpoint
+            do {
+                try saveCheckpoint(
+                    model: model,
+                    modelType: "attention",
+                    epoch: epoch,
+                    optimizerState: optimState,
+                    hyperparameters: hyperparams,
+                    metrics: checkpointMetrics,
+                    filePath: filePath
+                )
+                ColoredPrint.success("💾 Checkpoint saved: \(filePath)")
+            } catch {
+                ColoredPrint.error("Failed to save checkpoint: \(error)")
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -511,7 +908,500 @@ func trainAttention(config: Config, trainImages: MLXArray, trainLabels: MLXArray
         hyperparameters: hyperparameters,
         epochMetrics: epochMetrics,
         finalAccuracy: accuracy,
-        benchmarkComparison: benchmarkComparison
+        benchmarkComparison: benchmarkComparison,
+        bestValidationAccuracy: bestEpoch > 0 ? bestValidationAccuracy : nil,
+        bestEpoch: bestEpoch > 0 ? bestEpoch : nil
+    )
+
+    summary.printSummary()
+    summary.printBenchmarkComparison()
+
+    // -------------------------------------------------------------------------
+    // JSON Export (if requested)
+    // -------------------------------------------------------------------------
+    if config.exportJson {
+        let fileManager = FileManager.default
+        let logsDir = "./logs"
+
+        // Create logs directory if it doesn't exist
+        if !fileManager.fileExists(atPath: logsDir) {
+            do {
+                try fileManager.createDirectory(atPath: logsDir, withIntermediateDirectories: true)
+            } catch {
+                ColoredPrint.error("Failed to create logs directory: \(error)")
+                return
+            }
+        }
+
+        // Generate timestamped filename
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
+        let timestamp = dateFormatter.string(from: Date())
+        let filename = "training_summary_\(config.modelType)_\(timestamp).json"
+        let filePath = "\(logsDir)/\(filename)"
+
+        // Export to JSON
+        do {
+            try summary.exportToJSON(filePath: filePath)
+            ColoredPrint.success("📄 Training summary exported to: \(filePath)")
+        } catch {
+            ColoredPrint.error("Failed to export JSON: \(error)")
+        }
+    }
+}
+
+/// Trains a Transformer model and evaluates it
+func trainTransformer(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
+                      testImages: MLXArray, testLabels: MLXArray) {
+    print("\n🧠 Training Transformer Model")
+    print("   Architecture: Patches → Multi-head Self-Attention → LayerNorm → FFN → LayerNorm")
+    print("   Parameters:   ~15,000")
+    print()
+
+    // -------------------------------------------------------------------------
+    // Initialize Model and Optimizer
+    // -------------------------------------------------------------------------
+    let model = TransformerModel()
+    eval(model)
+
+    let optimizer = SGD(learningRate: config.learningRate)
+
+    // -------------------------------------------------------------------------
+    // Resume from Checkpoint (if specified)
+    // -------------------------------------------------------------------------
+    var startEpoch = 1
+
+    if let resumePath = config.resumeFrom {
+        ColoredPrint.progress("\n📂 Loading checkpoint from: \(resumePath)")
+
+        do {
+            // Load checkpoint from file
+            let checkpoint = try Checkpoint.load(from: resumePath)
+
+            // Validate model type matches
+            guard checkpoint.validateModelType("transformer") else {
+                ColoredPrint.error("❌ Model type mismatch: checkpoint is '\(checkpoint.modelType)', expected 'transformer'")
+                exit(1)
+            }
+
+            // Restore model weights
+            try loadCheckpoint(checkpoint: checkpoint, into: model)
+
+            // Resume from next epoch
+            startEpoch = checkpoint.epoch + 1
+
+            ColoredPrint.success("✅ Checkpoint loaded successfully")
+            ColoredPrint.info("   Resuming from epoch: \(startEpoch)")
+            ColoredPrint.info("   Previous loss: \(String(format: "%.6f", checkpoint.metrics.trainLoss))")
+            ColoredPrint.info("   Learning rate: \(checkpoint.optimizerState.learningRate)")
+            print()
+        } catch {
+            ColoredPrint.error("❌ Failed to load checkpoint: \(error)")
+            exit(1)
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Training Loop
+    // -------------------------------------------------------------------------
+    var epochMetrics: [EpochMetrics] = []
+    var bestValidationAccuracy: Float = 0.0
+    var bestEpoch: Int = 0
+
+    if config.useCompile {
+        ColoredPrint.info("   Compilation: enabled ⚡")
+    }
+
+    ColoredPrint.info("Epoch | Loss     | Time    | Validation Accuracy")
+    ColoredPrint.info("------|----------|---------|--------------------")
+
+    for epoch in startEpoch...config.epochs {
+        let startTime = Date()
+
+        // Train for one epoch
+        let loss = trainTransformerEpoch(
+            model: model,
+            optimizer: optimizer,
+            trainImages: trainImages,
+            trainLabels: trainLabels,
+            batchSize: config.batchSize
+        )
+
+        let elapsed = Date().timeIntervalSince(startTime)
+
+        // Evaluate validation accuracy after epoch
+        let validationAccuracy = transformerAccuracy(model: model, images: testImages, labels: testLabels)
+
+        ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs | Validation: %.2f%%",
+                                     epoch, loss, elapsed, validationAccuracy * 100))
+
+        // Collect epoch metrics
+        epochMetrics.append(EpochMetrics(epoch: epoch, loss: loss, duration: elapsed))
+
+        // -------------------------------------------------------------------------
+        // Track and Save Best Model
+        // -------------------------------------------------------------------------
+        if validationAccuracy > bestValidationAccuracy {
+            bestValidationAccuracy = validationAccuracy
+            bestEpoch = epoch
+
+            // Create optimizer state
+            let optimState = OptimizerState(learningRate: config.learningRate)
+
+            // Create checkpoint metrics with validation accuracy
+            let bestModelMetrics = CheckpointMetrics(
+                trainLoss: loss,
+                validationAccuracy: validationAccuracy
+            )
+
+            // Create hyperparameters
+            let hyperparams = TrainingHyperparameters(
+                epochs: config.epochs,
+                batchSize: config.batchSize,
+                learningRate: config.learningRate,
+                seed: config.seed
+            )
+
+            // Save best model
+            do {
+                let savedPath = try saveBestModel(
+                    model: model,
+                    modelType: "transformer",
+                    epoch: epoch,
+                    validationAccuracy: validationAccuracy,
+                    optimizerState: optimState,
+                    hyperparameters: hyperparams,
+                    metrics: bestModelMetrics
+                )
+                ColoredPrint.success("🌟 New best model saved: \(savedPath) (Validation: \(String(format: "%.2f%%", validationAccuracy * 100)))")
+            } catch {
+                ColoredPrint.error("Failed to save best model: \(error)")
+            }
+        }
+
+        // -------------------------------------------------------------------------
+        // Save Checkpoint (if checkpoint interval is set)
+        // -------------------------------------------------------------------------
+        if let checkpointInterval = config.checkpointInterval, epoch % checkpointInterval == 0 {
+            let checkpointsDir = "./checkpoints"
+            let filename = "checkpoint_transformer_epoch_\(epoch).json"
+            let filePath = "\(checkpointsDir)/\(filename)"
+
+            // Create optimizer state
+            let optimState = OptimizerState(learningRate: config.learningRate)
+
+            // Create checkpoint metrics
+            let checkpointMetrics = CheckpointMetrics(trainLoss: loss)
+
+            // Create hyperparameters
+            let hyperparams = TrainingHyperparameters(
+                epochs: config.epochs,
+                batchSize: config.batchSize,
+                learningRate: config.learningRate,
+                seed: config.seed
+            )
+
+            // Save checkpoint
+            do {
+                try saveCheckpoint(
+                    model: model,
+                    modelType: "transformer",
+                    epoch: epoch,
+                    optimizerState: optimState,
+                    hyperparameters: hyperparams,
+                    metrics: checkpointMetrics,
+                    filePath: filePath
+                )
+                ColoredPrint.success("💾 Checkpoint saved: \(filePath)")
+            } catch {
+                ColoredPrint.error("Failed to save checkpoint: \(error)")
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Evaluation
+    // -------------------------------------------------------------------------
+    ColoredPrint.progress("\n📊 Evaluating on test set...")
+    let accuracy = transformerAccuracy(model: model, images: testImages, labels: testLabels)
+    ColoredPrint.info(String(format: "   Test Accuracy: %.2f%%", accuracy * 100))
+
+    // -------------------------------------------------------------------------
+    // Training Summary
+    // -------------------------------------------------------------------------
+    let hyperparameters = TrainingHyperparameters(
+        epochs: config.epochs,
+        batchSize: config.batchSize,
+        learningRate: config.learningRate,
+        seed: config.seed
+    )
+
+    let benchmarkComparison = BenchmarkComparison(
+        expectedAccuracy: 0.92,
+        actualAccuracy: accuracy
+    )
+
+    let summary = TrainingSummary(
+        modelType: "transformer",
+        hyperparameters: hyperparameters,
+        epochMetrics: epochMetrics,
+        finalAccuracy: accuracy,
+        benchmarkComparison: benchmarkComparison,
+        bestValidationAccuracy: bestEpoch > 0 ? bestValidationAccuracy : nil,
+        bestEpoch: bestEpoch > 0 ? bestEpoch : nil
+    )
+
+    summary.printSummary()
+    summary.printBenchmarkComparison()
+
+    // -------------------------------------------------------------------------
+    // JSON Export (if requested)
+    // -------------------------------------------------------------------------
+    if config.exportJson {
+        let fileManager = FileManager.default
+        let logsDir = "./logs"
+
+        // Create logs directory if it doesn't exist
+        if !fileManager.fileExists(atPath: logsDir) {
+            do {
+                try fileManager.createDirectory(atPath: logsDir, withIntermediateDirectories: true)
+            } catch {
+                ColoredPrint.error("Failed to create logs directory: \(error)")
+                return
+            }
+        }
+
+        // Generate timestamped filename
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
+        let timestamp = dateFormatter.string(from: Date())
+        let filename = "training_summary_\(config.modelType)_\(timestamp).json"
+        let filePath = "\(logsDir)/\(filename)"
+
+        // Export to JSON
+        do {
+            try summary.exportToJSON(filePath: filePath)
+            ColoredPrint.success("📄 Training summary exported to: \(filePath)")
+        } catch {
+            ColoredPrint.error("Failed to export JSON: \(error)")
+        }
+    }
+}
+
+/// Trains a ResNet model and evaluates it
+func trainResNet(config: Config, trainImages: MLXArray, trainLabels: MLXArray,
+                 testImages: MLXArray, testLabels: MLXArray) {
+    print("\n🧠 Training ResNet Model")
+    print("   Architecture: Conv → ResidualBlock × 3 → GlobalAvgPool → Linear")
+    print("   Parameters:   ~10,000")
+    print()
+
+    // -------------------------------------------------------------------------
+    // Initialize Model and Optimizer
+    // -------------------------------------------------------------------------
+    let model = ResNetModel()
+    eval(model)
+
+    let optimizer = SGD(learningRate: config.learningRate)
+
+    // -------------------------------------------------------------------------
+    // Resume from Checkpoint (if specified)
+    // -------------------------------------------------------------------------
+    var startEpoch = 1
+
+    if let resumePath = config.resumeFrom {
+        ColoredPrint.progress("\n📂 Loading checkpoint from: \(resumePath)")
+
+        do {
+            // Load checkpoint from file
+            let checkpoint = try Checkpoint.load(from: resumePath)
+
+            // Validate model type matches
+            guard checkpoint.validateModelType("resnet") else {
+                ColoredPrint.error("❌ Model type mismatch: checkpoint is '\(checkpoint.modelType)', expected 'resnet'")
+                exit(1)
+            }
+
+            // Restore model weights
+            try loadCheckpoint(checkpoint: checkpoint, into: model)
+
+            // Resume from next epoch
+            startEpoch = checkpoint.epoch + 1
+
+            ColoredPrint.success("✅ Checkpoint loaded successfully")
+            ColoredPrint.info("   Resuming from epoch: \(startEpoch)")
+            ColoredPrint.info("   Previous loss: \(String(format: "%.6f", checkpoint.metrics.trainLoss))")
+            ColoredPrint.info("   Learning rate: \(checkpoint.optimizerState.learningRate)")
+            print()
+        } catch {
+            ColoredPrint.error("❌ Failed to load checkpoint: \(error)")
+            exit(1)
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Training Loop
+    // -------------------------------------------------------------------------
+    var epochMetrics: [EpochMetrics] = []
+    var bestValidationAccuracy: Float = 0.0
+    var bestEpoch: Int = 0
+
+    if config.useCompile {
+        ColoredPrint.info("   Compilation: enabled ⚡")
+    }
+
+    ColoredPrint.info("Epoch | Loss     | Time    | Validation Accuracy")
+    ColoredPrint.info("------|----------|---------|--------------------")
+
+    for epoch in startEpoch...config.epochs {
+        let startTime = Date()
+
+        // Train for one epoch (compiled or uncompiled based on config)
+        let loss: Float
+        if config.useCompile {
+            loss = trainResNetEpochCompiled(
+                model: model,
+                optimizer: optimizer,
+                trainImages: trainImages,
+                trainLabels: trainLabels,
+                batchSize: config.batchSize
+            )
+        } else {
+            loss = trainResNetEpoch(
+                model: model,
+                optimizer: optimizer,
+                trainImages: trainImages,
+                trainLabels: trainLabels,
+                batchSize: config.batchSize
+            )
+        }
+
+        let elapsed = Date().timeIntervalSince(startTime)
+
+        // Evaluate validation accuracy after epoch
+        let testImagesReshaped = testImages.reshaped([-1, 1, 28, 28])
+        let validationAccuracy = resnetAccuracy(model: model, images: testImagesReshaped, labels: testLabels)
+
+        ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs | Validation: %.2f%%",
+                                     epoch, loss, elapsed, validationAccuracy * 100))
+
+        // Collect epoch metrics
+        epochMetrics.append(EpochMetrics(epoch: epoch, loss: loss, duration: elapsed))
+
+        // -------------------------------------------------------------------------
+        // Track and Save Best Model
+        // -------------------------------------------------------------------------
+        if validationAccuracy > bestValidationAccuracy {
+            bestValidationAccuracy = validationAccuracy
+            bestEpoch = epoch
+
+            // Create optimizer state
+            let optimState = OptimizerState(learningRate: config.learningRate)
+
+            // Create checkpoint metrics with validation accuracy
+            let bestModelMetrics = CheckpointMetrics(
+                trainLoss: loss,
+                validationAccuracy: validationAccuracy
+            )
+
+            // Create hyperparameters
+            let hyperparams = TrainingHyperparameters(
+                epochs: config.epochs,
+                batchSize: config.batchSize,
+                learningRate: config.learningRate,
+                seed: config.seed
+            )
+
+            // Save best model
+            do {
+                let savedPath = try saveBestModel(
+                    model: model,
+                    modelType: "resnet",
+                    epoch: epoch,
+                    validationAccuracy: validationAccuracy,
+                    optimizerState: optimState,
+                    hyperparameters: hyperparams,
+                    metrics: bestModelMetrics
+                )
+                ColoredPrint.success("🌟 New best model saved: \(savedPath) (Validation: \(String(format: "%.2f%%", validationAccuracy * 100)))")
+            } catch {
+                ColoredPrint.error("Failed to save best model: \(error)")
+            }
+        }
+
+        // -------------------------------------------------------------------------
+        // Save Checkpoint (if checkpoint interval is set)
+        // -------------------------------------------------------------------------
+        if let checkpointInterval = config.checkpointInterval, epoch % checkpointInterval == 0 {
+            let checkpointsDir = "./checkpoints"
+            let filename = "checkpoint_resnet_epoch_\(epoch).json"
+            let filePath = "\(checkpointsDir)/\(filename)"
+
+            // Create optimizer state
+            let optimState = OptimizerState(learningRate: config.learningRate)
+
+            // Create checkpoint metrics
+            let checkpointMetrics = CheckpointMetrics(trainLoss: loss)
+
+            // Create hyperparameters
+            let hyperparams = TrainingHyperparameters(
+                epochs: config.epochs,
+                batchSize: config.batchSize,
+                learningRate: config.learningRate,
+                seed: config.seed
+            )
+
+            // Save checkpoint
+            do {
+                try saveCheckpoint(
+                    model: model,
+                    modelType: "resnet",
+                    epoch: epoch,
+                    optimizerState: optimState,
+                    hyperparameters: hyperparams,
+                    metrics: checkpointMetrics,
+                    filePath: filePath
+                )
+                ColoredPrint.success("💾 Checkpoint saved: \(filePath)")
+            } catch {
+                ColoredPrint.error("Failed to save checkpoint: \(error)")
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Evaluation
+    // -------------------------------------------------------------------------
+    ColoredPrint.progress("\n📊 Evaluating on test set...")
+
+    // Reshape for ResNet (add channel dimension)
+    let testImagesReshaped = testImages.reshaped([-1, 1, 28, 28])
+    let accuracy = resnetAccuracy(model: model, images: testImagesReshaped, labels: testLabels)
+    ColoredPrint.info(String(format: "   Test Accuracy: %.2f%%", accuracy * 100))
+
+    // -------------------------------------------------------------------------
+    // Training Summary
+    // -------------------------------------------------------------------------
+    let hyperparameters = TrainingHyperparameters(
+        epochs: config.epochs,
+        batchSize: config.batchSize,
+        learningRate: config.learningRate,
+        seed: config.seed
+    )
+
+    let benchmarkComparison = BenchmarkComparison(
+        expectedAccuracy: 0.98,
+        actualAccuracy: accuracy
+    )
+
+    let summary = TrainingSummary(
+        modelType: "resnet",
+        hyperparameters: hyperparameters,
+        epochMetrics: epochMetrics,
+        finalAccuracy: accuracy,
+        benchmarkComparison: benchmarkComparison,
+        bestValidationAccuracy: bestEpoch > 0 ? bestValidationAccuracy : nil,
+        bestEpoch: bestEpoch > 0 ? bestEpoch : nil
     )
 
     summary.printSummary()
@@ -628,18 +1518,26 @@ func main() {
     case "mlp":
         trainMLP(config: config, trainImages: trainImages, trainLabels: trainLabels,
                  testImages: testImages, testLabels: testLabels)
-        
+
     case "cnn":
         trainCNN(config: config, trainImages: trainImages, trainLabels: trainLabels,
                  testImages: testImages, testLabels: testLabels)
-        
+
+    case "resnet":
+        trainResNet(config: config, trainImages: trainImages, trainLabels: trainLabels,
+                    testImages: testImages, testLabels: testLabels)
+
     case "attention":
         trainAttention(config: config, trainImages: trainImages, trainLabels: trainLabels,
                        testImages: testImages, testLabels: testLabels)
-        
+
+    case "transformer":
+        trainTransformer(config: config, trainImages: trainImages, trainLabels: trainLabels,
+                         testImages: testImages, testLabels: testLabels)
+
     default:
         ColoredPrint.error("❌ Unknown model type: \(config.modelType)")
-        print("   Available models: mlp, cnn, attention")
+        print("   Available models: mlp, cnn, resnet, attention, transformer")
         exit(1)
     }
 

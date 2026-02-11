@@ -13,6 +13,45 @@ This repository contains small neural networks for:
 
 The primary implementations are in Swift, with Python utilities. The design and binary model format are inspired by https://github.com/djbyrne/mlp.c.
 
+## Quick Start
+
+### Production Use (Recommended)
+
+For production ML workflows and modern development, use **MNISTMLX** with Apple's MLX framework:
+
+```bash
+# Build and run (MLP by default)
+swift run MNISTMLX
+
+# Train CNN model
+swift run MNISTMLX --model cnn --epochs 3
+
+# Train with compilation for 2-3x speedup
+swift run MNISTMLX --model mlp --compile --epochs 10
+```
+
+**Why MNISTMLX?**
+- Modern automatic differentiation (no manual gradients)
+- GPU acceleration on Apple Silicon
+- Concise, maintainable code (80-180 lines vs 1700-2200 lines)
+- Easy to extend and experiment with
+- Production-ready performance
+
+### Learning & Educational Use
+
+To **understand neural networks from scratch**, see **[LEARNING_GUIDE.md](LEARNING_GUIDE.md)** for:
+- Step-by-step learning paths (beginner → advanced)
+- Manual backpropagation implementations
+- Side-by-side comparison of manual vs auto-diff approaches
+- Detailed explanations of how neural networks work under the hood
+
+**Quick learning recommendations:**
+- **New to neural networks?** Start with `mlp_simple.swift` (218 lines, simple XOR problem)
+- **Want to understand MNIST classification?** Study `MNISTClassic` (modular, well-documented)
+- **Ready for production?** Jump to `MNISTMLX` (modern, concise, fast)
+
+---
+
 ## Repository layout
 
 Source code:
@@ -33,7 +72,9 @@ Data and outputs:
 - `logs/training_loss_cnn.txt` (CNN loss log)
 - `logs/training_loss_attention_mnist.txt` (attention loss log)
 
-## Models
+## Models (Educational Reference)
+
+> **Note:** The models described in this section are **educational reference implementations** with manual backpropagation. They are excellent for learning how neural networks work, but for production use, we recommend [MNISTMLX](#mlx-swift-implementation-production-recommended) which uses automatic differentiation and modern best practices. See [LEARNING_GUIDE.md](LEARNING_GUIDE.md) for detailed learning paths.
 
 ### MNIST MLP
 
@@ -66,6 +107,27 @@ Default training parameters:
 - Batch size: 32
 - Epochs: 3
 
+### MNIST ResNet
+
+Architecture:
+
+- Input: 28×28 image
+- Initial Conv: 1 → 16 channels (3×3) + BatchNorm + ReLU
+- ResidualBlock × 3: Skip connections with identity shortcuts
+- GlobalAveragePool: 28×28 → 1×1 per channel
+- FC: 16 → 10
+
+Default training parameters:
+
+- Learning rate: 0.01
+- Batch size: 32
+- Epochs: 5
+- Parameters: ~10,000
+
+Expected accuracy: ~98%
+
+The ResNet implementation demonstrates residual learning with skip connections that enable training of deeper networks by solving the vanishing gradient problem. Each residual block learns F(x) and adds it to the input via a skip connection: output = F(x) + x.
+
 ### MNIST attention model
 
 Architecture:
@@ -95,6 +157,8 @@ Architecture:
 Training uses 1,000,000 epochs by default.
 
 ## Unified CLI Interface
+
+> **Note:** This section covers both production ([MNISTMLX](#mlx-swift-implementation-production-recommended)) and educational ([MNISTClassic](#mnistclassic-modular-educational-implementation), single-file) implementations.
 
 All implementations now support a consistent set of command-line flags for easy experimentation:
 
@@ -154,23 +218,24 @@ Color coding helps visually distinguish different types of messages:
 
 | Color | Message Type | Example |
 | --- | --- | --- |
-| 🔴 Red | Errors | File loading failures, invalid arguments |
-| 🟡 Yellow | Warnings | GPU unavailable, gradient issues |
-| 🟢 Green | Success | Training completed, test accuracy results |
-| 🔵 Cyan | Progress | Epoch updates, training metrics |
-| ⚪ Default | Info | General status messages |
+| Red | Errors | File loading failures, invalid arguments |
+| Yellow | Warnings | GPU unavailable, gradient issues |
+| Green | Success | Training completed, test accuracy results |
+| Cyan | Progress | Epoch updates, training metrics |
+| Default | Info | General status messages |
 
 ### Implementation Details
 
 - **Opt-in**: Colors are disabled by default for backwards compatibility
 - **Environment variable**: Set `ANSI_COLORS=1` to enable
-- **Preserves emojis**: Existing emoji indicators (✅, ❌, 🧠, etc.) are preserved
 - **Clean output**: When disabled, no ANSI escape codes appear in output
 - **All executables**: Works with both MNISTMLX and MNISTClassic
 
 The colored output is particularly useful when training for many epochs or when monitoring long-running experiments, as it allows you to quickly spot warnings, errors, and key metrics in dense training logs.
 
-## Swift GPU acceleration
+## Swift GPU Acceleration (Educational Reference)
+
+> **Educational:** This section describes manual GPU implementation details in the educational reference files. For production GPU acceleration, use [MNISTMLX](#mlx-swift-implementation-production-recommended) which handles GPU operations automatically.
 
 `mnist_mlp.swift` includes GPU paths for faster training and testing:
 
@@ -181,7 +246,9 @@ The colored output is particularly useful when training for many epochs or when 
 
 Note: `--mpsgraph` uses a fixed batch size; leftover samples are dropped to keep the graph static.
 
-## MLX Swift implementation
+## MLX Swift Implementation (Production Recommended)
+
+> **Production:** This is the **recommended implementation** for production use and modern ML development. It provides automatic differentiation, GPU acceleration, and concise code that's easy to maintain and extend.
 
 The MLX Swift versions provide GPU acceleration on Apple Silicon and automatic differentiation.
 
@@ -267,7 +334,9 @@ Original vs MLX code:
 | MLP | 2,223 | 80 | 96% |
 | Attention | 972 | 180 | 81% |
 
-## MNISTClassic (modular implementation)
+## MNISTClassic (Modular Educational Implementation)
+
+> **Educational:** This is a **refactored educational implementation** that demonstrates modular code organization and multiple backend options (CPU, GPU, MPSGraph). Great for understanding code architecture and GPU acceleration, but for production, prefer [MNISTMLX](#mlx-swift-implementation-production-recommended).
 
 The original monolithic `mnist_mlp.swift` has been refactored into a modular structure for maintainability, testability, and readability.
 
@@ -340,7 +409,9 @@ Command-line options:
 
 The legacy monolithic `mnist_mlp.swift` is kept for reference and can still be built directly.
 
-## Build and run (single-file Swift)
+## Build and Run (Single-File Educational Implementations)
+
+> **Educational Reference:** These are **standalone educational implementations** with manual backpropagation. They are kept for backward compatibility and learning purposes. For production use, see [MNISTMLX](#mlx-swift-implementation-production-recommended).
 
 Build:
 
@@ -447,10 +518,10 @@ swift test --parallel
 
 | Module | Tests | Status | Coverage |
 | --- | --- | --- | --- |
-| **MNISTCommonTests** | 66 | ✅ All passing | Activation functions, RNG |
-| **MNISTClassicTests** | 21 | ✅ All passing | CPU GEMM operations |
-| **MNISTMLXTests** | ~76 | ⚠️ MLX limitation | MLX models (MLP, CNN, loss functions) |
-| **MNISTDataTests** | ~47 | ⚠️ MLX limitation | MNIST data loading and batching |
+| **MNISTCommonTests** | 66 | All passing | Activation functions, RNG |
+| **MNISTClassicTests** | 21 | All passing | CPU GEMM operations |
+| **MNISTMLXTests** | ~76 | MLX limitation | MLX models (MLP, CNN, loss functions) |
+| **MNISTDataTests** | ~47 | MLX limitation | MNIST data loading and batching |
 
 **Total Passing:** 87 tests
 

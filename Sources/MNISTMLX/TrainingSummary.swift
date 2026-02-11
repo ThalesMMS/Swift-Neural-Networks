@@ -131,6 +131,12 @@ public struct TrainingSummary: Codable {
     /// Comparison against benchmark accuracy
     public let benchmarkComparison: BenchmarkComparison?
 
+    /// Best validation accuracy achieved during training
+    public let bestValidationAccuracy: Float?
+
+    /// Epoch number when best validation accuracy was achieved
+    public let bestEpoch: Int?
+
     /// Total training time (sum of all epoch durations)
     public var totalTrainingTime: Double {
         return epochMetrics.reduce(0.0) { $0 + $1.duration }
@@ -147,13 +153,17 @@ public struct TrainingSummary: Codable {
         hyperparameters: TrainingHyperparameters,
         epochMetrics: [EpochMetrics],
         finalAccuracy: Float,
-        benchmarkComparison: BenchmarkComparison? = nil
+        benchmarkComparison: BenchmarkComparison? = nil,
+        bestValidationAccuracy: Float? = nil,
+        bestEpoch: Int? = nil
     ) {
         self.modelType = modelType
         self.hyperparameters = hyperparameters
         self.epochMetrics = epochMetrics
         self.finalAccuracy = finalAccuracy
         self.benchmarkComparison = benchmarkComparison
+        self.bestValidationAccuracy = bestValidationAccuracy
+        self.bestEpoch = bestEpoch
     }
 
     // Custom encoding to include computed properties
@@ -163,6 +173,8 @@ public struct TrainingSummary: Codable {
         case epochMetrics
         case finalAccuracy
         case benchmarkComparison
+        case bestValidationAccuracy
+        case bestEpoch
         case totalTrainingTime
         case averageEpochTime
     }
@@ -174,6 +186,8 @@ public struct TrainingSummary: Codable {
         try container.encode(epochMetrics, forKey: .epochMetrics)
         try container.encode(finalAccuracy, forKey: .finalAccuracy)
         try container.encodeIfPresent(benchmarkComparison, forKey: .benchmarkComparison)
+        try container.encodeIfPresent(bestValidationAccuracy, forKey: .bestValidationAccuracy)
+        try container.encodeIfPresent(bestEpoch, forKey: .bestEpoch)
         try container.encode(totalTrainingTime, forKey: .totalTrainingTime)
         try container.encode(averageEpochTime, forKey: .averageEpochTime)
     }
@@ -185,6 +199,8 @@ public struct TrainingSummary: Codable {
         epochMetrics = try container.decode([EpochMetrics].self, forKey: .epochMetrics)
         finalAccuracy = try container.decode(Float.self, forKey: .finalAccuracy)
         benchmarkComparison = try container.decodeIfPresent(BenchmarkComparison.self, forKey: .benchmarkComparison)
+        bestValidationAccuracy = try container.decodeIfPresent(Float.self, forKey: .bestValidationAccuracy)
+        bestEpoch = try container.decodeIfPresent(Int.self, forKey: .bestEpoch)
         // Note: totalTrainingTime and averageEpochTime are computed from epochMetrics
     }
 
@@ -243,6 +259,14 @@ public struct TrainingSummary: Codable {
         ColoredPrint.info(String(format: "  Total Training Time:   %.2f seconds", totalTrainingTime))
         ColoredPrint.info(String(format: "  Average Epoch Time:    %.2f seconds", averageEpochTime))
         print()
+
+        // Best Model Information (if available)
+        if let bestValAcc = bestValidationAccuracy, let bestEp = bestEpoch {
+            ColoredPrint.info("Best Model:")
+            ColoredPrint.info(String(format: "  Best Epoch:            %d", bestEp))
+            ColoredPrint.info(String(format: "  Best Validation Acc:   %.2f%%", bestValAcc * 100))
+            print()
+        }
 
         // Final Results
         ColoredPrint.success(String(format: "Final Test Accuracy:   %.2f%%", finalAccuracy * 100))

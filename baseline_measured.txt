@@ -1,0 +1,9 @@
+Starting baseline measurement at Wed Feb  4 23:58:12 -03 2026
+Loading MNIST...
+Train: 60000 | Test: 10000
+Training CNN: epochs=1 batch=32 lr=0.01
+Epoch 1 | loss=0.591689 | time=1721.788s
+Testing...
+Test Accuracy: 91.23%
+Saving model...
+Model saved to mnist_cnn_model.bin

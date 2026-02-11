@@ -60,14 +60,19 @@ let package = Package(
             targets: ["MNISTData"]
         ),
 
-        // Executable: Main training program with all models
-        // Run with: swift run MNISTMLX --model cnn
+        // Executable: PRODUCTION RECOMMENDED - Main training program with all models
+        // Uses MLX framework for optimal performance on Apple Silicon.
+        // Supports CNN, MLP, and Attention models with automatic differentiation.
+        // Run with: swift run MNISTMLX --model cnn --epochs 3
         .executable(
             name: "MNISTMLX",
             targets: ["MNISTMLX"]
         ),
 
-        // Executable: Classic MLP implementation (refactored from mnist_mlp.swift)
+        // Executable: EDUCATIONAL REFERENCE - Classic MLP implementation
+        // Refactored from mnist_mlp.swift (2222 lines) to demonstrate CPU/GPU backends
+        // using system frameworks (Accelerate, Metal, MPS). For production use,
+        // prefer MNISTMLX which uses the modern MLX framework.
         // Run with: swift run MNISTClassic --help
         .executable(
             name: "MNISTClassic",

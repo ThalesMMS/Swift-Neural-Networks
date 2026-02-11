@@ -1,3 +1,14 @@
+// ============================================================================
+// EDUCATIONAL REFERENCE: Simple MLP implementation for learning purposes
+//
+// This is a minimal educational example demonstrating the fundamentals of
+// neural networks. It trains a small multi-layer perceptron to learn the
+// XOR function using manual backpropagation with sigmoid activation.
+//
+// For production use, see: swift run MNISTMLX
+// For learning progression, see: LEARNING_GUIDE.md
+// ============================================================================
+
 import Foundation
 import MNISTCommon
 

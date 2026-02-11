@@ -1,3 +1,14 @@
+// ============================================================================
+// EDUCATIONAL REFERENCE: Manual CNN implementation for learning purposes
+//
+// This is a standalone educational example demonstrating convolutional neural
+// networks with manual backpropagation. It implements a minimal CNN architecture
+// using explicit loops and Accelerate framework optimizations.
+//
+// For production use, see: swift run MNISTMLX
+// For learning progression, see: LEARNING_GUIDE.md
+// ============================================================================
+//
 // mnist_cnn.swift
 // Minimal CNN for MNIST on CPU using explicit loops (no deps beyond Foundation).
 // Expected files:

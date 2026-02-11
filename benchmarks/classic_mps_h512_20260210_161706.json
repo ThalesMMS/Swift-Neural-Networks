@@ -1,0 +1,17 @@
+{
+  "executable": "MNISTClassic",
+  "model": "mlp",
+  "backend": "mps",
+  "timestamp": "20260210_161706",
+  "config": {
+    "epochs": 1,
+    "batch_size": 32,
+    "hidden_size": 512,
+    "seed": 42
+  },
+  "metrics": {
+    "training_time_seconds": 3.12,
+    "peak_memory_mb": 388.42,
+    "test_accuracy_percent": 90.86
+  }
+}

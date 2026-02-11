@@ -281,6 +281,43 @@ public func createCompiledAttentionTrainingStep(
     }
 }
 
+/// Creates a compiled training step function for ResNet model
+///
+/// ResNet models have residual blocks with skip connections and batch
+/// normalization that benefit from compilation.
+///
+/// ## Architecture Reminder
+/// ResNet performs:
+/// - Initial convolution
+/// - Residual blocks with skip connections
+/// - Batch normalization
+/// - Global average pooling
+/// - Linear classification head
+///
+/// Compilation fuses all of these into optimized kernels.
+///
+/// ## Parameters
+/// - model: The ResNet model
+/// - optimizer: The optimizer
+///
+/// ## Returns
+/// A compiled function that takes (images, labels) and returns loss
+public func createCompiledResNetTrainingStep(
+    model: ResNetModel,
+    optimizer: SGD
+) -> @Sendable (MLXArray, MLXArray) -> MLXArray {
+    return compile(
+        inputs: [model, optimizer],
+        shapeless: true
+    ) { images, labels -> MLXArray in
+        let lossAndGrad = valueAndGrad(model: model, resnetLoss)
+        let (loss, grads) = lossAndGrad(model, images, labels)
+        optimizer.update(model: model, gradients: grads)
+        eval(model, optimizer)
+        return loss
+    }
+}
+
 // =============================================================================
 // MARK: - Compiled Training Loop Functions
 // =============================================================================
@@ -516,6 +553,72 @@ public func trainAttentionEpochCompiled(
         let idxArray = MLXArray(batchIndices)
 
         let batchImages = trainImages[idxArray]
+        let batchLabels = trainLabels[idxArray]
+
+        let loss = compiledStep(batchImages, batchLabels)
+
+        let lossValue = loss.item(Float.self)
+        totalLoss += lossValue
+        batchCount += 1
+
+        // Update progress bar
+        progressBar.update(batch: batchCount, loss: lossValue)
+
+        start = end
+    }
+
+    // Finish progress bar
+    progressBar.finish()
+
+    return totalLoss / Float(batchCount)
+}
+
+/// Trains the ResNet model for one epoch using compiled training steps
+///
+/// Compiled version of trainResNetEpoch(). ResNet models with residual
+/// connections and batch normalization benefit from compilation due to
+/// kernel fusion of sequential operations.
+///
+/// ## Parameters
+/// - model: The ResNet model to train
+/// - optimizer: SGD or other optimizer
+/// - trainImages: Training images [N, 784]
+/// - trainLabels: Training labels [N]
+/// - batchSize: Number of samples per batch
+///
+/// ## Returns
+/// Average loss for the epoch
+public func trainResNetEpochCompiled(
+    model: ResNetModel,
+    optimizer: SGD,
+    trainImages: MLXArray,
+    trainLabels: MLXArray,
+    batchSize: Int
+) -> Float {
+    let n = trainImages.shape[0]
+    var totalLoss: Float = 0
+    var batchCount = 0
+
+    let compiledStep = createCompiledResNetTrainingStep(model: model, optimizer: optimizer)
+
+    var indices = Array(0..<n)
+    indices.shuffle()
+
+    // -------------------------------------------------------------------------
+    // Progress Bar Setup
+    // -------------------------------------------------------------------------
+    let totalBatches = (n + batchSize - 1) / batchSize
+    let progressBar = ProgressBar(totalBatches: totalBatches)
+    progressBar.start()
+
+    var start = 0
+    while start < n {
+        let end = min(start + batchSize, n)
+        let batchIndices = Array(indices[start..<end]).map { Int32($0) }
+        let idxArray = MLXArray(batchIndices)
+
+        // Reshape to [N, 1, 28, 28] for ResNet (add channel dimension)
+        let batchImages = trainImages[idxArray].reshaped([-1, 1, 28, 28])
         let batchLabels = trainLabels[idxArray]
 
         let loss = compiledStep(batchImages, batchLabels)

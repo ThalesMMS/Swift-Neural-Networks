@@ -1,3 +1,14 @@
+// ============================================================================
+// EDUCATIONAL REFERENCE: Manual self-attention implementation for learning purposes
+//
+// This is a standalone educational example demonstrating self-attention mechanisms
+// with manual backpropagation. It implements a simplified Transformer-style
+// architecture for MNIST classification using patch-based tokenization.
+//
+// For production use, see: swift run MNISTMLX
+// For learning progression, see: LEARNING_GUIDE.md
+// ============================================================================
+//
 // mnist_attention_pool.swift
 // Self-attention over patch tokens for MNIST (single-head Transformer-style).
 //
@@ -50,7 +61,8 @@ struct Config {
     var learningRate: Float = 0.005
     var epochs: Int = 5
     var batchSize: Int = 32
-    var rngSeed: UInt64 = 1
+    var dataPath: String = "./data"
+    var seed: UInt64 = 1
 
     /// Parses command-line arguments into configuration
     ///
@@ -115,6 +127,16 @@ struct Config {
                 config.learningRate = val
                 i = valueIndex
 
+            case "--data", "-d":
+                let valueIndex = i + 1
+                guard valueIndex < args.count else {
+                    print("Missing value for \(arg)")
+                    printUsage()
+                    exit(1)
+                }
+                config.dataPath = args[valueIndex]
+                i = valueIndex
+
             case "--seed", "-s":
                 let valueIndex = i + 1
                 guard valueIndex < args.count else {
@@ -128,7 +150,7 @@ struct Config {
                     printUsage()
                     exit(1)
                 }
-                config.rngSeed = val
+                config.seed = val
                 i = valueIndex
 
             case "--help", "-h":
@@ -161,13 +183,14 @@ func printUsage() {
       --batch, -b <n>    Batch size (default: 32)
       --epochs, -e <n>   Number of training epochs (default: 5)
       --lr, -l <f>       Learning rate (default: 0.005)
+      --data, -d <path>  Path to MNIST data directory (default: ./data)
       --seed, -s <n>     RNG seed for reproducibility (default: 1)
       --help, -h         Show this help message
 
     EXAMPLES:
       swift mnist_attention_pool.swift --epochs 10
       swift mnist_attention_pool.swift -b 64 -e 5 -l 0.005
-      swift mnist_attention_pool.swift --seed 42
+      swift mnist_attention_pool.swift --data ./data --seed 42
 
     MODEL ARCHITECTURE:
       - 4×4 patches → 49 tokens
@@ -1788,10 +1811,10 @@ func main() {
     let loadTime = Date().timeIntervalSince(loadStart)
     print(String(format: "Data loading time: %.2f seconds", loadTime))
 
-    print("Config: patch=\(patch)x\(patch) tokens=\(seqLen) d=\(dModel) ff=\(ffDim) batch=\(config.batchSize) epochs=\(config.epochs) lr=\(config.learningRate) seed=\(config.rngSeed)")
+    print("Config: patch=\(patch)x\(patch) tokens=\(seqLen) d=\(dModel) ff=\(ffDim) batch=\(config.batchSize) epochs=\(config.epochs) lr=\(config.learningRate) seed=\(config.seed)")
 
-    var rng = SimpleRng(seed: config.rngSeed)
-    if config.rngSeed == 0 {
+    var rng = SimpleRng(seed: config.seed)
+    if config.seed == 0 {
         rng.reseedFromTime()
     }
     var model = initModel(rng: &rng)
