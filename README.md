@@ -45,6 +45,12 @@ To **understand neural networks from scratch**, see **[LEARNING_GUIDE.md](LEARNI
 - Side-by-side comparison of manual vs auto-diff approaches
 - Detailed explanations of how neural networks work under the hood
 
+For a **comprehensive structured curriculum**, see **[COMPREHENSIVE_CURRICULUM.md](COMPREHENSIVE_CURRICULUM.md)** for:
+- Progressive learning modules (Foundations → Advanced Topics)
+- Detailed concept explanations with examples
+- Exercises, projects, and hands-on practice
+- Assessment criteria and learning milestones
+
 **Quick learning recommendations:**
 - **New to neural networks?** Start with `mlp_simple.swift` (218 lines, simple XOR problem)
 - **Want to understand MNIST classification?** Study `MNISTClassic` (modular, well-documented)
