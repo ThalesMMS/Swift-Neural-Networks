@@ -119,7 +119,7 @@ Probabilities:
 │   8    │  -1.8  │   0.17  │ 0.001 (0.1%) │
 │   9    │   0.2  │   1.22  │ 0.009 (0.9%) │
 ├────────┴────────┴─────────┼──────────────┤
-│                    TOTAL: │ 1.000 (100%) │ ✓
+│                    TOTAL: │ 1.000 (100%) │ OK
 └───────────────────────────┴──────────────┘
 ```
 
@@ -287,8 +287,8 @@ Graph of -log(p):
       0.0  0.2  0.4  0.6  0.8  1.0
 
 Key properties:
-  • p → 1  (correct): loss → 0  ✓ Good!
-  • p → 0  (wrong):   loss → ∞  ✓ Heavily penalized!
+  * p -> 1  (correct): loss -> 0  Good!
+  * p -> 0  (wrong):   loss -> infinity  Heavily penalized!
   • Always positive
   • Smooth and differentiable
 ```
@@ -298,13 +298,13 @@ Key properties:
 ┌─────────────────┬──────────────┐
 │ Probability     │ Loss (-log)  │
 ├─────────────────┼──────────────┤
-│ 1.00 (perfect)  │ 0.00         │ ✓ No loss
-│ 0.99            │ 0.01         │ ✓ Tiny loss
-│ 0.90            │ 0.11         │ ✓ Small loss
-│ 0.50            │ 0.69         │ ⚠ Medium loss
-│ 0.10            │ 2.30         │ ✗ High loss
-│ 0.01            │ 4.61         │ ✗✗ Very high loss
-│ 0.001           │ 6.91         │ ✗✗✗ Extreme loss
+│ 1.00 (perfect)  │ 0.00         │ + No loss
+│ 0.99            │ 0.01         │ + Tiny loss
+│ 0.90            │ 0.11         │ + Small loss
+│ 0.50            │ 0.69         │ Warning: Medium loss
+│ 0.10            │ 2.30         │ - High loss
+│ 0.01            │ 4.61         │ -- Very high loss
+│ 0.001           │ 6.91         │ --- Extreme loss
 └─────────────────┴──────────────┘
 ```
 
@@ -361,7 +361,7 @@ Probabilities: [0.002, 0.010, 0.876, 0.004, 0.022, ...]
                            True label: 2
 
 p_correct = 0.876
-Loss = -log(0.876) = 0.132  ✓ Low loss
+Loss = -log(0.876) = 0.132  Low loss (good)
 ```
 
 **Scenario 2: Confident but WRONG prediction (correct class = 2)**
@@ -371,7 +371,7 @@ Probabilities: [0.002, 0.010, 0.010, 0.004, 0.850, ...]
                            True label: 2   Wrong class 4
 
 p_correct = 0.010
-Loss = -log(0.010) = 4.605  ✗✗✗ High loss!
+Loss = -log(0.010) = 4.605  High loss!
 ```
 
 **Scenario 3: Uncertain prediction (correct class = 2)**
@@ -381,7 +381,7 @@ Probabilities: [0.10, 0.10, 0.15, 0.10, 0.10, 0.10, 0.10, 0.15, 0.05, 0.05]
                          True label: 2
 
 p_correct = 0.15
-Loss = -log(0.15) = 1.897  ✗ Medium-high loss
+Loss = -log(0.15) = 1.897  Medium-high loss
 ```
 
 ---
@@ -528,7 +528,7 @@ Step 2: SOFTMAX converts to probabilities
 │  8  │   0.17  │ 0.00 │
 │  9  │   1.22  │ 0.01 │
 ├─────┼─────────┼──────┤
-│ SUM │ 138.65  │ 1.00 │ ✓
+│ SUM │ 138.65  │ 1.00 │ OK
 └─────┴─────────┴──────┘
        │
        │ TRUE LABEL: Class 2
@@ -567,7 +567,7 @@ Let's work through a complete example with all 10 MNIST classes:
 ```
 [-0.5, -1.2, 0.3, -0.8, 0.1, -1.5, 0.2, 3.8, -0.3, 0.5]
                                            ↑
-                                    Highest for class 7 ✓
+                                    Highest for class 7 (correct)
 ```
 
 **Step 1: Compute exponentials**
@@ -589,7 +589,7 @@ Sum = 52.35
 │   4    │   0.1  │  0.021  │
 │   5    │  -1.5  │  0.004  │
 │   6    │   0.2  │  0.023  │
-│   7    │   3.8  │  0.854  │ ← TRUE LABEL ✓
+│   7    │   3.8  │  0.854  │ <- TRUE LABEL (correct)
 │   8    │  -0.3  │  0.014  │
 │   9    │   0.5  │  0.032  │
 └────────┴────────┴─────────┘
@@ -600,7 +600,7 @@ Sum = 52.35
 p_correct = 0.854
 Loss = -log(0.854) = 0.158
 
-✓ LOW loss - good prediction!
+LOW loss - good prediction!
 ```
 
 ---
@@ -614,7 +614,7 @@ Loss = -log(0.854) = 0.158
 ```
 [-0.2, 0.1, 0.8, -0.5, 0.3, 2.9, 0.4, -1.0, 1.2, 0.6]
                              ↑                   ↑
-                       True: 3           Predicted: 5 ✗
+                       True: 3           Predicted: 5 (wrong)
 ```
 
 **Step 1 & 2: Softmax**
@@ -640,7 +640,7 @@ Loss = -log(0.854) = 0.158
 p_correct = 0.022  (only 2.2% confidence on true class!)
 Loss = -log(0.022) = 3.817
 
-✗✗✗ HIGH loss - wrong prediction!
+HIGH loss - wrong prediction!
 ```
 
 **What happens during backpropagation:**

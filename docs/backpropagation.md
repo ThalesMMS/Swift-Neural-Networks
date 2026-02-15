@@ -130,7 +130,7 @@ h:       [N, 512]
 ∂L/∂z2:  [N, 10]
 
 To get [512, 10], we transpose h:
-h^T @ ∂L/∂z2 = [512, N] @ [N, 10] = [512, 10] ✓
+h^T @ ∂L/∂z2 = [512, N] @ [N, 10] = [512, 10] (correct)
 ```
 
 **Gradient with respect to b2:**
@@ -365,13 +365,13 @@ Forward Pass Shapes:
   z2: [1, 1]   → (batch=1, output=1)
 
 Backward Pass Shapes:
-  ∂L/∂z2: [1, 1]   → same as z2 ✓
-  ∂L/∂W2: [2, 1]   → same as W2 ✓ (computed as h^T @ ∂L/∂z2 = [2,1] @ [1,1])
-  ∂L/∂b2: [1]      → same as b2 ✓
-  ∂L/∂h:  [1, 2]   → same as h ✓ (computed as ∂L/∂z2 @ W2^T = [1,1] @ [1,2])
-  ∂L/∂z1: [1, 2]   → same as z1 ✓
-  ∂L/∂W1: [2, 2]   → same as W1 ✓ (computed as x^T @ ∂L/∂z1 = [2,1] @ [1,2])
-  ∂L/∂b1: [2]      → same as b1 ✓
+  ∂L/∂z2: [1, 1]   → same as z2 [ok]
+  ∂L/∂W2: [2, 1]   → same as W2 [ok] (computed as h^T @ ∂L/∂z2 = [2,1] @ [1,1])
+  ∂L/∂b2: [1]      → same as b2 [ok]
+  ∂L/∂h:  [1, 2]   → same as h [ok] (computed as ∂L/∂z2 @ W2^T = [1,1] @ [1,2])
+  ∂L/∂z1: [1, 2]   → same as z1 [ok]
+  ∂L/∂W1: [2, 2]   → same as W1 [ok] (computed as x^T @ ∂L/∂z1 = [2,1] @ [1,2])
+  ∂L/∂b1: [2]      → same as b1 [ok]
 
 Key Pattern: Every gradient has the SAME SHAPE as the parameter it corresponds to!
 ```
@@ -427,7 +427,7 @@ z2 = h @ W2 + b2
 Backward Pass:
 Step 1: Gradient at output
 ∂L/∂z2 = [0.4 - 1.0] = [-0.6]
-Shape: [1, 1] ✓
+Shape: [1, 1] [ok]
 
 Step 2: Gradients for W2 and b2
 ∂L/∂W2 = h^T @ ∂L/∂z2
@@ -436,17 +436,17 @@ Step 2: Gradients for W2 and b2
           [0.0 × -0.6]]
        = [[-0.36],
           [0.0]]     ← Second weight gets NO gradient! (dead neuron)
-Shape: [2, 1] ✓ (same as W2)
+Shape: [2, 1] [ok] (same as W2)
 
 ∂L/∂b2 = [-0.6]
-Shape: [1] ✓ (same as b2)
+Shape: [1] [ok] (same as b2)
 
 Step 3: Gradient flowing to hidden
 ∂L/∂h = ∂L/∂z2 @ W2^T
       = [-0.6] @ [[0.5, 0.3]]
       = [-0.6 × 0.5, -0.6 × 0.3]
       = [-0.30, -0.18]
-Shape: [1, 2] ✓ (same as h)
+Shape: [1, 2] [ok] (same as h)
 
 Step 4: ReLU backward (CRITICAL!)
 mask = [1, 0]  (from forward pass: z1 = [0.6, -0.5])
@@ -455,7 +455,7 @@ mask = [1, 0]  (from forward pass: z1 = [0.6, -0.5])
        = [-0.30, 0.0]
             ↑      ↑
           flows  BLOCKED!
-Shape: [1, 2] ✓ (same as z1)
+Shape: [1, 2] [ok] (same as z1)
 
 Step 5: Gradients for W1 and b1
 ∂L/∂W1 = x^T @ ∂L/∂z1
@@ -464,10 +464,10 @@ Step 5: Gradients for W1 and b1
           [1.0 × -0.30,  1.0 × 0.0]]
        = [[-0.15, 0.0],
           [-0.30, 0.0]]  ← Second column gets NO gradient!
-Shape: [2, 2] ✓ (same as W1)
+Shape: [2, 2] [ok] (same as W1)
 
 ∂L/∂b1 = [-0.30, 0.0]
-Shape: [2] ✓ (same as b1)
+Shape: [2] [ok] (same as b1)
 
 Key Insight:
 - Neuron 1 (h[0] = 0.6): Active, receives gradients, weights update
@@ -517,12 +517,12 @@ z1[1] = [0.5×0.1 + 1.0×0.3 + 1.5×0.2,  0.5×0.2 + 1.0×0.1 + 1.5×0.4]
 
 z1 = [[0.9, 0.8],
       [0.75, 1.0]]
-Shape: [2, 2] ✓
+Shape: [2, 2] [ok]
 
 Step 2: ReLU (element-wise, all positive)
 h = ReLU(z1) = [[0.9, 0.8],
                 [0.75, 1.0]]
-Shape: [2, 2] ✓
+Shape: [2, 2] [ok]
 mask = [[1, 1],
         [1, 1]]  (all neurons active)
 
@@ -546,7 +546,7 @@ z2 = [[0.9×0.5 + 0.8×0.2,  0.9×0.3 + 0.8×0.6],  + [0.1, 0.2]
 
    = [[0.71, 0.95],
       [0.675, 1.025]]
-Shape: [2, 2] ✓
+Shape: [2, 2] [ok]
 
 Backward Pass:
 Step 1: Gradient at output (assuming true labels [1,0] and [0,1])
@@ -556,7 +556,7 @@ Step 1: Gradient at output (assuming true labels [1,0] and [0,1])
 
        = [[-0.29, 0.95],
           [0.675, 0.025]]
-Shape: [2, 2] ✓ (same as z2)
+Shape: [2, 2] [ok] (same as z2)
 
 Step 2: Gradient for W2
 ∂L/∂W2 = h^T @ ∂L/∂z2
@@ -597,7 +597,7 @@ h^T = [[0.9, 0.75],    (hidden neuron 0 for both samples)
 
        = [[0.245, 0.874],
           [0.443, 0.785]]
-Shape: [2, 2] ✓ (same as W2)
+Shape: [2, 2] [ok] (same as W2)
 
 Step 3: Gradient for b2
 ∂L/∂b2 = sum(∂L/∂z2, axis=0)  (sum over batch dimension)
@@ -605,7 +605,7 @@ Step 3: Gradient for b2
                [0.675, 0.025]], axis=0)
        = [-0.29 + 0.675,  0.95 + 0.025]
        = [0.385, 0.975]
-Shape: [2] ✓ (same as b2)
+Shape: [2] [ok] (same as b2)
 
 Step 4: Gradient flowing to hidden
 ∂L/∂h = ∂L/∂z2 @ W2^T
@@ -628,7 +628,7 @@ W2^T = [[0.5, 0.2],
 
       = [[0.14, 0.512],
          [0.345, 0.15]]
-Shape: [2, 2] ✓ (same as h)
+Shape: [2, 2] [ok] (same as h)
 
 Step 5: ReLU backward
 mask = [[1, 1],
@@ -639,7 +639,7 @@ mask = [[1, 1],
           [0.345, 0.15]]     [1, 1]]
        = [[0.14, 0.512],
           [0.345, 0.15]]  (no blocking)
-Shape: [2, 2] ✓ (same as z1)
+Shape: [2, 2] [ok] (same as z1)
 
 Step 6: Gradient for W1
 ∂L/∂W1 = x^T @ ∂L/∂z1
@@ -648,7 +648,7 @@ Shape check:
   x: [2, 3] (batch, features)
   x^T: [3, 2]
   ∂L/∂z1: [2, 2]
-  Result: [3, 2] ✓ (same as W1)
+  Result: [3, 2] [ok] (same as W1)
 
 x^T = [[1.0, 0.5],     (feature 0)
        [2.0, 1.0],     (feature 1)
@@ -670,7 +670,7 @@ x^T = [[1.0, 0.5],     (feature 0)
        = [[0.313, 0.587],
           [0.625, 1.174],
           [0.588, 0.481]]
-Shape: [3, 2] ✓ (same as W1)
+Shape: [3, 2] [ok] (same as W1)
 
 Step 7: Gradient for b1
 ∂L/∂b1 = sum(∂L/∂z1, axis=0)
@@ -678,16 +678,16 @@ Step 7: Gradient for b1
                [0.345, 0.15]], axis=0)
        = [0.14 + 0.345,  0.512 + 0.15]
        = [0.485, 0.662]
-Shape: [2] ✓ (same as b1)
+Shape: [2] [ok] (same as b1)
 
 Summary - Shape Consistency Check:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Parameter    Shape      Gradient Shape    Match?
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-W1           [3, 2]     [3, 2]            ✓
-b1           [2]        [2]               ✓
-W2           [2, 2]     [2, 2]            ✓
-b2           [2]        [2]               ✓
+W1           [3, 2]     [3, 2]            [ok]
+b1           [2]        [2]               [ok]
+W2           [2, 2]     [2, 2]            [ok]
+b2           [2]        [2]               [ok]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Chain Rule Verification:
@@ -715,7 +715,7 @@ Shape analysis:
   W: [Din, Dout] (input features × output features)
   z: [N, Dout]  (N samples, Dout outputs)
 
-[N, Din] @ [Din, Dout] = [N, Dout] ✓
+[N, Din] @ [Din, Dout] = [N, Dout] [ok]
 ```
 
 **Backward Pass - Gradient for W:**
@@ -727,7 +727,7 @@ Why transpose x?
   x:     [N, Din]   (input from forward pass)
 
 We need result shape [Din, Dout] (same as W):
-  x^T @ ∂L/∂z = [Din, N] @ [N, Dout] = [Din, Dout] ✓
+  x^T @ ∂L/∂z = [Din, N] @ [N, Dout] = [Din, Dout] [ok]
 ```
 
 **Backward Pass - Gradient flowing backwards:**
@@ -739,7 +739,7 @@ Why transpose W?
   W:     [Din, Dout]   (weights)
 
 We need result shape [N, Din] (same as x):
-  ∂L/∂z @ W^T = [N, Dout] @ [Dout, Din] = [N, Din] ✓
+  ∂L/∂z @ W^T = [N, Dout] @ [Dout, Din] = [N, Din] [ok]
 ```
 
 ### The Pattern

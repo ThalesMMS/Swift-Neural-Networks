@@ -50,7 +50,7 @@ If you previously had these functions defined locally in standalone Swift files:
 2. Add `import MNISTCommon` at the top of your file
 3. Compile your file as part of a Swift package that depends on MNISTCommon
 
-See MIGRATION.md in the root directory for detailed migration instructions.
+See docs/migration.md for detailed migration instructions.
 
 ## Design
 

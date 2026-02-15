@@ -5,12 +5,12 @@
 This walkthrough teaches you **exactly how a neural network works** by walking through every step of training a Multi-Layer Perceptron (MLP) on the MNIST digit dataset.
 
 By the end, you'll understand:
-- ✅ What happens when an image enters the network
-- ✅ How matrix multiplications transform data
-- ✅ Why activation functions create non-linearity
-- ✅ How loss measures prediction quality
-- ✅ How gradients flow backward through layers
-- ✅ How weights get updated to improve performance
+- What happens when an image enters the network
+- How matrix multiplications transform data
+- Why activation functions create non-linearity
+- How loss measures prediction quality
+- How gradients flow backward through layers
+- How weights get updated to improve performance
 
 **No black boxes. No hand-waving. Just clear explanations with code.**
 
@@ -249,7 +249,7 @@ Training a neural network involves repeating this cycle:
 
 **Why ReLU?** Without activation functions, the network is just nested linear transformations, which collapse to a single linear function. ReLU adds non-linearity, allowing the network to learn complex patterns.
 
-**📖 Read the detailed explanation:** [Forward Pass Documentation](forward-pass.md)
+**Read the detailed explanation:** [Forward Pass Documentation](forward-pass.md)
 
 ---
 
@@ -277,7 +277,7 @@ Where `p_correct_class` is the predicted probability for the true class.
 
 **Why cross-entropy?** It penalizes confident wrong predictions heavily and encourages the model to be accurate and confident.
 
-**📖 Read the detailed explanation:** [Loss Computation Documentation](loss-computation.md)
+**Read the detailed explanation:** [Loss Computation Documentation](loss-computation.md)
 
 ---
 
@@ -322,7 +322,7 @@ Loss
 
 **Manual vs Automatic:** Modern frameworks (like MLX) compute gradients automatically. Understanding manual backprop helps you debug and design custom architectures.
 
-**📖 Read the detailed explanation:** [Backpropagation Documentation](backpropagation.md)
+**Read the detailed explanation:** [Backpropagation Documentation](backpropagation.md)
 
 ---
 
@@ -356,7 +356,7 @@ W_new = W_old - 0.01 * [0.5, -0.2, 0.3]
 
 **Why "Stochastic"?** We use random mini-batches instead of the full dataset, adding noise that can help escape local minima.
 
-**📖 Read the detailed explanation:** [Weight Updates Documentation](weight-updates.md)
+**Read the detailed explanation:** [Weight Updates Documentation](weight-updates.md)
 
 ---
 
@@ -404,7 +404,7 @@ for epoch in 1...num_epochs {
 - Epoch 5: ~97% accuracy
 - Epoch 10: ~98% accuracy
 
-**📖 Read the detailed explanation:** [Complete Training Loop Documentation](complete-training-loop.md)
+**Read the detailed explanation:** [Complete Training Loop Documentation](complete-training-loop.md)
 
 ---
 
@@ -587,8 +587,8 @@ The detailed sections answer all of these!
 
 ## Navigation
 
-- **⬅️ Back:** [Documentation Home](README.md)
-- **➡️ Next:** [Forward Pass](forward-pass.md)
+- **Previous:** [Documentation Home](README.md)
+- **Next:** [Forward Pass](forward-pass.md)
 
 ### All Sections
 1. **MLP Walkthrough Overview** (you are here)
@@ -605,4 +605,4 @@ The detailed sections answer all of these!
 
 ---
 
-**Happy learning!** 🧠
+Happy learning!

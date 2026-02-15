@@ -19,7 +19,7 @@ Neural networks can seem like black boxes. This walkthrough opens the box and sh
 ## Table of Contents
 
 ### Core Documentation
-1. **[MLP Walkthrough Overview](mlp-walkthrough.md)** ⭐ Start here!
+1. **[MLP Walkthrough Overview](mlp-walkthrough.md)** Start here!
    - Architecture overview
    - Training pipeline visualization
    - Code references and next steps
@@ -174,7 +174,7 @@ Each section includes:
 
 This walkthrough is part of a larger educational ecosystem:
 
-#### 📚 [Complete Learning Guide](../LEARNING_GUIDE.md)
+#### [Complete Learning Guide](../LEARNING_GUIDE.md)
 **Comprehensive repository navigation** covering all implementations:
 - **Beginner Path:** Start with simple examples
 - **Manual Backprop Path:** Learn gradient computation from scratch
@@ -184,7 +184,7 @@ This walkthrough is part of a larger educational ecosystem:
 
 **Use this if:** You want to explore beyond just MLPs (CNNs, Attention, ResNets)
 
-#### 📖 [Educational Examples](../educational/README.md)
+#### [Educational Examples](../educational/README.md)
 **Standalone educational implementations** for quick reference:
 - `mlp_simple.swift` - XOR problem (218 lines, pure Swift)
 - `mnist_mlp.swift` - Full MNIST with manual backprop (2053 lines)
@@ -193,7 +193,7 @@ This walkthrough is part of a larger educational ecosystem:
 
 **Use this if:** You want to see complete, runnable examples without dependencies
 
-#### 🏗️ [Main Project README](../README.md)
+#### [Main Project README](../README.md)
 **Project overview and quickstart:**
 - Installation instructions
 - Available models and benchmarks
@@ -324,10 +324,10 @@ Submit issues or pull requests to the main repository.
 ## Navigation
 
 ### Quick Links
-- **⭐ [Start the Walkthrough](mlp-walkthrough.md)**
-- **📚 [Complete Learning Guide](../LEARNING_GUIDE.md)**
-- **📖 [Educational Examples](../educational/README.md)**
-- **🏠 [Project Home](../README.md)**
+- **[Start the Walkthrough](mlp-walkthrough.md)**
+- **[Complete Learning Guide](../LEARNING_GUIDE.md)**
+- **[Educational Examples](../educational/README.md)**
+- **[Project Home](../README.md)**
 
 ### All Walkthrough Sections
 1. [MLP Walkthrough Overview](mlp-walkthrough.md) - Start here!
@@ -339,6 +339,4 @@ Submit issues or pull requests to the main repository.
 
 ---
 
-**👉 Start reading:** [MLP Walkthrough Overview](mlp-walkthrough.md)
-
-**Happy learning!** 🧠
+**Start reading:** [MLP Walkthrough Overview](mlp-walkthrough.md)

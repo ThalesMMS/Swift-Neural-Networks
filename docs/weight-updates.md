@@ -167,8 +167,8 @@ With lr too small:
 
 **Example:**
 ```
-lr = 0.01:   1000 epochs to converge ✓
-lr = 0.0001: 100,000 epochs to converge ✗ (100x slower!)
+lr = 0.01:   1000 epochs to converge (good)
+lr = 0.0001: 100,000 epochs to converge (100x slower!)
 ```
 
 ### Choosing a Good Learning Rate
@@ -248,15 +248,15 @@ for epoch in 0..<numEpochs {
 ```
 
 **Advantages:**
-- ✓ Gradient is the "true" direction to the minimum
-- ✓ Smooth, stable convergence
-- ✓ Deterministic (same result each time)
+- Gradient is the "true" direction to the minimum
+- Smooth, stable convergence
+- Deterministic (same result each time)
 
 **Disadvantages:**
-- ✗ Extremely slow (must process entire dataset per update)
-- ✗ Requires huge memory (all 60,000 images in GPU memory)
-- ✗ Slow convergence (very few weight updates per epoch)
-- ✗ Can get stuck in local minima
+- Extremely slow (must process entire dataset per update)
+- Requires huge memory (all 60,000 images in GPU memory)
+- Slow convergence (very few weight updates per epoch)
+- Can get stuck in local minima
 
 **When to use:** Almost never in modern deep learning!
 
@@ -275,15 +275,15 @@ for epoch in 0..<numEpochs {
 ```
 
 **Advantages:**
-- ✓ Fast updates (60,000 updates per epoch on MNIST)
-- ✓ Low memory usage
-- ✓ Noise helps escape local minima
-- ✓ Can start learning immediately
+- Fast updates (60,000 updates per epoch on MNIST)
+- Low memory usage
+- Noise helps escape local minima
+- Can start learning immediately
 
 **Disadvantages:**
-- ✗ Very noisy gradient estimates
-- ✗ Slower per-sample computation (poor GPU utilization)
-- ✗ Jumpy convergence path
+- Very noisy gradient estimates
+- Slower per-sample computation (poor GPU utilization)
+- Jumpy convergence path
 
 **When to use:** Small datasets or online learning scenarios.
 
@@ -311,11 +311,11 @@ while start < n {
 ```
 
 **Advantages:**
-- ✓ **Best of both worlds!**
-- ✓ Efficient GPU utilization (parallel processing)
-- ✓ Faster convergence than single-sample SGD
-- ✓ Less noisy than single-sample, more updates than full-batch
-- ✓ Moderate memory usage
+- **Best of both worlds!**
+- Efficient GPU utilization (parallel processing)
+- Faster convergence than single-sample SGD
+- Less noisy than single-sample, more updates than full-batch
+- Moderate memory usage
 
 **Disadvantages:**
 - ~ Requires tuning batch size
@@ -476,8 +476,8 @@ For classification tasks like MNIST, **always shuffle**!
 
 **Empirical difference (MNIST after 5 epochs):**
 ```
-With shuffling:    Test accuracy = 97.2%  ✓
-Without shuffling: Test accuracy = 94.1%  ✗ (3% worse!)
+With shuffling:    Test accuracy = 97.2%  (good)
+Without shuffling: Test accuracy = 94.1%  (3% worse!)
 ```
 
 The difference can be even more dramatic on complex datasets.
@@ -536,10 +536,10 @@ W = W - lr × m / (√v + ε)            // Update with adaptive lr
 Typical values: `β₁ = 0.9`, `β₂ = 0.999`, `ε = 1e-8`
 
 **Advantages:**
-- ✓ Adapts learning rate per parameter
-- ✓ Works well out-of-the-box (less tuning needed)
-- ✓ Handles sparse gradients well
-- ✓ Good default choice for most problems
+- Adapts learning rate per parameter
+- Works well out-of-the-box (less tuning needed)
+- Handles sparse gradients well
+- Good default choice for most problems
 
 **Disadvantages:**
 - ~ Slightly more memory (stores m and v)
@@ -613,8 +613,8 @@ Do you have time to tune hyperparameters?
 
 3. **Don't Mix Concepts**:
    ```
-   ✓ SGD(lr=0.01, momentum=0.9)
-   ✗ Adam(lr=0.01, momentum=0.9)  // Adam already has momentum built-in!
+   Good:  SGD(lr=0.01, momentum=0.9)
+   Wrong: Adam(lr=0.01, momentum=0.9)  // Adam already has momentum built-in!
    ```
 
 4. **Match Literature**: If reimplementing a paper, use their optimizer and hyperparameters
