@@ -6,3 +6,5 @@
 mlp_simple_swift
 mnist_mlp_swift
 /.build
+/__pycache__
+AGENTS.md

@@ -1,8 +1,31 @@
-# Swift Neural Network Models
+# Swift-Neural-Networks
 
-[![CI](https://github.com/ThalesMMS/Swift-Neural-Networks-dev/workflows/CI/badge.svg)](https://github.com/ThalesMMS/Swift-Neural-Networks-dev/actions)
+[![CI](https://github.com/ThalesMMS/Swift-Neural-Networks/workflows/CI/badge.svg)](https://github.com/ThalesMMS/Swift-Neural-Networks/actions)
 
 Authors: Antonio Neto and Thales Matheus
+
+Small Swift neural-network implementations for MNIST, with one modern MLX path (`MNISTMLX`) and several educational/manual-backprop paths (`MNISTClassic` plus standalone examples).
+
+## Start Here in 60 Seconds
+
+**Fastest verified first run:** use Apple Silicon on macOS 14+ for `MNISTMLX`. The repository already includes a `data/` folder with MNIST files, so you can clone and try a smoke test immediately. The first build will also fetch the MLX dependency.
+
+```bash
+git clone https://github.com/ThalesMMS/Swift-Neural-Networks.git
+cd Swift-Neural-Networks
+swift run MNISTMLX --help
+```
+
+If you are on an older macOS release or want the lower-dependency educational path first, start here instead:
+
+```bash
+swift run MNISTClassic --help
+```
+
+Pick your path:
+- **Modern / recommended:** jump to [Quick Start](#quick-start) and use `MNISTMLX`
+- **Learning-first:** start with [LEARNING_GUIDE.md](LEARNING_GUIDE.md) and [docs/README.md](docs/README.md)
+- **Test or contribute:** see [TESTING.md](TESTING.md)
 
 ## Overview
 
@@ -56,7 +79,9 @@ To **understand neural networks from scratch**, see **[LEARNING_GUIDE.md](LEARNI
 
 Source code:
 
-- `mnist_mlp.swift`, `mnist_cnn.swift`, `mnist_attention_pool.swift`, `mlp_simple.swift` (Swift, single-file implementations)
+- `mnist_mlp.swift`, `mnist_cnn.swift`, `mnist_attention_pool.swift` (legacy wrappers for modular SwiftPM targets)
+- `mlp_simple.swift` (small single-file XOR implementation)
+- `Sources/MNISTManualCNN/`, `Sources/MNISTManualAttention/` (modular educational manual implementations)
 
 Scripts:
 
@@ -158,7 +183,7 @@ Training uses 1,000,000 epochs by default.
 
 ## Unified CLI Interface
 
-> **Note:** This section covers both production ([MNISTMLX](#mlx-swift-implementation-production-recommended)) and educational ([MNISTClassic](#mnistclassic-modular-educational-implementation), single-file) implementations.
+> **Note:** This section covers both production ([MNISTMLX](#mlx-swift-implementation-production-recommended)) and educational (`MNISTClassic`, `MNISTManualCNN`, `MNISTManualAttention`) implementations.
 
 All implementations now support a consistent set of command-line flags for easy experimentation:
 
@@ -173,8 +198,8 @@ All implementations now support a consistent set of command-line flags for easy 
 Model-specific flags (where applicable):
 - `--hidden` / `-n`: Hidden layer size (MLP only, default: 512)
 - `--model` / `-m`: Model architecture (MNISTMLX: mlp, cnn, attention)
-- `--mps`: Use MPS GPU backend (Classic/single-file)
-- `--mpsgraph`: Use MPSGraph backend (Classic/single-file)
+- `--mps`: Use MPS GPU backend (MNISTClassic)
+- `--mpsgraph`: Use MPSGraph backend (MNISTClassic)
 - `--data` / `-d`: Path to MNIST data directory (default: `./data`)
 - `--compile`: Enable MLX function compilation for faster training (MNISTMLX only)
 
@@ -189,8 +214,8 @@ swift run MNISTMLX -m cnn -e 3 -s 42
 # MNISTMLX MLP with compilation for faster training
 swift run MNISTMLX -m mlp --compile -e 10 -s 42
 
-# Single-file MLP with GPU and custom params
-./mnist_mlp_swift --mps -b 64 -e 10 -l 0.01 -s 123
+# Legacy wrapper with GPU and custom params
+swift mnist_mlp.swift --mps -b 64 -e 10 -l 0.01 -s 123
 ```
 
 ## ANSI Color-Coded Output
@@ -237,7 +262,7 @@ The colored output is particularly useful when training for many epochs or when 
 
 > **Educational:** This section describes manual GPU implementation details in the educational reference files. For production GPU acceleration, use [MNISTMLX](#mlx-swift-implementation-production-recommended) which handles GPU operations automatically.
 
-`mnist_mlp.swift` includes GPU paths for faster training and testing:
+`MNISTClassic` includes GPU paths for faster training and testing:
 
 - MPS GEMM with shared CPU/GPU buffers
 - Custom Metal kernels for bias add, ReLU, softmax, reductions, loss, and SGD
@@ -407,40 +432,43 @@ Command-line options:
 --help, -h     # Display usage information
 ```
 
-The legacy monolithic `mnist_mlp.swift` is kept for reference and can still be built directly.
+The legacy root `mnist_mlp.swift` is a thin wrapper around the modular `MNISTClassic` target.
 
-## Build and Run (Single-File Educational Implementations)
+## Build and Run (Educational Implementations)
 
-> **Educational Reference:** These are **standalone educational implementations** with manual backpropagation. They are kept for backward compatibility and learning purposes. For production use, see [MNISTMLX](#mlx-swift-implementation-production-recommended).
+> **Educational Reference:** These implementations use manual backpropagation and are kept for learning purposes. The large legacy files now forward to modular SwiftPM targets so each Swift source file stays under 1000 lines. For production use, see [MNISTMLX](#mlx-swift-implementation-production-recommended).
 
 Build:
 
 ```bash
-swiftc -O mnist_mlp.swift -o mnist_mlp_swift
+swift build --target MNISTClassic
+swift build --target MNISTManualCNN
+swift build --target MNISTManualAttention
 swiftc -O mlp_simple.swift -o mlp_simple_swift
-swiftc -O mnist_cnn.swift -o mnist_cnn_swift
-swiftc -O mnist_attention_pool.swift -o mnist_attention_pool_swift
 ```
 
 Run MNIST MLP:
 
 ```bash
-./mnist_mlp_swift --mps
-./mnist_mlp_swift --mpsgraph -b 128 -e 5 -l 0.005 -s 42
+swift run MNISTClassic --mps
+swift run MNISTClassic --mpsgraph -b 128 -e 5 -l 0.005 -s 42
+swift mnist_mlp.swift --help
 ```
 
 Run MNIST CNN:
 
 ```bash
-./mnist_cnn_swift
-./mnist_cnn_swift -b 64 -e 5 -l 0.01 -s 42
+swift run MNISTManualCNN
+swift run MNISTManualCNN -b 64 -e 5 -l 0.01 -s 42
+swift mnist_cnn.swift --help
 ```
 
 Run MNIST attention:
 
 ```bash
-./mnist_attention_pool_swift
-./mnist_attention_pool_swift -b 32 -e 5 -l 0.005 -s 42
+swift run MNISTManualAttention
+swift run MNISTManualAttention -b 32 -e 5 -l 0.005 -s 42
+swift mnist_attention_pool.swift --help
 ```
 
 Run XOR:
@@ -449,7 +477,7 @@ Run XOR:
 ./mlp_simple_swift
 ```
 
-Options for `mnist_mlp_swift`:
+Options for `MNISTClassic`:
 
 ```bash
 --mps, --mpsgraph  # GPU backends (MPS or MPSGraph)
@@ -462,7 +490,7 @@ Options for `mnist_mlp_swift`:
 --help, -h         # Print usage
 ```
 
-Options for `mnist_cnn_swift`:
+Options for `MNISTManualCNN`:
 
 ```bash
 --batch, -b    # Batch size (default: 32)
@@ -473,7 +501,7 @@ Options for `mnist_cnn_swift`:
 --help, -h     # Print usage
 ```
 
-Options for `mnist_attention_pool_swift`:
+Options for `MNISTManualAttention`:
 
 ```bash
 --batch, -b    # Batch size (default: 32)
@@ -489,16 +517,16 @@ All runs used the default settings unless noted. Training time is reported as to
 
 | Model | Language | Command | Epochs | Batch | Train time (s) | Test accuracy (%) | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| MNIST MLP | Swift | `./mnist_mlp_swift` | 10 | 64 | 7.30 | 11.90 | CPU backend (no `--mps`) |
-| MNIST CNN | Swift | `./mnist_cnn_swift` | 3 | 32 | 53.21 | 92.35 | Conv8/3×3 + MaxPool |
-| MNIST Attention | Swift | `./mnist_attention_pool_swift` | 5 | 32 | 101.71 | ~90 (projected) | D=32, FF=64, lr=0.005 |
+| MNIST MLP | Swift | `swift run MNISTClassic` | 10 | 64 | 7.30 | 11.90 | CPU backend (no `--mps`) |
+| MNIST CNN | Swift | `swift run MNISTManualCNN` | 3 | 32 | 53.21 | 92.35 | Conv8/3×3 + MaxPool |
+| MNIST Attention | Swift | `swift run MNISTManualAttention` | 5 | 32 | 101.71 | ~90 (projected) | D=32, FF=64, lr=0.005 |
 | XOR MLP | Swift | `./mlp_simple_swift` | 1,000,000 | - | 1.78 | 100.00 | Threshold 0.5 |
 
 Note: results vary by hardware and build flags. The Swift MLP CPU run above did not converge well; try `--mps` or `--mpsgraph` for faster and more stable training.
 
 ## Test Coverage
 
-This project includes a comprehensive test suite covering data loading, neural network models, activation functions, and backend implementations. The test suite consists of **87 passing tests** across 4 test modules with coverage for CPU and GPU code paths.
+This project includes a comprehensive test suite covering data loading, neural network models, activation functions, and backend implementations. The non-MLX local suite includes **96 passing tests** across the common, classic, manual CNN, and manual attention modules.
 
 ### Quick Start
 
@@ -509,6 +537,8 @@ swift test
 # Run specific test module
 swift test --filter MNISTCommonTests
 swift test --filter MNISTClassicTests
+swift test --filter MNISTManualCNNTests
+swift test --filter MNISTManualAttentionTests
 
 # Run tests in parallel
 swift test --parallel
@@ -518,18 +548,21 @@ swift test --parallel
 
 | Module | Tests | Status | Coverage |
 | --- | --- | --- | --- |
-| **MNISTCommonTests** | 66 | All passing | Activation functions, RNG |
+| **MNISTCommonTests** | 67 | All passing | Activation functions, RNG |
 | **MNISTClassicTests** | 21 | All passing | CPU GEMM operations |
+| **MNISTManualCNNTests** | 4 | All passing | Manual CNN model, CPU ops, persistence |
+| **MNISTManualAttentionTests** | 4 | All passing | Manual attention patches, classifier, persistence |
 | **MNISTMLXTests** | ~76 | MLX limitation | MLX models (MLP, CNN, loss functions) |
 | **MNISTDataTests** | ~47 | MLX limitation | MNIST data loading and batching |
 
-**Total Passing:** 87 tests
+**Total Passing in non-MLX local suite:** 96 tests
 
 ### What's Covered
 
 - **Activation Functions**: Softmax correctness, numerical stability, pointer version equivalence
 - **Random Number Generation**: Reproducibility, statistical distribution, multiple RNG methods
 - **CPU Backend**: GEMM operations, matrix transposition, alpha/beta scaling, numerical precision
+- **Manual Educational Models**: CNN/attention smoke coverage and model persistence
 - **MLX Models**: MLP/CNN forward pass, gradient flow, loss computation (blocked by MLX Metal library limitation)
 - **Data Loading**: IDX format parsing, normalization, batching, shuffling (blocked by MLX Metal library limitation)
 
@@ -547,7 +580,7 @@ The CI workflow (`.github/workflows/ci.yml`) performs the following checks:
 - **Test execution**: Runs the test suite with `swift test`
 - **Platform**: Tests run on macOS 14 (Apple Silicon) to support GPU-accelerated code
 
-The build status badge at the top of this README shows the current CI status. You can view detailed workflow runs in the [Actions tab](https://github.com/ThalesMMS/Swift-Neural-Networks-dev/actions).
+The build status badge at the top of this README shows the current CI status. You can view detailed workflow runs in the [Actions tab](https://github.com/ThalesMMS/Swift-Neural-Networks/actions).
 
 ### Running tests locally
 

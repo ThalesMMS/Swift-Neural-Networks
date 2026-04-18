@@ -79,6 +79,18 @@ let package = Package(
             targets: ["MNISTClassic"]
         ),
 
+        // Executable: Educational manual CNN implementation split into modules.
+        .executable(
+            name: "MNISTManualCNN",
+            targets: ["MNISTManualCNN"]
+        ),
+
+        // Executable: Educational manual attention-pooling implementation split into modules.
+        .executable(
+            name: "MNISTManualAttention",
+            targets: ["MNISTManualAttention"]
+        ),
+
         // Executable: Proof-of-concept for MLX compilation
         // Run with: swift run POCCompile
         // TEMPORARILY DISABLED: Missing file in this worktree
@@ -124,7 +136,8 @@ let package = Package(
         .target(
             name: "MNISTCommon",
             dependencies: [],
-            path: "Sources/MNISTCommon"
+            path: "Sources/MNISTCommon",
+            exclude: ["README.md"]
         ),
 
         // -----------------------------------------------------------------------
@@ -193,6 +206,32 @@ let package = Package(
                 // Metal shader files for GPU acceleration
                 .process("Shaders")
             ]
+        ),
+
+        // -----------------------------------------------------------------------
+        // MNISTManualCNN: Standalone educational CNN refactored from mnist_cnn.swift
+        // -----------------------------------------------------------------------
+        .executableTarget(
+            name: "MNISTManualCNN",
+            dependencies: [
+                "MNISTCommon",
+            ],
+            path: "Sources/MNISTManualCNN",
+            resources: [
+                .process("Shaders")
+            ]
+        ),
+
+        // -----------------------------------------------------------------------
+        // MNISTManualAttention: Standalone educational attention model refactored
+        // from mnist_attention_pool.swift
+        // -----------------------------------------------------------------------
+        .executableTarget(
+            name: "MNISTManualAttention",
+            dependencies: [
+                "MNISTCommon",
+            ],
+            path: "Sources/MNISTManualAttention"
         ),
 
         // -----------------------------------------------------------------------
@@ -285,6 +324,30 @@ let package = Package(
                 "MNISTCommon",
             ],
             path: "Tests/MNISTClassicTests"
+        ),
+
+        // -----------------------------------------------------------------------
+        // MNISTManualCNNTests: Tests for the refactored manual CNN target
+        // -----------------------------------------------------------------------
+        .testTarget(
+            name: "MNISTManualCNNTests",
+            dependencies: [
+                "MNISTManualCNN",
+                "MNISTCommon",
+            ],
+            path: "Tests/MNISTManualCNNTests"
+        ),
+
+        // -----------------------------------------------------------------------
+        // MNISTManualAttentionTests: Tests for the refactored manual attention target
+        // -----------------------------------------------------------------------
+        .testTarget(
+            name: "MNISTManualAttentionTests",
+            dependencies: [
+                "MNISTManualAttention",
+                "MNISTCommon",
+            ],
+            path: "Tests/MNISTManualAttentionTests"
         ),
     ]
 )

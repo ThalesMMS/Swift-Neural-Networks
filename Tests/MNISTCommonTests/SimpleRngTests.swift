@@ -698,6 +698,98 @@ final class SimpleRngTests: XCTestCase {
                       "Same seed should produce identical shuffles")
     }
 
+    func testShuffleMethodReproducibility() {
+        var rng1 = SimpleRng(seed: 123)
+        var rng2 = SimpleRng(seed: 123)
+        var values1 = Array(0..<20)
+        var values2 = Array(0..<20)
+
+        rng1.shuffle(&values1)
+        rng2.shuffle(&values2)
+
+        XCTAssertEqual(values1, values2)
+        XCTAssertEqual(Set(values1), Set(0..<20))
+        XCTAssertNotEqual(values1, Array(0..<20))
+    }
+
+    func testShuffleEmptyArrayIsUnchanged() {
+        // Empty array should not crash and should remain empty.
+        var rng = SimpleRng(seed: 1)
+        var empty: [Int] = []
+        rng.shuffle(&empty)
+        XCTAssertEqual(empty, [], "Shuffling an empty array should leave it empty")
+    }
+
+    func testShuffleSingleElementIsUnchanged() {
+        // Single-element array must stay the same (only one permutation exists).
+        var rng = SimpleRng(seed: 1)
+        var single = [42]
+        rng.shuffle(&single)
+        XCTAssertEqual(single, [42], "Shuffling a single-element array should leave it unchanged")
+    }
+
+    func testShuffleIsPermutation() {
+        // The result must contain exactly the same elements as the input.
+        var rng = SimpleRng(seed: 77)
+        let n = 100
+        var values = Array(0..<n)
+        rng.shuffle(&values)
+
+        let sortedResult = values.sorted()
+        XCTAssertEqual(sortedResult, Array(0..<n),
+                       "Shuffled array must be a permutation of the original")
+    }
+
+    func testShuffleTwoElementsCanSwap() {
+        // For two distinct elements, multiple seeds should produce at least one swap
+        // (verifying the algorithm is not degenerate).
+        var foundSwapped = false
+        for seed: UInt64 in 0..<50 {
+            var rng = SimpleRng(seed: seed + 1)  // avoid seed=0 edge case
+            var arr = [0, 1]
+            rng.shuffle(&arr)
+            if arr == [1, 0] {
+                foundSwapped = true
+                break
+            }
+        }
+        XCTAssertTrue(foundSwapped,
+                      "At least one seed should produce a swapped two-element array")
+    }
+
+    func testShuffleAdvancesRngState() {
+        // Shuffling should consume RNG state, so subsequent draws differ from
+        // an RNG that did not shuffle.
+        var rngWithShuffle = SimpleRng(seed: 55)
+        var rngWithout = SimpleRng(seed: 55)
+
+        var arr = Array(0..<10)
+        rngWithShuffle.shuffle(&arr)
+
+        // After shuffling 10 elements the internal state must have advanced.
+        let afterShuffle = rngWithShuffle.nextUInt32()
+        // Without shuffle, the very first draw:
+        let withoutShuffle = rngWithout.nextUInt32()
+        XCTAssertNotEqual(afterShuffle, withoutShuffle,
+                          "shuffle() should advance the RNG state by at least one step")
+    }
+
+    func testShuffleDifferentSeedsDifferentResults() {
+        // Different seeds should (with overwhelming probability) produce different orderings.
+        let original = Array(0..<30)
+
+        var rng1 = SimpleRng(seed: 10)
+        var arr1 = original
+        rng1.shuffle(&arr1)
+
+        var rng2 = SimpleRng(seed: 20)
+        var arr2 = original
+        rng2.shuffle(&arr2)
+
+        XCTAssertNotEqual(arr1, arr2,
+                          "Different seeds should almost certainly produce different shuffles")
+    }
+
     func testMinibatchSamplingScenario() {
         // Test typical mini-batch sampling scenario
         var rng = SimpleRng(seed: 456)

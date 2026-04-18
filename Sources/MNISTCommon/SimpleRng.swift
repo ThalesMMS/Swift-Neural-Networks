@@ -39,8 +39,24 @@ public struct SimpleRng {
     }
 
     // Integer sample in [0, upper).
-    // Note: Uses modulo, which introduces a tiny bias for non-power-of-two bounds; acceptable here (upper ≤ 60,000 vs UInt32.max ≈ 4.3B).
+    /// Generates a random integer in the range 0..<upper.
+    /// - Parameter upper: The exclusive upper bound; if `0`, the result is `0`.
+    /// - Returns: An integer in `0..<upper` (or `0` when `upper == 0`). May be slightly biased when `upper` is not a power of two.
     public mutating func nextInt(upper: Int) -> Int {
         return upper == 0 ? 0 : Int(nextUInt32()) % upper
+    }
+
+    /// Randomly permutes the elements of `array` in place.
+    /// - Note: If `array.count` is 0 or 1, the array is left unchanged.
+    /// - Parameters:
+    ///   - array: The integer array to shuffle; its elements are reordered in place. The generator's internal state is advanced as values are drawn.
+    public mutating func shuffle(_ array: inout [Int]) {
+        let n = array.count
+        if n > 1 {
+            for i in stride(from: n - 1, through: 1, by: -1) {
+                let j = nextInt(upper: i + 1)
+                array.swapAt(i, j)
+            }
+        }
     }
 }

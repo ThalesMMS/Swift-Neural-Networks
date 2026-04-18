@@ -106,6 +106,7 @@ public struct ModelWeights: Codable {
 /// - Optimizer configuration
 /// - Training hyperparameters
 /// - Current training metrics
+/// - Best validation metadata observed so far
 ///
 /// ## Usage
 /// ```swift
@@ -145,6 +146,12 @@ public struct Checkpoint: Codable {
     /// Training metrics at checkpoint time
     public let metrics: CheckpointMetrics
 
+    /// Best validation accuracy observed before or at this checkpoint
+    public let bestValidationAccuracy: Float?
+
+    /// Epoch where the best validation accuracy was observed
+    public let bestEpoch: Int?
+
     /// Timestamp when checkpoint was created
     public let timestamp: Date
 
@@ -158,6 +165,8 @@ public struct Checkpoint: Codable {
         optimizerState: OptimizerState,
         hyperparameters: TrainingHyperparameters,
         metrics: CheckpointMetrics,
+        bestValidationAccuracy: Float? = nil,
+        bestEpoch: Int? = nil,
         timestamp: Date = Date(),
         notes: String? = nil
     ) {
@@ -167,6 +176,8 @@ public struct Checkpoint: Codable {
         self.optimizerState = optimizerState
         self.hyperparameters = hyperparameters
         self.metrics = metrics
+        self.bestValidationAccuracy = bestValidationAccuracy
+        self.bestEpoch = bestEpoch
         self.timestamp = timestamp
         self.notes = notes
     }
@@ -272,6 +283,8 @@ public func saveCheckpoint<M: Module>(
     optimizerState: OptimizerState,
     hyperparameters: TrainingHyperparameters,
     metrics: CheckpointMetrics,
+    bestValidationAccuracy: Float? = nil,
+    bestEpoch: Int? = nil,
     filePath: String,
     notes: String? = nil
 ) throws {
@@ -317,6 +330,8 @@ public func saveCheckpoint<M: Module>(
         optimizerState: optimizerState,
         hyperparameters: hyperparameters,
         metrics: metrics,
+        bestValidationAccuracy: bestValidationAccuracy,
+        bestEpoch: bestEpoch,
         timestamp: Date(),
         notes: notes
     )
@@ -566,6 +581,8 @@ public func saveBestModel<M: Module>(
         optimizerState: optimizerState,
         hyperparameters: hyperparameters,
         metrics: metrics,
+        bestValidationAccuracy: validationAccuracy,
+        bestEpoch: epoch,
         filePath: filePath,
         notes: notes
     )

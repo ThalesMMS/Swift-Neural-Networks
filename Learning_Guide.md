@@ -8,10 +8,10 @@ This repository contains multiple implementations of neural networks in Swift, r
 
 | Learning Goal | Recommended Path | Files to Study |
 | --- | --- | --- |
-| **Understand neural network fundamentals** | [Beginner Path](#beginner-path) | `mlp_simple.swift`, `MNISTClassic` |
-| **Learn backpropagation from scratch** | [Manual Backprop Path](#manual-backprop-path) | `mnist_mlp.swift`, `mnist_cnn.swift` |
-| **Build production ML models** | [Modern MLX Path](#modern-mlx-path) | `MNISTMLX`, `MNISTData` |
-| **Understand GPU acceleration** | [GPU Optimization Path](#gpu-optimization-path) | `MNISTClassic/GPUBackend.swift` |
+| **Understand neural network fundamentals** | [Beginner Path](#beginner-path-im-new-to-neural-networks) | `mlp_simple.swift`, `MNISTClassic` |
+| **Learn backpropagation from scratch** | [Manual Backprop Path](#manual-backprop-path-i-want-to-implement-backprop-from-scratch) | `MNISTClassic`, `MNISTManualCNN`, `MNISTManualAttention` |
+| **Build production ML models** | [Modern MLX Path](#modern-mlx-path-i-want-to-build-production-models) | `MNISTMLX`, `MNISTData` |
+| **Understand GPU acceleration** | [GPU Optimization Path](#gpu-optimization-path-i-want-to-understand-gpu-acceleration) | `MNISTClassic/GPUBackend.swift` |
 | **Compare manual vs auto-diff** | [Comparative Study](#comparative-study) | Both Classic and MLX implementations |
 
 ---
@@ -26,9 +26,9 @@ This repository contains multiple implementations of neural networks in Swift, r
 -Explicit forward and backward passes
 -Manual gradient calculations
 -No automatic differentiation frameworks
--Single-file implementations for easy study
+-Modular implementations with small legacy wrapper scripts
 - Note:Not recommended for production use
-- Note:More verbose code (~2000+ lines per model)
+- Note:More verbose than MLX because gradients are explicit
 
 **Files:**
 1. **`mlp_simple.swift`** (218 lines)
@@ -38,20 +38,20 @@ This repository contains multiple implementations of neural networks in Swift, r
    - Manual backprop with clear variable names
    - No external dependencies
 
-2. **`mnist_mlp.swift`** (2053 lines)
+2. **`MNISTClassic`** (`Sources/MNISTClassic/`)
    - Full MLP for MNIST (784→512→10)
    - ReLU + Softmax activations
    - Manual backprop with detailed comments
    - CPU, MPS GPU, and MPSGraph backends
    - IDX file parsing for MNIST data
 
-3. **`mnist_cnn.swift`** (1724 lines)
+3. **`MNISTManualCNN`** (`Sources/MNISTManualCNN/`)
    - Convolutional neural network
    - Manual convolution and pooling operations
    - Explicit gradient calculations for conv/pool layers
    - Demonstrates spatial feature learning
 
-4. **`mnist_attention_pool.swift`** (2281 lines)
+4. **`MNISTManualAttention`** (`Sources/MNISTManualAttention/`)
    - Self-attention mechanism from scratch
    - Manual Q/K/V projections and attention scores
    - Position embeddings and token pooling
@@ -63,7 +63,7 @@ This repository contains multiple implementations of neural networks in Swift, r
 - You're debugging gradient flow issues
 - You're implementing a new architecture and need intuition
 
-### Modular Educational Implementation (MNISTClassic)
+### Modular Educational Implementations
 
 **Purpose:** Refactored manual backprop with clean separation of concerns.
 
@@ -73,7 +73,7 @@ This repository contains multiple implementations of neural networks in Swift, r
 -Multiple backend options (CPU, MPS, MPSGraph)
 -Production-quality code structure
 - Note:Still manual backprop (educational focus)
-- Note:More complex than single-file versions
+- Note:More complex than `mlp_simple.swift`
 
 **Module Structure:**
 ```
@@ -207,12 +207,12 @@ Sources/MNISTData/
 - Experiment: Change learning rate, hidden layer size, epochs
 
 **Step 2: MNIST MLP (4-6 hours)**
-- Study `mnist_mlp.swift` sections in order:
-  1. Data structures (lines 1-100)
-  2. Forward pass (lines 300-400)
-  3. Backward pass (lines 500-700)
-  4. Training loop (lines 1500-1700)
-- Compile and run: `swift mnist_mlp.swift`
+- Study `Sources/MNISTClassic/` in order:
+  1. `Types.swift` for data structures
+  2. `Training.swift` for forward, backward, and SGD update logic
+  3. `CPUBackend.swift` and `GPUBackend.swift` for backend differences
+  4. `main.swift` for orchestration
+- Compile and run: `swift run MNISTClassic`
 - Experiment: Adjust batch size, learning rate, hidden units
 
 **Step 3: Modern MLX (2-3 hours)**
@@ -236,29 +236,29 @@ You now understand what frameworks like PyTorch/TensorFlow are automating!
    - Trace gradient flow for 1 training step by hand
    - Verify: Loss should decrease consistently
 
-2. **MNIST with ReLU** (`mnist_mlp.swift`)
+2. **MNIST with ReLU** (`MNISTClassic`)
    - Study ReLU backward: `∂L/∂x = ∂L/∂y × (x > 0 ? 1 : 0)`
    - Understand mini-batch gradient accumulation
    - Implement your own version from scratch (don't peek!)
 
 **Phase 2: Convolutional Layers (3-4 days)**
-3. **CNN Forward Pass** (`mnist_cnn.swift`)
+3. **CNN Forward Pass** (`Sources/MNISTManualCNN/`)
    - Study `convForward()`: sliding window, im2col optimization
    - Understand max pooling: keep index of max value
    - Trace shapes through network: [N,1,28,28] → [N,10]
 
-4. **CNN Backward Pass** (`mnist_cnn.swift`)
+4. **CNN Backward Pass** (`Sources/MNISTManualCNN/`)
    - Study `convBackward()`: gradient redistribution to conv filters
    - Understand pooling gradient: route to max locations only
    - Debug: Check gradient shapes match forward activations
 
 **Phase 3: Attention Mechanisms (4-5 days)**
-5. **Self-Attention Forward** (`mnist_attention_pool.swift`)
+5. **Self-Attention Forward** (`Sources/MNISTManualAttention/`)
    - Study Q/K/V projections: `Q=XW_q, K=XW_k, V=XW_v`
    - Understand attention scores: `softmax(Q·K^T / √d_k)`
    - Trace token mixing: `output = attention_scores · V`
 
-6. **Self-Attention Backward** (`mnist_attention_pool.swift`)
+6. **Self-Attention Backward** (`Sources/MNISTManualAttention/`)
    - Study gradient flow through softmax
    - Understand chain rule through matmuls: `∂L/∂W = X^T · ∂L/∂Y`
    - Most complex backprop in the repo - take your time!
@@ -281,12 +281,12 @@ Implement a new architecture (e.g., ResNet) with manual backprop. Then compare t
 **Phase 2: Model Zoo (2 days)**
 5. **CNN** (`CNNModel.swift`)
    - Learn: `Conv2d`, `maxPool2d`, `flatten()`
-   - Compare to manual conv in `mnist_cnn.swift`
+   - Compare to manual conv in `Sources/MNISTManualCNN/`
    - Run: `swift run MNISTMLX --model cnn --epochs 3`
 
 6. **Attention** (`AttentionModel.swift`)
    - Learn: `scaled_dot_product_attention()`, `Embedding`
-   - Compare to manual attention in `mnist_attention_pool.swift`
+   - Compare to manual attention in `Sources/MNISTManualAttention/`
    - Run: `swift run MNISTMLX --model attention --epochs 5`
 
 7. **ResNet** (`ResNetModel.swift`)
@@ -433,9 +433,9 @@ let gradients = lossGrad(model, x, y)  // Automatic!
 | File | Lines | Purpose | Difficulty | Best For |
 | --- | --- | --- | --- | --- |
 | `mlp_simple.swift` | 218 | XOR problem, sigmoid | Easy | Beginners |
-| `mnist_mlp.swift` | 2053 | MNIST MLP, ReLU | Medium | Learning backprop |
-| `mnist_cnn.swift` | 1724 | CNN from scratch | Hard | Conv/pooling details |
-| `mnist_attention_pool.swift` | 2281 | Self-attention | Expert | Attention mechanisms |
+| `MNISTClassic` | modular | MNIST MLP, ReLU | Medium | Learning backprop |
+| `MNISTManualCNN` | modular | CNN from scratch | Hard | Conv/pooling details |
+| `MNISTManualAttention` | modular | Self-attention | Expert | Attention mechanisms |
 
 ### Production Files (Use These for Projects)
 
@@ -445,6 +445,8 @@ let gradients = lossGrad(model, x, y)  // Automatic!
 | **MNISTData** | `Sources/MNISTData/MNISTLoader.swift` | Data loading utilities | Need MNIST data in MLXArray format |
 | **MNISTCommon** | `Sources/MNISTCommon/*.swift` | Shared utilities (RNG, colors) | Need RNG or colored output |
 | **MNISTClassic** | `Sources/MNISTClassic/*.swift` | Modular manual backprop | Learning backends, GPU comparison |
+| **MNISTManualCNN** | `Sources/MNISTManualCNN/*.swift` | Modular manual CNN | Learning convolution/pooling backprop |
+| **MNISTManualAttention** | `Sources/MNISTManualAttention/*.swift` | Modular manual attention | Learning attention backprop |
 
 ### Documentation Files (Read These First)
 

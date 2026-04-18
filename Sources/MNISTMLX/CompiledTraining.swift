@@ -281,6 +281,23 @@ public func createCompiledAttentionTrainingStep(
     }
 }
 
+/// Creates a compiled training step function for Transformer model
+public func createCompiledTransformerTrainingStep(
+    model: TransformerModel,
+    optimizer: SGD
+) -> @Sendable (MLXArray, MLXArray) -> MLXArray {
+    return compile(
+        inputs: [model, optimizer],
+        shapeless: true
+    ) { images, labels -> MLXArray in
+        let lossAndGrad = valueAndGrad(model: model, transformerLoss)
+        let (loss, grads) = lossAndGrad(model, images, labels)
+        optimizer.update(model: model, gradients: grads)
+        eval(model, optimizer)
+        return loss
+    }
+}
+
 /// Creates a compiled training step function for ResNet model
 ///
 /// ResNet models have residual blocks with skip connections and batch
@@ -568,6 +585,52 @@ public func trainAttentionEpochCompiled(
     }
 
     // Finish progress bar
+    progressBar.finish()
+
+    return totalLoss / Float(batchCount)
+}
+
+/// Trains the Transformer model for one epoch using compiled training steps
+public func trainTransformerEpochCompiled(
+    model: TransformerModel,
+    optimizer: SGD,
+    trainImages: MLXArray,
+    trainLabels: MLXArray,
+    batchSize: Int
+) -> Float {
+    let n = trainImages.shape[0]
+    var totalLoss: Float = 0
+    var batchCount = 0
+
+    let compiledStep = createCompiledTransformerTrainingStep(model: model, optimizer: optimizer)
+
+    var indices = Array(0..<n)
+    indices.shuffle()
+
+    let totalBatches = (n + batchSize - 1) / batchSize
+    let progressBar = ProgressBar(totalBatches: totalBatches)
+    progressBar.start()
+
+    var start = 0
+    while start < n {
+        let end = min(start + batchSize, n)
+        let batchIndices = Array(indices[start..<end]).map { Int32($0) }
+        let idxArray = MLXArray(batchIndices)
+
+        let batchImages = trainImages[idxArray]
+        let batchLabels = trainLabels[idxArray]
+
+        let loss = compiledStep(batchImages, batchLabels)
+
+        let lossValue = loss.item(Float.self)
+        totalLoss += lossValue
+        batchCount += 1
+
+        progressBar.update(batch: batchCount, loss: lossValue)
+
+        start = end
+    }
+
     progressBar.finish()
 
     return totalLoss / Float(batchCount)

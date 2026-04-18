@@ -141,7 +141,7 @@ func initializeNetwork(rng: inout SimpleRng) -> NeuralNetwork {
 
 // MARK: - Model Persistence
 
-/// Save the trained model to a binary file.
+/// Save the trained model to a binary file using little-endian Int32 and Float64 values.
 func saveModel(nn: NeuralNetwork, filename: String) {
     FileManager.default.createFile(atPath: filename, contents: nil)
     guard let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: filename)) else {
@@ -151,13 +151,13 @@ func saveModel(nn: NeuralNetwork, filename: String) {
     defer { try? handle.close() }
 
     func writeInt32(_ value: Int32) {
-        var v = value
+        var v = value.littleEndian
         handle.write(Data(bytes: &v, count: MemoryLayout<Int32>.size))
     }
 
     func writeDouble(_ value: Double) {
-        var v = value
-        handle.write(Data(bytes: &v, count: MemoryLayout<Double>.size))
+        var v = value.bitPattern.littleEndian
+        handle.write(Data(bytes: &v, count: MemoryLayout<UInt64>.size))
     }
 
     writeInt32(Int32(nn.hidden.inputSize))

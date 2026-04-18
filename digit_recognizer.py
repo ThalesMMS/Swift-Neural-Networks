@@ -12,6 +12,25 @@ import struct
 import sys
 import os
 
+MODEL_HEADER_FORMAT = '<iii'
+MODEL_FLOAT64_FORMAT = '<d'
+MODEL_HEADER_SIZE = struct.calcsize(MODEL_HEADER_FORMAT)
+FLOAT64_SIZE = struct.calcsize(MODEL_FLOAT64_FORMAT)
+MODEL_FLOAT64_DTYPE = np.dtype(MODEL_FLOAT64_FORMAT)
+EXPECTED_NUM_INPUTS = 784
+EXPECTED_NUM_OUTPUTS = 10
+MAX_NUM_HIDDEN = 10_000
+
+
+def _read_exact(f, size, section_name):
+    data = f.read(size)
+    if len(data) != size:
+        raise ValueError(
+            f"Corrupted model file - {section_name} "
+            f"(expected {size} bytes, got {len(data)})"
+        )
+    return data
+
 
 class MNISTModel:
     """Neural network model for MNIST digit recognition"""
@@ -28,32 +47,64 @@ class MNISTModel:
     def load_model(self, filename):
         """Load model weights from binary file saved by C program"""
         with open(filename, 'rb') as f:
-            # Read layer dimensions
-            self.num_inputs = struct.unpack('i', f.read(4))[0]
-            self.num_hidden = struct.unpack('i', f.read(4))[0]
-            self.num_outputs = struct.unpack('i', f.read(4))[0]
+            # Read and validate layer dimensions
+            header_data = _read_exact(f, MODEL_HEADER_SIZE, "header incomplete")
+            num_inputs, num_hidden, num_outputs = struct.unpack(
+                MODEL_HEADER_FORMAT,
+                header_data
+            )
+
+            dimensions = (
+                ('num_inputs', num_inputs),
+                ('num_hidden', num_hidden),
+                ('num_outputs', num_outputs),
+            )
+            for name, value in dimensions:
+                if value <= 0:
+                    raise ValueError(
+                        f"Invalid dimension: {name} must be positive, got {value}"
+                    )
+
+            if num_inputs != EXPECTED_NUM_INPUTS or num_outputs != EXPECTED_NUM_OUTPUTS:
+                raise ValueError(
+                    "Model architecture mismatch: expected "
+                    f"{EXPECTED_NUM_INPUTS} -> hidden -> {EXPECTED_NUM_OUTPUTS}, "
+                    f"got {num_inputs} -> {num_hidden} -> {num_outputs}"
+                )
+
+            if num_hidden > MAX_NUM_HIDDEN:
+                raise ValueError(
+                    f"Invalid dimension: num_hidden must be <= {MAX_NUM_HIDDEN}, "
+                    f"got {num_hidden}"
+                )
+
+            self.num_inputs = num_inputs
+            self.num_hidden = num_hidden
+            self.num_outputs = num_outputs
 
             print(f"Loading model: {self.num_inputs} -> {self.num_hidden} -> {self.num_outputs}")
 
             # Read hidden layer weights (input_size x hidden_size)
-            self.hidden_weights = np.zeros((self.num_inputs, self.num_hidden))
-            for i in range(self.num_inputs):
-                weights_data = f.read(8 * self.num_hidden)
-                self.hidden_weights[i, :] = struct.unpack(f'{self.num_hidden}d', weights_data)
+            data = _read_exact(f, FLOAT64_SIZE * num_inputs * num_hidden, "hidden weights")
+            self.hidden_weights = np.frombuffer(
+                data,
+                dtype=MODEL_FLOAT64_DTYPE
+            ).reshape(num_inputs, num_hidden)
 
             # Read hidden layer biases
-            biases_data = f.read(8 * self.num_hidden)
-            self.hidden_biases = np.array(struct.unpack(f'{self.num_hidden}d', biases_data))
+            data = _read_exact(f, FLOAT64_SIZE * num_hidden, "hidden biases")
+            self.hidden_biases = np.frombuffer(data, dtype=MODEL_FLOAT64_DTYPE)
 
             # Read output layer weights (hidden_size x output_size)
-            self.output_weights = np.zeros((self.num_hidden, self.num_outputs))
-            for i in range(self.num_hidden):
-                weights_data = f.read(8 * self.num_outputs)
-                self.output_weights[i, :] = struct.unpack(f'{self.num_outputs}d', weights_data)
+            data = _read_exact(f, FLOAT64_SIZE * num_hidden * num_outputs, "output weights")
+            self.output_weights = np.frombuffer(
+                data,
+                dtype=MODEL_FLOAT64_DTYPE
+            ).reshape(num_hidden, num_outputs)
 
             # Read output layer biases
-            biases_data = f.read(8 * self.num_outputs)
-            self.output_biases = np.array(struct.unpack(f'{self.num_outputs}d', biases_data))
+            data = _read_exact(f, FLOAT64_SIZE * num_outputs, "output biases")
+            self.output_biases = np.frombuffer(data, dtype=MODEL_FLOAT64_DTYPE)
 
         print(f"Model loaded successfully!")
 
@@ -279,6 +330,9 @@ def main():
         print(f"Error: {model_file} not found!")
         print("Please train the model first using the C program.")
         return
+    except ValueError as e:
+        print(f"Error loading model: {e}")
+        sys.exit(1)
 
     # Create and run the GUI
     root = tk.Tk()
