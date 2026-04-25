@@ -17,7 +17,9 @@ private func makeHyperparameters(config: Config) -> TrainingHyperparameters {
         epochs: config.epochs,
         batchSize: config.batchSize,
         learningRate: config.learningRate,
-        seed: config.seed
+        seed: config.seed,
+        earlyStoppingPatience: config.earlyStoppingPatience,
+        earlyStoppingMinDelta: config.earlyStoppingMinDelta
     )
 }
 
@@ -45,6 +47,35 @@ private func exportSummaryIfNeeded(config: Config, summary: TrainingSummary) {
         ColoredPrint.success("📄 Training summary exported to: \(filePath)")
     } catch {
         ColoredPrint.error("Failed to export JSON: \(error)")
+    }
+}
+
+struct EarlyStoppingState {
+    var patienceCounter = 0
+    var stoppedEarly = false
+    var reason: String? = nil
+
+    mutating func update(
+        validationAccuracy: Float,
+        bestValidationAccuracy: Float,
+        epoch: Int,
+        patience: Int?,
+        minDelta: Float
+    ) -> Bool {
+        if validationAccuracy > bestValidationAccuracy + minDelta {
+            patienceCounter = 0
+        } else {
+            patienceCounter += 1
+        }
+
+        guard let patience = patience, patienceCounter >= patience else {
+            return false
+        }
+
+        stoppedEarly = true
+        let epochWord = patience == 1 ? "epoch" : "epochs"
+        reason = "Early stopping: no validation improvement for \(patience) \(epochWord) (patience exhausted at epoch \(epoch))"
+        return true
     }
 }
 
@@ -128,6 +159,8 @@ private func runTraining<M: Module>(
 
     let hyperparams = makeHyperparameters(config: config)
     let optimState = OptimizerState(learningRate: config.learningRate)
+    let minDelta = config.earlyStoppingMinDelta ?? 0.0
+    var earlyStoppingState = EarlyStoppingState()
 
     for epoch in startEpoch...config.epochs {
         let startTime = Date()
@@ -138,6 +171,14 @@ private func runTraining<M: Module>(
         ColoredPrint.progress(String(format: "%5d | %.6f | %.2fs | Validation: %.2f%%",
                                      epoch, loss, elapsed, validationAccuracy * 100))
         epochMetrics.append(EpochMetrics(epoch: epoch, loss: loss, duration: elapsed))
+
+        let shouldStop = earlyStoppingState.update(
+            validationAccuracy: validationAccuracy,
+            bestValidationAccuracy: bestValidationAccuracy,
+            epoch: epoch,
+            patience: config.earlyStoppingPatience,
+            minDelta: minDelta
+        )
 
         // Save best model
         if validationAccuracy > bestValidationAccuracy {
@@ -179,6 +220,20 @@ private func runTraining<M: Module>(
                 ColoredPrint.error("Failed to save checkpoint: \(error)")
             }
         }
+
+        if shouldStop {
+            if let reason = earlyStoppingState.reason {
+                ColoredPrint.warning(reason)
+            }
+            break
+        }
+    }
+
+    let lastCompletedEpoch = epochMetrics.last?.epoch ?? startEpoch - 1
+    if earlyStoppingState.stoppedEarly {
+        ColoredPrint.info("Training stopped at epoch \(lastCompletedEpoch) of \(config.epochs) configured epochs.")
+    } else {
+        ColoredPrint.info("Training reached configured epoch \(config.epochs).")
     }
 
     // -------------------------------------------------------------------------
@@ -195,7 +250,9 @@ private func runTraining<M: Module>(
         finalAccuracy: accuracy,
         benchmarkComparison: BenchmarkComparison(expectedAccuracy: expectedAccuracy, actualAccuracy: accuracy),
         bestValidationAccuracy: bestEpoch > 0 ? bestValidationAccuracy : nil,
-        bestEpoch: bestEpoch > 0 ? bestEpoch : nil
+        bestEpoch: bestEpoch > 0 ? bestEpoch : nil,
+        stoppedEarly: earlyStoppingState.stoppedEarly,
+        earlyStoppingReason: earlyStoppingState.reason
     )
 
     summary.printSummary()

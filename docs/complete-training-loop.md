@@ -727,6 +727,10 @@ func trainMNIST() {
     // Step 4: Set hyperparameters
     let epochs = 10
     let batchSize = 128
+    let earlyStoppingPatience: Int? = 5
+    let earlyStoppingMinDelta: Float = 0.0
+    var bestValidationAccuracy: Float = 0.0
+    var patienceCounter = 0
     print("Training for \(epochs) epochs with batch size \(batchSize)")
     print("")
 
@@ -781,9 +785,27 @@ func trainMNIST() {
         // =====================================================================
         // EARLY STOPPING (Optional)
         // =====================================================================
+        // MNISTMLX monitors validation accuracy for early stopping. This
+        // walkthrough uses the held-out accuracy value above to show the same
+        // control flow in one compact example.
+        let previousBestValidationAccuracy = bestValidationAccuracy
 
-        if accuracy > 0.98 {
-            print("Reached 98% accuracy! Stopping early.")
+        // Best-model checkpointing should save on any strict improvement.
+        // This is independent of earlyStoppingMinDelta.
+        if accuracy > bestValidationAccuracy {
+            bestValidationAccuracy = accuracy
+            print("New best model candidate: \(String(format: "%.2f", accuracy * 100))%")
+        }
+
+        // Patience resets only when the improvement is meaningful.
+        if accuracy > previousBestValidationAccuracy + earlyStoppingMinDelta {
+            patienceCounter = 0
+        } else {
+            patienceCounter += 1
+        }
+
+        if let patience = earlyStoppingPatience, patienceCounter >= patience {
+            print("Early stopping: no validation improvement for \(patience) epochs.")
             break
         }
     }
@@ -982,12 +1004,29 @@ Epoch 8 Summary:
   Test Accuracy: 98.12%
   Duration: 11.5s
 
-Reached 98% accuracy! Stopping early.
+Early stopping: no validation improvement for 5 epochs.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Training complete!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+### Patience-Based Early Stopping in MNISTMLX
+
+The production `MNISTMLX` training path uses a validation split and monitors validation accuracy after each epoch. Patience-based early stopping answers: "How many consecutive epochs should training tolerate without a meaningful validation improvement?"
+
+- `--early-stopping-patience <n>` enables early stopping and stops after `n` consecutive epochs without meaningful validation accuracy improvement.
+- `--early-stopping-min-delta <f>` defines "meaningful" improvement. For example, `0.001` means validation accuracy must improve by more than 0.1 percentage points to reset patience.
+- If `--early-stopping-patience` is omitted, early stopping is disabled and training runs all configured epochs.
+- Best-model checkpointing remains independent of `minDelta`: the best checkpoint is still saved on any strict validation accuracy improvement, even if that improvement is too small to reset patience.
+
+Example:
+
+```bash
+swift run MNISTMLX --model cnn --epochs 50 --early-stopping-patience 5
+```
+
+This asks for up to 50 epochs, but stops once validation accuracy has failed to improve meaningfully for 5 consecutive epochs. The training summary records whether the run stopped early, the stop reason, and the actual epoch where training stopped.
 
 ---
 

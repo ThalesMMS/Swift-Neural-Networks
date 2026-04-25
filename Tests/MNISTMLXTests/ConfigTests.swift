@@ -8,9 +8,8 @@
 // - Optional fields default to nil
 // - Boolean flags default to false
 //
-// Note: Config.parse() reads CommandLine.arguments at runtime, which cannot
-// be modified in unit tests without process-level manipulation. These tests
-// focus on the struct's default values and direct construction.
+// Tests use Config.parse(arguments:) for direct parser coverage without
+// mutating process-global CommandLine.arguments.
 //
 // ============================================================================
 
@@ -18,6 +17,22 @@ import XCTest
 @testable import MNISTMLX
 
 final class ConfigTests: XCTestCase {
+
+    private func assertEvaluateCombinationRejected(
+        arguments: [String],
+        expectedMessage: String,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
+        XCTAssertThrowsError(try Config.parseOrThrow(arguments: arguments), file: file, line: line) { error in
+            guard let configError = error as? ConfigError else {
+                XCTFail("Should throw ConfigError", file: file, line: line)
+                return
+            }
+
+            XCTAssertEqual(configError.description, expectedMessage, file: file, line: line)
+        }
+    }
 
     // =============================================================================
     // MARK: - Default Value Tests
@@ -29,10 +44,22 @@ final class ConfigTests: XCTestCase {
                        "Default model type should be 'mlp'")
     }
 
+    func testDefaultModelTypeProvided() {
+        let config = Config()
+        XCTAssertFalse(config.modelTypeProvided,
+                       "modelTypeProvided should default to false")
+    }
+
     func testDefaultEpochs() {
         let config = Config()
         XCTAssertEqual(config.epochs, 5,
                        "Default epochs should be 5")
+    }
+
+    func testDefaultEpochsProvided() {
+        let config = Config()
+        XCTAssertFalse(config.epochsProvided,
+                       "epochsProvided should default to false")
     }
 
     func testDefaultBatchSize() {
@@ -89,6 +116,26 @@ final class ConfigTests: XCTestCase {
                      "resumeFrom should default to nil")
     }
 
+    func testDefaultEvaluatePath() {
+        let config = Config()
+        XCTAssertNil(config.evaluatePath,
+                     "evaluatePath should default to nil")
+        XCTAssertFalse(config.isEvaluationMode,
+                       "Default config should not be in evaluation mode")
+    }
+
+    func testDefaultEarlyStoppingPatience() {
+        let config = Config()
+        XCTAssertNil(config.earlyStoppingPatience,
+                     "earlyStoppingPatience should default to nil (disabled)")
+    }
+
+    func testDefaultEarlyStoppingMinDelta() {
+        let config = Config()
+        XCTAssertNil(config.earlyStoppingMinDelta,
+                     "earlyStoppingMinDelta should default to nil")
+    }
+
     // =============================================================================
     // MARK: - Struct Mutation Tests
     // =============================================================================
@@ -96,15 +143,21 @@ final class ConfigTests: XCTestCase {
     func testMutableModelType() {
         var config = Config()
         config.modelType = "cnn"
+        config.modelTypeProvided = true
         XCTAssertEqual(config.modelType, "cnn",
                        "modelType should be mutable")
+        XCTAssertTrue(config.modelTypeProvided,
+                      "modelTypeProvided should be mutable")
     }
 
     func testMutableEpochs() {
         var config = Config()
         config.epochs = 10
+        config.epochsProvided = true
         XCTAssertEqual(config.epochs, 10,
                        "epochs should be mutable")
+        XCTAssertTrue(config.epochsProvided,
+                      "epochsProvided should be mutable")
     }
 
     func testMutableBatchSize() {
@@ -168,6 +221,167 @@ final class ConfigTests: XCTestCase {
         config.resumeFrom = "./checkpoints/epoch_5.json"
         XCTAssertEqual(config.resumeFrom, "./checkpoints/epoch_5.json",
                        "resumeFrom should be mutable")
+    }
+
+    func testMutableEvaluatePath() {
+        var config = Config()
+        config.evaluatePath = "./best_model_mlp.json"
+        XCTAssertEqual(config.evaluatePath, "./best_model_mlp.json",
+                       "evaluatePath should be mutable")
+        XCTAssertTrue(config.isEvaluationMode,
+                      "evaluatePath should enable evaluation mode")
+    }
+
+    func testMutableEarlyStoppingPatience() {
+        var config = Config()
+        config.earlyStoppingPatience = 3
+        XCTAssertEqual(config.earlyStoppingPatience, 3,
+                       "earlyStoppingPatience should be mutable")
+    }
+
+    func testMutableEarlyStoppingMinDelta() {
+        var config = Config()
+        config.earlyStoppingMinDelta = 0.001
+        XCTAssertEqual(config.earlyStoppingMinDelta ?? -1, 0.001, accuracy: 1e-7,
+                       "earlyStoppingMinDelta should be mutable")
+    }
+
+    // =============================================================================
+    // MARK: - Parser Tests
+    // =============================================================================
+
+    func testParseEarlyStoppingPatience() {
+        let config = Config.parse(arguments: [
+            "MNISTMLX",
+            "--early-stopping-patience", "3"
+        ])
+
+        XCTAssertEqual(config.earlyStoppingPatience, 3)
+        XCTAssertNil(config.earlyStoppingMinDelta)
+    }
+
+    func testParseEarlyStoppingMinDelta() {
+        let config = Config.parse(arguments: [
+            "MNISTMLX",
+            "--early-stopping-min-delta", "0.001"
+        ])
+
+        XCTAssertNil(config.earlyStoppingPatience)
+        XCTAssertEqual(config.earlyStoppingMinDelta ?? -1, 0.001, accuracy: 1e-7)
+    }
+
+    func testParseEarlyStoppingOptionsTogether() {
+        let config = Config.parse(arguments: [
+            "MNISTMLX",
+            "--epochs", "20",
+            "--early-stopping-patience", "4",
+            "--early-stopping-min-delta", "0.0005"
+        ])
+
+        XCTAssertEqual(config.epochs, 20)
+        XCTAssertEqual(config.earlyStoppingPatience, 4)
+        XCTAssertEqual(config.earlyStoppingMinDelta ?? -1, 0.0005, accuracy: 1e-7)
+    }
+
+    func testParseEvaluatePath() {
+        let config = Config.parse(arguments: [
+            "MNISTMLX",
+            "--evaluate", "./best_model_mlp.json"
+        ])
+
+        XCTAssertEqual(config.evaluatePath, "./best_model_mlp.json")
+        XCTAssertTrue(config.isEvaluationMode)
+        XCTAssertFalse(config.modelTypeProvided)
+    }
+
+    func testParseEvaluateShortFlagWithModelOverride() {
+        let config = Config.parse(arguments: [
+            "MNISTMLX",
+            "-E", "./best_model_cnn.json",
+            "--model", "cnn"
+        ])
+
+        XCTAssertEqual(config.evaluatePath, "./best_model_cnn.json")
+        XCTAssertEqual(config.modelType, "cnn")
+        XCTAssertTrue(config.modelTypeProvided)
+        XCTAssertTrue(config.isEvaluationMode)
+    }
+
+    func testParseEvaluateRejectsEpochs() {
+        assertEvaluateCombinationRejected(
+            arguments: [
+                "MNISTMLX",
+                "--evaluate", "./best_model_mlp.json",
+                "--epochs", "5"
+            ],
+            expectedMessage: "--evaluate cannot be combined with --epochs/-e because evaluation does not train."
+        )
+    }
+
+    func testParseEvaluateRejectsResume() {
+        assertEvaluateCombinationRejected(
+            arguments: [
+                "MNISTMLX",
+                "--evaluate", "./best_model_mlp.json",
+                "--resume", "./checkpoint.json"
+            ],
+            expectedMessage: "--evaluate cannot be combined with --resume. Pass the checkpoint path to --evaluate instead."
+        )
+    }
+
+    func testParseEvaluateRejectsCompile() {
+        assertEvaluateCombinationRejected(
+            arguments: [
+                "MNISTMLX",
+                "--evaluate", "./best_model_mlp.json",
+                "--compile"
+            ],
+            expectedMessage: "--evaluate cannot be combined with --compile"
+        )
+    }
+
+    func testParseEvaluateRejectsCheckpointInterval() {
+        assertEvaluateCombinationRejected(
+            arguments: [
+                "MNISTMLX",
+                "--evaluate", "./best_model_mlp.json",
+                "--checkpoint-interval", "1"
+            ],
+            expectedMessage: "--evaluate cannot be combined with --checkpoint-interval"
+        )
+    }
+
+    func testParseEvaluateRejectsEarlyStoppingPatience() {
+        assertEvaluateCombinationRejected(
+            arguments: [
+                "MNISTMLX",
+                "--evaluate", "./best_model_mlp.json",
+                "--early-stopping-patience", "3"
+            ],
+            expectedMessage: "--evaluate cannot be combined with --early-stopping-patience"
+        )
+    }
+
+    func testParseEvaluateRejectsEarlyStoppingMinDelta() {
+        assertEvaluateCombinationRejected(
+            arguments: [
+                "MNISTMLX",
+                "--evaluate", "./best_model_mlp.json",
+                "--early-stopping-min-delta", "0.001"
+            ],
+            expectedMessage: "--evaluate cannot be combined with --early-stopping-min-delta"
+        )
+    }
+
+    func testParseEvaluateRejectsExportJson() {
+        assertEvaluateCombinationRejected(
+            arguments: [
+                "MNISTMLX",
+                "--evaluate", "./best_model_mlp.json",
+                "--export-json"
+            ],
+            expectedMessage: "--evaluate cannot be combined with --export-json"
+        )
     }
 
     // =============================================================================
@@ -253,6 +467,18 @@ final class ConfigTests: XCTestCase {
                      "resumeFrom should be clearable back to nil")
     }
 
+    func testEarlyStoppingOptionsCanBeCleared() {
+        var config = Config()
+        config.earlyStoppingPatience = 3
+        config.earlyStoppingMinDelta = 0.001
+        config.earlyStoppingPatience = nil
+        config.earlyStoppingMinDelta = nil
+        XCTAssertNil(config.earlyStoppingPatience,
+                     "earlyStoppingPatience should be clearable back to nil")
+        XCTAssertNil(config.earlyStoppingMinDelta,
+                     "earlyStoppingMinDelta should be clearable back to nil")
+    }
+
     // =============================================================================
     // MARK: - Config Isolation Tests
     // =============================================================================
@@ -285,6 +511,9 @@ final class ConfigTests: XCTestCase {
         config1.seed = 42
         config1.checkpointInterval = 1
         config1.resumeFrom = "./checkpoint.json"
+        config1.evaluatePath = "./best_model_transformer.json"
+        config1.earlyStoppingPatience = 4
+        config1.earlyStoppingMinDelta = 0.002
 
         let config2 = config1
 
@@ -297,5 +526,9 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(config2.seed, 42)
         XCTAssertEqual(config2.checkpointInterval, 1)
         XCTAssertEqual(config2.resumeFrom, "./checkpoint.json")
+        XCTAssertEqual(config2.evaluatePath, "./best_model_transformer.json")
+        XCTAssertTrue(config2.isEvaluationMode)
+        XCTAssertEqual(config2.earlyStoppingPatience, 4)
+        XCTAssertEqual(config2.earlyStoppingMinDelta ?? -1, 0.002, accuracy: 1e-7)
     }
 }

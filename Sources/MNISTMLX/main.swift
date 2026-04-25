@@ -21,6 +21,7 @@
 //   --batch <n>      Batch size (default: 32)
 //   --lr <f>         Learning rate (default: 0.01)
 //   --data <path>    Path to MNIST data directory (default: ./data)
+//   --evaluate <path> Evaluate a saved checkpoint without retraining
 //   --help           Show usage information
 //
 // ============================================================================
@@ -85,6 +86,32 @@ func main() {
     // Parse Command-Line Arguments
     // =========================================================================
     var config = Config.parse()
+
+    if config.isEvaluationMode {
+        guard let checkpointPath = config.evaluatePath else {
+            ColoredPrint.error("❌ Missing checkpoint path for evaluation")
+            exit(1)
+        }
+
+        print("╔═══════════════════════════════════════════════════════╗")
+        print("║   MNIST Neural Networks with MLX Swift                ║")
+        print("╚═══════════════════════════════════════════════════════╝")
+        print()
+        print("Evaluation:")
+        print("  Checkpoint:    \(checkpointPath)")
+        print("  Model:         \(config.modelTypeProvided ? config.modelType : "auto-detect")")
+        print("  Data Path:     \(config.dataPath)")
+        print("  Seed:          \(config.seed)")
+
+        MLX.seed(config.seed)
+        runEvaluation(
+            checkpointPath: checkpointPath,
+            dataDirectory: config.dataPath,
+            modelTypeOverride: config.modelTypeProvided ? config.modelType : nil
+        )
+        ColoredPrint.success("\n✅ Done!")
+        return
+    }
 
     // Use optimal learning rate for attention model with increased capacity
     // (dModel=32, ffDim=64). If user explicitly set --lr, respect that.

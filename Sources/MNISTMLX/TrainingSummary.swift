@@ -29,11 +29,26 @@ public struct TrainingHyperparameters: Codable {
     /// Random seed for reproducibility
     public let seed: UInt64
 
-    public init(epochs: Int, batchSize: Int, learningRate: Float, seed: UInt64) {
+    /// Early stopping patience in epochs, if enabled
+    public let earlyStoppingPatience: Int?
+
+    /// Minimum validation accuracy improvement required to reset patience
+    public let earlyStoppingMinDelta: Float?
+
+    public init(
+        epochs: Int,
+        batchSize: Int,
+        learningRate: Float,
+        seed: UInt64,
+        earlyStoppingPatience: Int? = nil,
+        earlyStoppingMinDelta: Float? = nil
+    ) {
         self.epochs = epochs
         self.batchSize = batchSize
         self.learningRate = learningRate
         self.seed = seed
+        self.earlyStoppingPatience = earlyStoppingPatience
+        self.earlyStoppingMinDelta = earlyStoppingMinDelta
     }
 }
 
@@ -137,6 +152,12 @@ public struct TrainingSummary: Codable {
     /// Epoch number when best validation accuracy was achieved
     public let bestEpoch: Int?
 
+    /// Whether training stopped before the configured epoch count
+    public let stoppedEarly: Bool
+
+    /// Reason training stopped early, if applicable
+    public let earlyStoppingReason: String?
+
     /// Total training time (sum of all epoch durations)
     public var totalTrainingTime: Double {
         return epochMetrics.reduce(0.0) { $0 + $1.duration }
@@ -155,7 +176,9 @@ public struct TrainingSummary: Codable {
         finalAccuracy: Float,
         benchmarkComparison: BenchmarkComparison? = nil,
         bestValidationAccuracy: Float? = nil,
-        bestEpoch: Int? = nil
+        bestEpoch: Int? = nil,
+        stoppedEarly: Bool = false,
+        earlyStoppingReason: String? = nil
     ) {
         self.modelType = modelType
         self.hyperparameters = hyperparameters
@@ -164,6 +187,8 @@ public struct TrainingSummary: Codable {
         self.benchmarkComparison = benchmarkComparison
         self.bestValidationAccuracy = bestValidationAccuracy
         self.bestEpoch = bestEpoch
+        self.stoppedEarly = stoppedEarly
+        self.earlyStoppingReason = earlyStoppingReason
     }
 
     // Custom encoding to include computed properties
@@ -175,6 +200,8 @@ public struct TrainingSummary: Codable {
         case benchmarkComparison
         case bestValidationAccuracy
         case bestEpoch
+        case stoppedEarly
+        case earlyStoppingReason
         case totalTrainingTime
         case averageEpochTime
     }
@@ -188,6 +215,8 @@ public struct TrainingSummary: Codable {
         try container.encodeIfPresent(benchmarkComparison, forKey: .benchmarkComparison)
         try container.encodeIfPresent(bestValidationAccuracy, forKey: .bestValidationAccuracy)
         try container.encodeIfPresent(bestEpoch, forKey: .bestEpoch)
+        try container.encode(stoppedEarly, forKey: .stoppedEarly)
+        try container.encodeIfPresent(earlyStoppingReason, forKey: .earlyStoppingReason)
         try container.encode(totalTrainingTime, forKey: .totalTrainingTime)
         try container.encode(averageEpochTime, forKey: .averageEpochTime)
     }
@@ -201,6 +230,8 @@ public struct TrainingSummary: Codable {
         benchmarkComparison = try container.decodeIfPresent(BenchmarkComparison.self, forKey: .benchmarkComparison)
         bestValidationAccuracy = try container.decodeIfPresent(Float.self, forKey: .bestValidationAccuracy)
         bestEpoch = try container.decodeIfPresent(Int.self, forKey: .bestEpoch)
+        stoppedEarly = try container.decodeIfPresent(Bool.self, forKey: .stoppedEarly) ?? false
+        earlyStoppingReason = try container.decodeIfPresent(String.self, forKey: .earlyStoppingReason)
         // Note: totalTrainingTime and averageEpochTime are computed from epochMetrics
     }
 
@@ -241,6 +272,9 @@ public struct TrainingSummary: Codable {
         ColoredPrint.info("  Batch Size:      \(hyperparameters.batchSize)")
         ColoredPrint.info("  Learning Rate:   \(hyperparameters.learningRate)")
         ColoredPrint.info("  Random Seed:     \(hyperparameters.seed)")
+        if let patience = hyperparameters.earlyStoppingPatience {
+            ColoredPrint.info("  Early Stopping:  patience=\(patience), minDelta=\(hyperparameters.earlyStoppingMinDelta ?? 0.0)")
+        }
         print()
 
         // Epoch-by-Epoch Metrics
@@ -255,9 +289,17 @@ public struct TrainingSummary: Codable {
         print()
 
         // Training Summary Statistics
+        let completedEpochs = epochMetrics.last?.epoch ?? 0
         ColoredPrint.info("Training Statistics:")
+        ColoredPrint.info("  Epochs Completed:      \(completedEpochs) of \(hyperparameters.epochs)")
         ColoredPrint.info(String(format: "  Total Training Time:   %.2f seconds", totalTrainingTime))
         ColoredPrint.info(String(format: "  Average Epoch Time:    %.2f seconds", averageEpochTime))
+        if stoppedEarly {
+            ColoredPrint.info("  Stopped Early:         yes")
+            if let reason = earlyStoppingReason {
+                ColoredPrint.info("  Stop Reason:           \(reason)")
+            }
+        }
         print()
 
         // Best Model Information (if available)

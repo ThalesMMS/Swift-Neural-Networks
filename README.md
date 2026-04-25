@@ -46,6 +46,12 @@ For production ML workflows and modern development, use **MNISTMLX** with Apple'
 # Build and run (MLP by default)
 swift run MNISTMLX
 
+# Train an MLP model and save best_model_mlp.json
+swift run MNISTMLX --model mlp --epochs 5
+
+# Evaluate the saved checkpoint without retraining
+swift run MNISTMLX --evaluate ./best_model_mlp.json
+
 # Train CNN model
 swift run MNISTMLX --model cnn --epochs 3
 
@@ -193,15 +199,24 @@ All implementations now support a consistent set of command-line flags for easy 
 | `--epochs` | `-e` | Number of training epochs | 10 (MLP), 3 (CNN), 5 (Attention) |
 | `--lr` | `-l` | Learning rate | 0.01 (MLP/CNN), 0.005 (Attention) |
 | `--seed` | `-s` | RNG seed for reproducibility | 1 |
+| `--early-stopping-patience` | - | Stop after N epochs without meaningful validation accuracy improvement (MNISTMLX only) | disabled |
+| `--early-stopping-min-delta` | - | Minimum validation accuracy improvement required to reset patience (MNISTMLX only) | 0.0 |
+| `--evaluate` | `-E` | Evaluate a saved MNISTMLX checkpoint without retraining | disabled |
 | `--help` | `-h` | Display usage information | - |
 
 Model-specific flags (where applicable):
 - `--hidden` / `-n`: Hidden layer size (MLP only, default: 512)
-- `--model` / `-m`: Model architecture (MNISTMLX: mlp, cnn, attention)
+- `--model` / `-m`: Model architecture (MNISTMLX: mlp, cnn, resnet, attention, transformer)
 - `--mps`: Use MPS GPU backend (MNISTClassic)
 - `--mpsgraph`: Use MPSGraph backend (MNISTClassic)
 - `--data` / `-d`: Path to MNIST data directory (default: `./data`)
 - `--compile`: Enable MLX function compilation for faster training (MNISTMLX only)
+- `--early-stopping-patience <n>`: Enable patience-based early stopping (MNISTMLX only)
+- `--early-stopping-min-delta <f>`: Require at least this validation accuracy improvement to reset patience (MNISTMLX only)
+
+For `MNISTMLX`, both early stopping flags are optional. Early stopping is disabled unless `--early-stopping-patience` is specified; if `--early-stopping-min-delta` is omitted, it defaults to `0.0`.
+
+MNISTMLX checkpoints are JSON files such as `best_model_mlp.json`, `best_model_cnn.json`, or `checkpoints/checkpoint_cnn_epoch_2.json`. Evaluation supports all MNISTMLX architectures (`mlp`, `cnn`, `resnet`, `attention`, `transformer`) when the checkpoint was saved by the matching built-in model shape. If the checkpoint model type or parameter shapes do not match the instantiated model, the command exits with a clear mismatch error.
 
 Examples:
 ```bash
@@ -292,8 +307,18 @@ swift build
 # Run MLP (default)
 swift run MNISTMLX
 
+# Complete train-then-evaluate workflow
+swift run MNISTMLX --model mlp --epochs 5
+swift run MNISTMLX --evaluate ./best_model_mlp.json
+
 # Run CNN
 swift run MNISTMLX --model cnn --epochs 3
+
+# Evaluate the saved best model checkpoint on the MNIST test set
+swift run MNISTMLX --evaluate best_model_cnn.json
+
+# Optionally assert the checkpoint architecture while evaluating
+swift run MNISTMLX --evaluate best_model_cnn.json --model cnn
 
 # Run Attention model
 swift run MNISTMLX --model attention --epochs 5
@@ -306,10 +331,38 @@ swift run MNISTMLX --help
 
 # Enable compilation for faster training
 swift run MNISTMLX --compile -e 10
+
+# Run up to 50 epochs, stopping after 5 stagnant validation epochs
+swift run MNISTMLX --model cnn --epochs 50 --early-stopping-patience 5
 ```
 
 Common flags: `--batch` / `-b`, `--epochs` / `-e`, `--lr` / `-l`, `--seed` / `-s`, `--help` / `-h`
-Model selection: `--model` / `-m` (mlp, cnn, attention)
+Model selection: `--model` / `-m` (mlp, cnn, resnet, attention, transformer)
+Post-training evaluation: `--evaluate` / `-E <checkpoint>` loads an MNISTMLX JSON checkpoint, auto-detects its model type, and reports test loss/accuracy without retraining. Passing `--model` with `--evaluate` validates that the checkpoint has that architecture. `--evaluate` is evaluation-only and cannot be combined with `--epochs`, `--resume`, or training-only flags such as `--compile`, `--checkpoint-interval`, `--export-json`, and `--early-stopping-*`; train or resume in a separate command, then run evaluation against the saved checkpoint.
+MNISTMLX early stopping: `--early-stopping-patience <n>` enables early stopping; `--early-stopping-min-delta <f>` is optional and defaults to `0.0`.
+
+MNISTMLX CLI reference:
+
+| Flag | Short | Description | Default |
+| --- | --- | --- | --- |
+| `--model <name>` | `-m` | Model architecture: `mlp`, `cnn`, `resnet`, `attention`, or `transformer` | `mlp` |
+| `--epochs <n>` | `-e` | Number of training epochs | `5` |
+| `--batch <n>` | `-b` | Batch size | `32` |
+| `--lr <f>` | `-l` | Learning rate | `0.01` (`0.005` for attention unless overridden) |
+| `--data <path>` | `-d` | Path to MNIST data directory | `./data` |
+| `--seed <n>` | `-s` | Random seed | `1` |
+| `--compile` | `-c` | Enable compiled training | disabled |
+| `--export-json` | - | Export training summary JSON | disabled |
+| `--checkpoint-interval <n>` | - | Save periodic checkpoint every N epochs | disabled |
+| `--resume <path>` | - | Resume training from a checkpoint; cannot be combined with `--evaluate` | disabled |
+| `--evaluate <path>` | `-E` | Evaluate a saved MNISTMLX checkpoint without retraining; cannot be combined with `--epochs`, `--resume`, or other training-only flags | disabled |
+| `--early-stopping-patience <n>` | - | Stop after N stagnant validation epochs | disabled |
+| `--early-stopping-min-delta <f>` | - | Minimum validation improvement for early stopping | `0.0` |
+| `--help` | `-h` | Show help | - |
+
+### Checkpoint Compatibility
+
+MNISTMLX checkpoints are JSON files written by the training flow, including `best_model_mlp.json`, `best_model_cnn.json`, and periodic files such as `checkpoints/checkpoint_cnn_epoch_2.json`. Evaluation supports the built-in `mlp`, `cnn`, `resnet`, `attention`, and `transformer` checkpoint formats. The evaluator auto-detects `modelType` from the checkpoint; passing `--model` in evaluation mode makes it an explicit compatibility check. Use `--evaluate` as a standalone invocation after training or resuming; do not combine it with `--epochs`, `--resume`, or training-only flags. Parameter shape mismatches fail clearly instead of silently loading the wrong architecture.
 
 ### Performance: MLX Compilation
 
@@ -348,8 +401,10 @@ Available models:
 | `mlp` | 784→512→10 (ReLU) | ~97% |
 | `cnn` | Conv(3×3,8)→MaxPool→Linear | ~98% |
 | `attention` | Patches→Attention→Pool→Linear | ~90% |
+| `resnet` | Conv→ResidualBlocks→GlobalAvgPool→Linear | ~98% |
+| `transformer` | Patches→Multi-head Attention→FFN→Linear | ~92% |
 
-See `docs/mlx_migration.md` for the migration guide.
+See `docs/migration.md` for the migration guide.
 
 Original vs MLX code:
 
@@ -651,7 +706,7 @@ python plot_comparison.py
 
 ## Digit recognizer UI
 
-The drawing app loads `mnist_model.bin` and runs inference. Note: currently supports MLP-only model format.
+The drawing app loads the legacy `mnist_model.bin` format from the C/CUDA path and runs handwritten-digit inference. Note: it currently supports that legacy MLP-only binary format. For the recommended MNISTMLX workflow, use `swift run MNISTMLX --evaluate <checkpoint.json>` to reload a saved checkpoint and run post-training test-set inference.
 
 ```bash
 python digit_recognizer.py

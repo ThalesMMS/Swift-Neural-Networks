@@ -84,6 +84,7 @@ final class TrainingSummaryTests: XCTestCase {
         XCTAssertNotNil(jsonDict?["epochMetrics"], "epochMetrics field should be present")
         XCTAssertNotNil(jsonDict?["finalAccuracy"], "finalAccuracy field should be present")
         XCTAssertNotNil(jsonDict?["benchmarkComparison"], "benchmarkComparison field should be present")
+        XCTAssertNotNil(jsonDict?["stoppedEarly"], "stoppedEarly field should be present")
 
         // Verify computed properties are included
         XCTAssertNotNil(jsonDict?["totalTrainingTime"], "totalTrainingTime computed property should be included")
@@ -115,7 +116,11 @@ final class TrainingSummaryTests: XCTestCase {
         XCTAssertEqual(decodedSummary.hyperparameters.batchSize, originalSummary.hyperparameters.batchSize)
         XCTAssertEqual(decodedSummary.hyperparameters.learningRate, originalSummary.hyperparameters.learningRate, accuracy: 0.0001)
         XCTAssertEqual(decodedSummary.hyperparameters.seed, originalSummary.hyperparameters.seed)
+        XCTAssertEqual(decodedSummary.hyperparameters.earlyStoppingPatience, originalSummary.hyperparameters.earlyStoppingPatience)
+        XCTAssertEqual(decodedSummary.hyperparameters.earlyStoppingMinDelta, originalSummary.hyperparameters.earlyStoppingMinDelta)
         XCTAssertEqual(decodedSummary.epochMetrics.count, originalSummary.epochMetrics.count)
+        XCTAssertEqual(decodedSummary.stoppedEarly, originalSummary.stoppedEarly)
+        XCTAssertEqual(decodedSummary.earlyStoppingReason, originalSummary.earlyStoppingReason)
 
         // Verify benchmark comparison
         XCTAssertNotNil(decodedSummary.benchmarkComparison)
@@ -324,6 +329,27 @@ final class TrainingSummaryTests: XCTestCase {
         XCTAssertEqual(decoded.batchSize, 64)
         XCTAssertEqual(decoded.learningRate, 0.005, accuracy: 0.0001)
         XCTAssertEqual(decoded.seed, 1234)
+        XCTAssertNil(decoded.earlyStoppingPatience)
+        XCTAssertNil(decoded.earlyStoppingMinDelta)
+    }
+
+    func testTrainingHyperparametersEncodeDecodeWithEarlyStopping() throws {
+        let hyperparameters = TrainingHyperparameters(
+            epochs: 20,
+            batchSize: 64,
+            learningRate: 0.005,
+            seed: 1234,
+            earlyStoppingPatience: 3,
+            earlyStoppingMinDelta: 0.001
+        )
+
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let jsonData = try encoder.encode(hyperparameters)
+        let decoded = try decoder.decode(TrainingHyperparameters.self, from: jsonData)
+
+        XCTAssertEqual(decoded.earlyStoppingPatience, 3)
+        XCTAssertEqual(decoded.earlyStoppingMinDelta ?? -1, 0.001, accuracy: 0.0001)
     }
 
     // =============================================================================
@@ -368,6 +394,91 @@ final class TrainingSummaryTests: XCTestCase {
         XCTAssertEqual(decoded.modelType, "cnn")
         XCTAssertEqual(decoded.finalAccuracy, 0.98, accuracy: 0.001)
         XCTAssertNil(decoded.benchmarkComparison, "Benchmark comparison should be nil")
+    }
+
+    func testTrainingSummaryEarlyStoppingMetadata() throws {
+        let summary = TrainingSummary(
+            modelType: "mlp",
+            hyperparameters: TrainingHyperparameters(
+                epochs: 10,
+                batchSize: 32,
+                learningRate: 0.001,
+                seed: 42,
+                earlyStoppingPatience: 2,
+                earlyStoppingMinDelta: 0.0005
+            ),
+            epochMetrics: createSampleEpochMetrics(),
+            finalAccuracy: 0.96,
+            stoppedEarly: true,
+            earlyStoppingReason: "Validation accuracy did not improve for 2 epochs."
+        )
+
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let jsonData = try encoder.encode(summary)
+        let decoded = try decoder.decode(TrainingSummary.self, from: jsonData)
+
+        XCTAssertTrue(decoded.stoppedEarly)
+        XCTAssertEqual(decoded.earlyStoppingReason, "Validation accuracy did not improve for 2 epochs.")
+        XCTAssertEqual(decoded.hyperparameters.earlyStoppingPatience, 2)
+        XCTAssertEqual(decoded.hyperparameters.earlyStoppingMinDelta ?? -1, 0.0005, accuracy: 0.0001)
+    }
+
+    func testTrainingSummaryNormalCompletionMetadata() throws {
+        let summary = TrainingSummary(
+            modelType: "mlp",
+            hyperparameters: TrainingHyperparameters(
+                epochs: 10,
+                batchSize: 32,
+                learningRate: 0.001,
+                seed: 42,
+                earlyStoppingPatience: 2,
+                earlyStoppingMinDelta: 0.0005
+            ),
+            epochMetrics: createSampleEpochMetrics(),
+            finalAccuracy: 0.97,
+            stoppedEarly: false,
+            earlyStoppingReason: nil
+        )
+
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        let jsonData = try encoder.encode(summary)
+        let jsonDict = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+        let decoded = try decoder.decode(TrainingSummary.self, from: jsonData)
+
+        XCTAssertEqual(jsonDict?["stoppedEarly"] as? Bool, false)
+        XCTAssertNil(jsonDict?["earlyStoppingReason"])
+        XCTAssertFalse(decoded.stoppedEarly)
+        XCTAssertNil(decoded.earlyStoppingReason)
+        XCTAssertEqual(decoded.hyperparameters.earlyStoppingPatience, 2)
+        XCTAssertEqual(decoded.hyperparameters.earlyStoppingMinDelta ?? -1, 0.0005, accuracy: 0.0001)
+    }
+
+    func testTrainingSummaryDecodesLegacyJSONWithoutEarlyStoppingFields() throws {
+        let json = """
+        {
+          "modelType": "mlp",
+          "hyperparameters": {
+            "epochs": 10,
+            "batchSize": 32,
+            "learningRate": 0.001,
+            "seed": 42
+          },
+          "epochMetrics": [],
+          "finalAccuracy": 0.97,
+          "totalTrainingTime": 0,
+          "averageEpochTime": 0
+        }
+        """
+
+        let data = Data(json.utf8)
+        let decoded = try JSONDecoder().decode(TrainingSummary.self, from: data)
+
+        XCTAssertFalse(decoded.stoppedEarly)
+        XCTAssertNil(decoded.earlyStoppingReason)
+        XCTAssertNil(decoded.hyperparameters.earlyStoppingPatience)
+        XCTAssertNil(decoded.hyperparameters.earlyStoppingMinDelta)
     }
 
     func testMultipleModelsAccuracyValues() {

@@ -10,9 +10,21 @@ import MNISTCommon
 // =============================================================================
 
 /// Configuration parsed from command-line arguments
+struct ConfigError: Error, CustomStringConvertible {
+    let message: String
+
+    var description: String {
+        message
+    }
+}
+
+let supportedModelTypes = ["mlp", "cnn", "resnet", "attention", "transformer"]
+
 struct Config {
     var modelType: String = "mlp"
+    var modelTypeProvided: Bool = false
     var epochs: Int = 5
+    var epochsProvided: Bool = false
     var batchSize: Int = 32
     var learningRate: Float = 0.01
     var learningRateProvided: Bool = false
@@ -22,33 +34,62 @@ struct Config {
     var exportJson: Bool = false
     var checkpointInterval: Int? = nil
     var resumeFrom: String? = nil
+    var evaluatePath: String? = nil
+    var earlyStoppingPatience: Int? = nil
+    var earlyStoppingMinDelta: Float? = nil
+
+    var isEvaluationMode: Bool {
+        evaluatePath != nil
+    }
 
     /// Parses command-line arguments into configuration
     ///
     /// This is a simple hand-rolled parser. For production code,
     /// consider using Swift Argument Parser package.
     static func parse() -> Config {
-        var config = Config()
-        let args = CommandLine.arguments
-        var i = 1
-
-        func fail(_ message: String) -> Never {
-            FileHandle.standardError.write(Data("\(message)\n".utf8))
+        do {
+            return try parseOrThrow(arguments: CommandLine.arguments)
+        } catch let error as ConfigError {
+            FileHandle.standardError.write(Data("\(error.description)\n".utf8))
+            exit(1)
+        } catch {
+            FileHandle.standardError.write(Data("\(error)\n".utf8))
             exit(1)
         }
+    }
 
-        func requireValue(for option: String) -> String {
+    static func parse(arguments args: [String]) -> Config {
+        do {
+            return try parseOrThrow(arguments: args)
+        } catch let error as ConfigError {
+            FileHandle.standardError.write(Data("\(error.description)\n".utf8))
+            exit(1)
+        } catch {
+            FileHandle.standardError.write(Data("\(error)\n".utf8))
+            exit(1)
+        }
+    }
+
+    static func parseOrThrow(arguments args: [String]) throws -> Config {
+        var config = Config()
+        var i = 1
+
+        func fail(_ message: String) throws -> Never {
+            throw ConfigError(message: message)
+        }
+
+        func requireValue(for option: String) throws -> String {
             i += 1
             guard i < args.count else {
-                fail("Missing value for \(option)")
+                try fail("Missing value for \(option)")
             }
             return args[i]
         }
 
-        func requireNonFlagValue(for option: String) -> String {
-            let value = requireValue(for: option)
+        func requireNonFlagValue(for option: String) throws -> String {
+            let value = try requireValue(for: option)
             guard !value.hasPrefix("-") else {
-                fail("Missing value for \(option)")
+                try fail("Missing value for \(option)")
             }
             return value
         }
@@ -58,42 +99,43 @@ struct Config {
             
             switch arg {
             case "--model", "-m":
-                let value = requireNonFlagValue(for: "--model/-m").lowercased()
-                let validModels = ["mlp", "cnn", "resnet", "attention", "transformer"]
-                guard validModels.contains(value) else {
-                    fail("Invalid value for --model/-m: \(value). Expected one of: \(validModels.joined(separator: ", ")).")
+                let value = try requireNonFlagValue(for: "--model/-m").lowercased()
+                guard supportedModelTypes.contains(value) else {
+                    try fail("Invalid value for --model/-m: \(value). Expected one of: \(supportedModelTypes.joined(separator: ", ")).")
                 }
                 config.modelType = value
+                config.modelTypeProvided = true
                 
             case "--epochs", "-e":
-                let value = requireValue(for: "--epochs/-e")
+                let value = try requireValue(for: "--epochs/-e")
                 guard let val = Int(value), val > 0 else {
-                    fail("Invalid value for --epochs/-e: \(value). Expected a positive integer.")
+                    try fail("Invalid value for --epochs/-e: \(value). Expected a positive integer.")
                 }
                 config.epochs = val
+                config.epochsProvided = true
                 
             case "--batch", "-b":
-                let value = requireValue(for: "--batch/-b")
+                let value = try requireValue(for: "--batch/-b")
                 guard let val = Int(value), val > 0 else {
-                    fail("Invalid value for --batch/-b: \(value). Expected a positive integer.")
+                    try fail("Invalid value for --batch/-b: \(value). Expected a positive integer.")
                 }
                 config.batchSize = val
                 
             case "--lr", "-l":
-                let value = requireValue(for: "--lr/-l")
+                let value = try requireValue(for: "--lr/-l")
                 guard let val = Float(value), val.isFinite, val > 0 else {
-                    fail("Invalid value for --lr/-l: \(value). Expected a positive finite number.")
+                    try fail("Invalid value for --lr/-l: \(value). Expected a positive finite number.")
                 }
                 config.learningRate = val
                 config.learningRateProvided = true
                 
             case "--data", "-d":
-                config.dataPath = requireNonFlagValue(for: "--data/-d")
+                config.dataPath = try requireNonFlagValue(for: "--data/-d")
 
             case "--seed", "-s":
-                let value = requireValue(for: "--seed/-s")
+                let value = try requireValue(for: "--seed/-s")
                 guard let val = UInt64(value) else {
-                    fail("Invalid value for --seed/-s: \(value). Expected a non-negative integer.")
+                    try fail("Invalid value for --seed/-s: \(value). Expected a non-negative integer.")
                 }
                 config.seed = val
 
@@ -104,26 +146,65 @@ struct Config {
                 config.exportJson = true
 
             case "--checkpoint-interval":
-                let value = requireValue(for: "--checkpoint-interval")
+                let value = try requireValue(for: "--checkpoint-interval")
                 guard let val = Int(value), val > 0 else {
-                    fail("Invalid value for --checkpoint-interval: \(value). Expected a positive integer.")
+                    try fail("Invalid value for --checkpoint-interval: \(value). Expected a positive integer.")
                 }
                 config.checkpointInterval = val
 
+            case "--early-stopping-patience":
+                let value = try requireValue(for: "--early-stopping-patience")
+                guard let val = Int(value), val > 0 else {
+                    try fail("Invalid value for --early-stopping-patience: \(value). Expected a positive integer.")
+                }
+                config.earlyStoppingPatience = val
+
+            case "--early-stopping-min-delta":
+                let value = try requireValue(for: "--early-stopping-min-delta")
+                guard let val = Float(value), val.isFinite, val >= 0 else {
+                    try fail("Invalid value for --early-stopping-min-delta: \(value). Expected a non-negative finite number.")
+                }
+                config.earlyStoppingMinDelta = val
+
             case "--resume":
-                config.resumeFrom = requireNonFlagValue(for: "--resume")
+                config.resumeFrom = try requireNonFlagValue(for: "--resume")
+
+            case "--evaluate", "-E":
+                config.evaluatePath = try requireNonFlagValue(for: "--evaluate/-E")
 
             case "--help", "-h":
                 printUsage()
                 exit(0)
                 
             default:
-                ColoredPrint.error("Unknown argument: \(arg)")
-                printUsage()
-                exit(1)
+                try fail("Unknown argument: \(arg)")
             }
             
             i += 1
+        }
+
+        if config.isEvaluationMode {
+            if config.epochsProvided {
+                try fail("--evaluate cannot be combined with --epochs/-e because evaluation does not train.")
+            }
+            if config.resumeFrom != nil {
+                try fail("--evaluate cannot be combined with --resume. Pass the checkpoint path to --evaluate instead.")
+            }
+            if config.useCompile {
+                try fail("--evaluate cannot be combined with --compile")
+            }
+            if config.checkpointInterval != nil {
+                try fail("--evaluate cannot be combined with --checkpoint-interval")
+            }
+            if config.earlyStoppingPatience != nil {
+                try fail("--evaluate cannot be combined with --early-stopping-patience")
+            }
+            if config.earlyStoppingMinDelta != nil {
+                try fail("--evaluate cannot be combined with --early-stopping-min-delta")
+            }
+            if config.exportJson {
+                try fail("--evaluate cannot be combined with --export-json")
+            }
         }
         
         return config
@@ -140,7 +221,7 @@ func printUsage() {
       swift run MNISTMLX [OPTIONS]
 
     OPTIONS:
-      --model, -m <name>    Model to train: mlp, cnn, resnet, attention, or transformer (default: mlp)
+      --model, -m <name>    Model to train: \(supportedModelTypes.joined(separator: ", ")) (default: mlp)
       --epochs, -e <n>      Number of training epochs (default: 5)
       --batch, -b <n>       Batch size (default: 32)
       --lr, -l <f>          Learning rate (default: 0.01)
@@ -149,7 +230,10 @@ func printUsage() {
       --compile, -c         Enable compiled training for faster execution
       --export-json         Export training results to JSON file
       --checkpoint-interval <n>  Save checkpoint every N epochs (default: disabled)
+      --early-stopping-patience <n>  Stop after N epochs without meaningful validation accuracy improvement (default: disabled)
+      --early-stopping-min-delta <f> Minimum validation accuracy improvement required to reset patience (default: 0.0)
       --resume <path>       Resume training from checkpoint file
+      --evaluate, -E <path> Evaluate a saved MNISTMLX checkpoint on the MNIST test set
       --help, -h            Show this help message
 
     ENVIRONMENT:
@@ -158,6 +242,8 @@ func printUsage() {
 
     EXAMPLES:
       swift run MNISTMLX --model cnn --epochs 3
+      swift run MNISTMLX --evaluate best_model_cnn.json
+      swift run MNISTMLX --evaluate best_model_cnn.json --model cnn
       swift run MNISTMLX -m mlp -e 10 -b 64 -l 0.005
       ANSI_COLORS=1 swift run MNISTMLX --model attention --epochs 5
 

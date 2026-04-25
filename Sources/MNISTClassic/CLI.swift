@@ -21,6 +21,8 @@ var rngSeed: UInt64 = 1
 /// - `--epochs, -e N`: Set number of training epochs (default: 10)
 /// - `--lr, -l F`: Set learning rate (default: 0.01)
 /// - `--seed, -s N`: Set RNG seed for reproducibility (default: 1)
+/// - `--mps`: Use Metal Performance Shaders GPU backend
+/// - `--mpsgraph`: Use MPSGraph backend
 /// - `--help, -h`: Display usage information and exit
 ///
 /// Invalid arguments are silently ignored. Invalid values for recognized arguments
@@ -66,6 +68,8 @@ func applyCliOverrides() {
             }
             rngSeed = value
             i += 1
+        case "--mps", "--mpsgraph":
+            break
         case "--help", "-h":
             print("""
 Usage: mnist_mlp_swift [OPTIONS]
@@ -76,7 +80,12 @@ OPTIONS:
   --epochs, -e N     Number of training epochs (default: 10)
   --lr, -l F         Learning rate (default: 0.01)
   --seed, -s N       Random seed for reproducibility (default: 1)
+  --mps              Use Metal Performance Shaders GPU backend
+  --mpsgraph         Use MPSGraph backend (implies --mps)
   --help, -h         Show this help message
+
+NOTE:
+  --mpsgraph uses a fixed batch size; leftover samples are dropped to keep the graph static.
 """)
             exit(0)
         default:
